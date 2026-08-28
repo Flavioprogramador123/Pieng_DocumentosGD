@@ -1,0 +1,39 @@
+Nome: LAESTE MENDES FERREIRA
+CPF: 319.257.231-00
+RG: 1898967 SSP GO
+Data de Nascimento: 25/05/1962
+Endereço: FAZENDA BOA VISTA, N. 0, - ROTA 961
+Bairro: ZONA RURAL
+Cidade/UF: ANAPOLIS GO
+CEP: 75149899
+Telefone: 62 9314-0893
+E-mail: cirilomendesferreiraneto@gmail.com
+Unidade Consumidora (UC): 704.212.012-65
+Data do Documento: 22/08/2026
+Cidade do Documento: Anápolis
+Classe: Rural
+Tipo de Ligação: BIFÁSICO
+Tensão de Atendimento (V): 220
+Disjuntor de Entrada (A): 50
+Nº Poste/Transformador: PT-001
+Coordenada UTM X: 754321.12
+Coordenada UTM Y: 8198765.34
+Tipo de Fonte: SOLAR FOTOVOLTAICA
+Modalidade de Compensação: AUTOCONSUMO LOCAL
+Data Prevista de Operação: 30/09/2026
+Armazenamento (se houver): NÃO
+Potência Máxima Injetável (kW): 5.5
+Quantidade de Módulos: 10
+Fabricante dos Módulos: FABRICANTE TESTE
+Modelo dos Módulos: MODELO TESTE 550W
+Potência Unitária dos Módulos (Wp): 550
+Área dos Arranjos (m²): 25
+Quantidade de Inversores: 1
+Fabricante dos Inversores: FABRICANTE INVERSOR TESTE
+Modelo dos Inversores: MODELO INVERSOR TESTE
+Potência Nominal dos Inversores (kW): 5
+Corrente Nominal dos Inversores (A): 22
+Faixa de Tensão dos Inversores (V): 80-550
+Fator de Potência: 1
+Rendimento (%): 98.5
+DHT de Corrente (%): 3

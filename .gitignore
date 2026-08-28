@@ -1,0 +1,38 @@
+# Segredos e config local — NUNCA commitar
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+config_padrao.local.json
+backend/config_padrao.local.json
+
+# Saída gerada
+saida/
+data/catalog.db
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+backend/.venv/
+*.egg-info/
+.pytest_cache/
+
+# Node
+node_modules/
+equatorial_automation_frontend/node_modules/
+dist/
+equatorial_automation_frontend/dist/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+nul

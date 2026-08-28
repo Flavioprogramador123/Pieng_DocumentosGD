@@ -1,0 +1,548 @@
+=== NT.00020-05-Anexo-I-Formulario-de-Solicitacao-Grupo-B-templates.xltx ===
+SHEETS: ['ROTEIRO', '0', '1', 'Planilha1', '2', 'FONTES']
+-- ROTEIRO (659 rows x 37 cols) --
+B2='ROTEIRO DE PREENCHIMENTO DO FORMULÁRIO DE SOLICITAÇÃO DE ORÇAMENTO E RESPECTIVAS GUIAS'
+B4='1º)' | C4='Preencher a GUIA 0 nos campos correspontes ao tipo de fonte de geração de energia elétrica'
+C5='SOLAR FOTOVOLTAICA - Preencher os itens 1 (fonte) e 2 (inversor), conforme a quantidade de arranjos e inversores.'
+C6='No item 1, existem espaços para até 10 arranjos. Cada linha corresponde as informações de 1 arranjo, preencher cada célula, exceto as da coluna POTÊNCIA'
+C7='DE PICO e as células da linha TOTAL, pois estas células são calculadas automaticamente.'
+C8='No item 2, existem espaços para até 10 inversores. Cada linha corresponde as informações de 1 inversor, preencher todas as células, exceto a célula da linha'
+C9='TOTAL, pois está célula é calculada automaticamente.'
+C10='EÓLICA - Preencher os itens 2 (inversor) e 3 (fonte). Preencher conforme a quantidade de geradores e inversores.'
+C11='No item 2, existem espaços para até 10 inversores. Cada linha corresponde as informações de 1 inversor, preencher todas as células, exceto a célula da linha'
+C12='TOTAL, pois está célula é calculada automaticamente.'
+C13='No item 3, existem espaços para até 10 geradores. Cada linha corresponde as informações de 1 gerador, preencher cada célula, exceto as células da linha'
+C14='TOTAL, pois estas células são calculadas automaticamente.'
+C15='HIDRÁULICA - Preencher o item 4, conforme a quantidade de geradores. Cada linha corresponde a 1 gerador, preencher cada célula, exceto as células da coluna'
+C16='POTENCIA DO GERADOR e as da linha TOTAL, pois estas células são calculadas automaticamente'
+C17='BIOMASSA, COGERAÇÃO E OUTROS - Preencher o item 5. Preencher todas as células, exceto a célula correspondente a POTÊNCIA MÁXIMA EM REGIME'
+C18='CONTINUO, pois esta células é calculada automaticamente a partir das informações de POTÊNCIA NOMINAL DA PLACA (KVA) e FATOR DE POTÊNCIA'
+B19='2º)' | C19='Preencher a GUIA 1, obrigatoriamente todos os campos destacados em vermelho. Quando os itens em vermelho forem preenchidos, a tarja vermelha irá'
+C20='desaparecer.'
+C21='Preecher o item 1 DADOS CADASTRAIS DA UNIDADE CONSUMIDORA. Nos campos selecionáveis devem ser selecionadas as informações que se aplicam a UC.'
+C22='Preecher o item 2 DADOS DO RESPONSÁVEL TÉCNICOS.'
+C23='Preecher o item 3 CARACTERÍSTICAS DA MINIGERAÇÃO DISTRIBUÍDA. '
+C24='Selecionar o TIPO DE GERAÇÃO (SOLAR, EÓLICO, BIOMASSA, COGERAÇÃO QUALIFICADA, etc. Se for necessário especificar a fonte primária'
+C25='Selecionar o ENQUADRAMENTO DA MICRO (compensação local, autoconsumo remoto, geração compartilhada ou EMUC)'
+C26='Preecher o campo DATA DE INÍCIO DA OPERAÇÃO.'
+C27='Todos os demais campo deste item são calculados automaticamente, desde que a GUIA 0 e o itens anteriores da GUIA 1 sejam preenchidos corretamente'
+B28='3º)' | C28='Preencher a GUIA 2, apenas do casos de AUTOCONSUMO REMOTO, GERAÇÃO COMPARTILHADA E EMPREENDIMENTO DE MÚLTIPLAS'
+B30='OBS: Nos campos selecionáveis, caso o preenchimento vermelho não desapareça, clicar duas vezes ou selecionar outro valor e voltar para o valor desejado'
+-- 0 (1275 rows x 73 cols) --
+C3='Informações das Unidades Geradoras (UG): (PREENCHER CONFORME O TIPO DE FONTE DE GERAÇÃO)'
+C5='1. Solar Fotovoltaica '
+C6='Item ' | D6='Potência do Módulo (W)' | H6='Quantidade' | K6='Potência de Pico (kWp):' | P6='Área do arranjo (m²):' | T6='Fabricante(s) dos Módulos' | AA6='Modelo'
+C7=1 | D7='{{POTENCIA_MODULO}}' | H7='{{QTD_MODULOS}}' | K7='=IFERROR((D7*H7)/1000,"")' | P7='{{AREA_ARRANJO}}' | T7='{{FABRICANTE_MODULO}}' | AA7='{{MODELO_MODULO}}'
+C8=2 | K8='=IFERROR((D8*H8)/1000,"")'
+C9=3 | K9='=IFERROR((D9*H9)/1000,"")'
+C10=4 | K10='=IFERROR((D10*H10)/1000,"")'
+C11=5 | K11='=IFERROR((D11*H11)/1000,"")'
+C12=6 | K12='=IFERROR((D12*H12)/1000,"")'
+C13=7 | K13='=IFERROR((D13*H13)/1000,"")'
+C14=8 | K14='=IFERROR((D14*H14)/1000,"")'
+C15=9 | K15='=IFERROR((D15*H15)/1000,"")'
+C16=10 | K16='=IFERROR((D16*H16)/1000,"")'
+C17='TOTAL' | H17='=IFERROR(SUM(H7:J16),"")' | K17='=IFERROR(SUM(K7:O16),"")' | P17='=IFERROR(SUM(P7:S16),"")'
+C18='Obs: Célula fotovoltaica é a unidade básica, módulo é o conjunto de células e arranjo é o agrupamento de módulos, o gerador '
+C20='2. Dados dos Inversores'
+C21='Item ' | D21='Fabricante* ' | H21='Modelo*' | L21='Potência Nominal (kW)' | P21='Faixa de tensão de operação (V)' | T21='Corrente Nominal (A)' | W21='Fator de Potência' | Z21='Rendimento (%)' | AC21='DHT de Corrente (%)'
+C22=1 | D22='{{FABRICANTE_INVERSOR}}' | H22='{{MODELO_INVERSOR}}' | L22='{{POTENCIA_INVERSOR}}' | P22='{{FAIXA_TENSAO_INVERSOR}}' | T22='{{CORRENTE_INVERSOR}}' | W22='{{FATOR_POTENCIA}}' | Z22='{{RENDIMENTO}}' | AC22='{{DHT}}'
+C23=2
+C24=3
+C25=4
+C26=5
+C27=6
+C28=7
+C29=8
+C30=9
+C31=10
+C32=11
+C33=12
+C34=13
+C35=14
+C36=15
+C37=16
+C38=17
+C39=18
+C40=19
+C41=20
+C42=21
+C43=22
+C44=23
+C45=24
+C46=25
+C47=26
+C48=27
+C49=28
+C50=29
+C51=30
+C52='TOTAL' | L52='=SUM(L22:O51)'
+C53='Obs: Unidades Geradoras Fotovoltaiscas e Eólicas '
+C55='3. Eólica'
+C56='Item' | D56='Fabricante/Modelo' | F56='Eixo do rotor (horizontal/ vertical)*' | H56='Altura Máxima da Pá (m)*' | J56='Diâmetro do rotor (m)' | L56='Controle de Potência (1)' | N56='Velocidade de rotação nominal / Sobrevelocidade máxima (rpm)' | P56='Velocidade do vento (m/s)' | V56='Potência Gerada (kW)' | AB56='Momento de Inércia da Massa Girante   MD2/4 (kg.m2)' | AD56='Documento de certificação da turbina (2)'
+P57='Entrada em serviço          (cut-in)' | S57='Saída de seviço       (cut-out) ' | V57='Entrada em serviço     (cut-in)' | Y57='Saída de seviço       (cut-out)  '
+C58=1
+C59=2
+C60=3
+C61=4
+C62=5
+C63=6
+C64=7
+C65=8
+C66=9
+C67=10
+C68='TOTAL' | V68='=IFERROR(SUM(V58:X67),"")' | Y68='=IFERROR(SUM(Y58:AA67),"")'
+C69='Obs: No caso de aerogerador não convencional informar a altura máxima atingida pela estrutura.'
+C70='(1) Passo variável(Stall), Estol(pitch), Estol ativo (active stall), etc.'
+C71='(2) Data'
+C73='4. Hidráulica'
+C74='Item' | D74='Rio' | F74='Bacia / SubBacia' | I74='Tipo turbina' | L74='Fabricante Turbina' | N74='Potência Turbina (kVA)' | Q74='Fabricante Gerador' | T74='Potência do Gerador (kVA)' | X74='Fator de Potência do Gerador' | AB74='Potência do Gerador (kW)'
+C75=1 | AB75='=T75*X75'
+C76=2 | AB76='=T76*X76'
+C77=3 | AB77='=T77*X77'
+C78='TOTAL' | N78='=IFERROR(SUM(N75:P77),"")' | T78='=IFERROR(SUM(T75:W77),"")' | AB78='=IFERROR(SUM(AB75:AE77),"")'
+C80='5. Térmica (Biomassa/Solar Térmica/Cogeração)'
+C81='Informação' | H81='Especificação' | O81='Unidade' | Q81='Periodicidade' | U81='Observação'
+C82='Fabricante das Turbinas*'
+C83='Tipo de Turbina* (1)'
+C84='Fabricante/Modelo do Gerador'
+C85='Potência Nominal de Placa' | O85='kVA'
+C86='Potência Máxima em Regime Contínuo' | H86='=H85*H94' | O86='kW'
+C87='Corrente Nominal' | O87='A'
+C88='Tensão Nominal' | O88='kV'
+C89='Frequência Nominal' | O89='Hz'
+C90='Velocidade Nominal' | O90='rpm'
+C91='Número de fases'
+C92='Tipo e Ligação (2)'
+C93='Número de pólos'
+C94='Fator de Potência Máximo* (3)'
+C95=' (1) G/V/O'
+C96=' (2) Y ou Δ'
+C97=' (3) Sobre-excitado ou Sub-excitado'
+-- 1 (1293 rows x 101 cols) --
+AI2=20
+F3='NT.00020.EQTL.Normas e Qualidade\nANEXO I - Formulário de Solicitação de Orçamento de Microgeração Distribuída Grupo B' | AI3=25 | AJ3='MONOFÁSICO' | AK3='AL' | AL3='Residencial' | AM3='Preencher as coordenadas ponto de entrega do acessante em UTM Fuso 21, 22 ou 23' | AN3='LIGAÇÃO NOVA DE UNIDADE CONSUMIDORA COM GERAÇÃO DISTRIBUÍDA'
+AI4=30 | AJ4='BIFÁSICO' | AK4='AP' | AL4='Industrial' | AM4='Preencher as coordenadas do ponto de entrega do acessante em UTM Fuso 23' | AN4='CONEXÃO DE GD EM UNIDADE CONSUMIDORA EXISTENTE SEM AUMENTO DE POTÊNCIA DISPONIBILIZADA (ver item abaixo)'
+AI5=32 | AJ5='TRIFÁSICO' | AK5='GO' | AL5='Comércio, serviços e outras atividades' | AM5='Preencher as coordenadas do ponto de entrega do acessante em UTM Fuso 23 ou 24' | AN5='CONEXÃO DE GD EM UNIDADE CONSUMIDORA EXISTENTE COM AUMENTO DE POTÊNCIA DISPONIBILIZADA (ver item abaixo)'
+AI6=40 | AK6='MA' | AL6='Rural' | AM6='Preencher as coordenadas do ponto de entrega do acessante em UTM Fuso 24 ou 25' | AN6='AUMENTO DA POTÊNCIA DE GERAÇÃO EM UC COM GD EXISTENTE SEM AUMENTO DE POTÊNCIA DISPONIBILIZADA (ver item abaixo)'
+C7='1. Identificação e Dados Cadastrais da Unidade Consumidora - PREENCHER, OBRIGATORIAMENTE, TODOS OS CAMPOS NA COR VERMELHA' | AI7=50 | AJ7='SIM' | AK7='PA' | AL7='Poder Público' | AM7='Preencher as coordenadas ponto de entrega do acessante em UTM Fuso 21 ou 22' | AN7='AUMENTO DA POTÊNCIA DE GERAÇÃO EM UC COM GD EXISTENTE COM AUMENTO DE POTÊNCIA DISPONIBILIZADA (ver item abaixo)'
+AI8=60 | AJ8='NÃO' | AK8='PI' | AL8='Iluminação Pública' | AM8='Preencher as coordenadas ponto de entrega do acessante em UTM Fuso 22'
+C9='Nome do Cliente / Razão Social (Titular da Unidade Consumidora)' | R9='CPF/CNPJ' | Y9='RG' | AC9='{{RG}}' | AI9=63 | AK9='RS' | AL9='Serviço Público' | AM9='Preencher as coordenadas do ponto de entrega do acessante em UTM Fuso 22 ou 23'
+C10='{{NOME_CLIENTE}}' | R10='{{CPF}}' | Y10='DATA EXPEDIÇÃO' | AC10='{{DT_EXP}}' | AI10=70 | AJ10=127 | AL10='Consumo próprio'
+AI11=80 | AJ11=220 | AM11='SOLAR FOTOVOLTAICA'
+C12='Endereço' | R12='Contatos telefônicos' | AI12=100 | AJ12=380 | AL12='AUTOCONSUMO LOCAL' | AM12='EÓLICA'
+C13='{{ENDERECO}}' | R13='Celular' | T13='{{NUMERO}}' | Z13='Fixo' | AI13=125 | AJ13='AÉREO' | AL13='AUTOCONSUMO REMOTO' | AM13='HIDRÁULICA' | AN13='1Ø 127'
+AI14=150 | AJ14='SUBTERRÂNEO' | AL14='GERAÇÃO COMPARTILHADA' | AM14='BIOMASSA (especificar ao lado o tipo de fonte primária)' | AN14='2Ø 220'
+C15='CEP:' | D15='{{CEP}}' | G15='Munícipio' | I15='{{CIDADE}}' | N15='UF (selecionar)' | Q15='{{UF}}' | T15='E-mail' | V15='{{EMAIL}}' | AI15=175 | AL15='EMPREENDIMENTO DE MÚLTIPLAS UNIDADES CONSUMIDORAS' | AM15='COGERAÇÃO QUALIFICADA' | AN15='3Ø 220'
+AI16=200 | AM16='HÍBRIDO (indicar potência total ao lado)' | AN16='1Ø 220'
+C17='Tipo de orçamento desejado' | N17='=IF(F17="Orçamento Estimado", "Potência Geração","")' | R17='=IF(F17="Orçamento Estimado", "kW","")' | T17='Conta Contrato (Se UC existente)' | Z17='{{CONTA_CONTRATO}}' | AM17='OUTRAS (especificar ao lado)' | AN17='2Ø 380'
+AN18='3Ø 380'
+C19='Tipo de Solicitação (selecionar)' | AM19='EMPREGANDO MÁQUINA SÍNCRONA SEM CONVERSOR'
+AM20='EMPREGANDO CONVERSOR ELETRÔNICO/INVERSOR'
+C21='=IF(G19="","",IF(G19="LIGAÇÃO NOVA DE UNIDADE CONSUMIDORA COM GERAÇÃO DISTRIBUÍDA",0,IF(G19="CONEXÃO DE GD EM UNIDADE CONSUMIDORA EXISTENTE COM AUMENTO DE POTÊNCIA DISPONIBILIZADA (ver item abaixo)","INFORMAR O NÚMERO DA CONTA CONTRATO E PREENCHER O FORMULÁRIO DE TROCA PADRÃO NO ANEXO IV",IF(G19="CONEXÃO DE GD EM UNIDADE CONSUMIDORA EXISTENTE SEM AUMENTO DE POTÊNCIA DISPONIBILIZADA (ver item abaixo)","INFORMAR O NÚMERO DA CONTA CONTRATO",IF(G19="AUMENTO DA POTÊNCIA DE GERAÇÃO EM UC COM GD EXISTENTE SEM AUMENTO DE POTÊNCIA DISPONIBILIZADA (ver item abaixo)","INFORMAR NÚMERO DA CONTA CONTRATO E POTÊNCIA DA GD EXISTENTE",IF(G19="AUMENTO DA POTÊNCIA DE GERAÇÃO EM UC COM GD EXISTENTE COM AUMENTO DE POTÊNCIA DISPONIBILIZADA (ver item abaixo)","INFORMAR NÚMERO DA CONTA CONTRATO, POTÊNCIA DA GD EXISTENTE E PREENCHER ANEXO IV",""))))))' | W21='=IF(OR(G19="AUMENTO DA POTÊNCIA DE GERAÇÃO EM UC COM GD EXISTENTE SEM AUMENTO DE POTÊNCIA DISPONIBILIZADA (ver item abaixo)",G19="AUMENTO DA POTÊNCIA DE GERAÇÃO EM UC COM GD EXISTENTE COM AUMENTO DE POTÊNCIA DISPONIBILIZADA (ver item abaixo)"), "Potência de Geração Existente","")' | AE21='=IF(OR(G19="AUMENTO DA POTÊNCIA DE GERAÇÃO EM UC COM GD EXISTENTE SEM AUMENTO DE POTÊNCIA DISPONIBILIZADA (ver item abaixo)",G19="AUMENTO DA POTÊNCIA DE GERAÇÃO EM UC COM GD EXISTENTE COM AUMENTO DE POTÊNCIA DISPONIBILIZADA (ver item abaixo)"), "kW","")' | AM21='MISTA' | AN21='Orçamento de Conexão'
+AM22='OUTRA (especificar ao lado)' | AN22='Orçamento Estimado'
+C23='Possui Cargas Especiais?' | H23='Detalhar - Cargas especiais'
+C25='Ramo de Atividade (Descrição)'
+C27='Classe (selecionar)' | O27='Tipo de Ligação (selecionar)' | X27='Tensão de Atendimento da UC' | AE27='V'
+C29='Carga Declarada da UC' | H29='kW' | J29='Disjuntor de Entrada da UC (selecionar)' | R29='A' | T29='Potência Disponibilizada (PD) para a UC' | AB29='=IF(OR(T27="",AC27="",P29=""),"",IF(OR(Q15="PA",Q15="AP",Q15="RS"),IF(AND(T27="MONOFÁSICO",AC27=127),IF(AND(P29<80,P29<>30,P29<>32),ROUNDUP(AC27*P29*0.92/1000,0),IF(OR(P29=30,P29=32),3.5,IF(P29=80,10,""))),IF(AND(T27="BIFÁSICO",AC27=220),IF(AND(P29>=50,P29<70),ROUNDDOWN(AC27*P29*0.92/1000,0),IF(P29=70,15,"")),IF(AND(T27="TRIFÁSICO",AC27=220),IF(AND(P29>=50,P29<>125,P29<200),ROUNDDOWN(AC27*P29*SQRT(3)*0.92/1000,0),IF(P29=40,15,IF(P29=125,44,IF(P29=200,75,"")))),IF(Q15="RS",IF(AND(T27="MONOFÁSICO",AC27=220),IF(P29<63,ROUNDDOWN(AC27*P29*0.92/1000,0),IF(P29=63,12,"")),IF(AND(T27="BIFÁSICO",AC27=380),IF(P29<50,ROUNDUP(AC27*P29*0.92/1000,0),IF(P29=50,19,"")),IF(AND(T27="TRIFÁSICO",AC27=380),IF(AND(P29>=25,P29<125),ROUNDDOWN(AC27*P29*SQRT(3)*0.92/1000,0),IF(P29=125,75,"")),""))),"")))),IF(OR(Q15="MA",Q15="PI",Q15="AL",Q15="GO"),IF(AND(T27="MONOFÁSICO",AC27=220),IF(P29<63,ROUNDDOWN(AC27*P29*0.92/1000,0),IF(P29=63,12,"")),IF(AND(T27="BIFÁSICO",Q15="GO",AC27=380),IF(P29<50,ROUNDUP(AC27*P29*0.92/1000,0),IF(P29=50,19,"")),IF(AND(T27="TRIFÁSICO",AC27=380),IF(AND(P29>=20,P29<125),ROUNDDOWN(AC27*P29*SQRT(3)*0.92/1000,0),IF(P29=125,75,"")),""))),"")))' | AE29='kW'
+C31='Tipo de Ramal (selecionar)' | J31='Nº de identificação do poste ou transformador mais próximo'
+C33='=IF(Q15="PA",AM3,IF(Q15="MA",AM4,IF(Q15="PI",AM5,IF(Q15="AL",AM6,IF(Q15="RS",AM7,IF(Q15="AP",AM8,IF(Q15="GO",AM9,"O conteúdo deste campo será exibido quando for selecionada a UF")))))))' | O33='X = ' | P33='{{COORDENADA_UTM_X}}' | X33='Y =' | Y33='{{COORDENADA_UTM_Y}}'
+C35='2. Dados Cadastrais do Responsável Técnico'
+C37='Nome Completo' | M37='Titulo Profissional' | W37='Registro Profissional'
+C38='IURY RODRIGUES LOPES DE ASSIS' | M38='TECNICO EM ELETROTÉCNICA' | W38='Nº' | Y38=70886937124 | AD38='UF' | AE38='GO'
+C40='E-mail' | M40='Telefone Fixo' | S40='Telefone Celular' | Z40='Fax'
+C41='SOLARLASSIS@GMAIL.COM' | S41=62991670536
+C43='Endereço de Correspondência' | M43='Bairro' | P43='ANAPOLIS CITY' | Z43='UF:' | AB43='GO'
+C44='RUA S-84 QD 93 LT 07' | M44='Município' | P44='GO ' | Z44='CEP:' | AB44=75096470
+C46='3. Características da Microgeração Distribuída'
+C47='Dados Gerais da Central Geradora'
+C49='Tipo de Fonte Primária (selecionar)' | G49='SOLAR FOTOVOLTAICA' | Q49='Especificar se necessário'
+C51='Tipo de Geração (selecionar)' | G51='EMPREGANDO CONVERSOR ELETRÔNICO/INVERSOR' | Q51='Especificar se necessário'
+C53='Modalidade de Compensação (selecionar)' | W53='Potência Geração do Orçamento' | AC53='=IF(G49="","",IF(G49="SOLAR FOTOVOLTAICA",IF(\'0\'!L52<=\'0\'!K17,\'0\'!L52,\'0\'!K17),IF(G49="EÓLICA",IF(\'0\'!L52<=\'0\'!V68,\'0\'!L52,\'0\'!V68),IF(G49="HIDRÁULICA",\'0\'!AB78,IF(G49="BIOMASSA (especificar ao lado o tipo de fonte primária)",\'0\'!H86,IF(G49="COGERAÇÃO QUALIFICADA",\'0\'!H86,IF(OR(G49="OUTRAS (especificar ao lado)",G49="HÍBRIDO (indicar potência total ao lado)"),\'0\'!H86,"")))))))' | AE53='kW'
+C55='=IF(I53="","",IF(I53="AUTOCONSUMO LOCAL","NÃO É NECESSÁRIO PREENCHER A LISTA DE RATEIO","PREENCHER LISTA DE RATEIO DE CLIENTES NA GUIA 2 (OPCIONAL)"))' | W55='Potência Geração Total da UC(PGT)' | AC55='=IFERROR(AC21+AC53,"")' | AE55='kW'
+C57='Armazenamento (se houver)' | W57='Potência Máxima Injetável (se aplicável)' | AE57='kW'
+Q59='Data Início de Operação' | Y59='=IF(OR(AB29="",AC55=""),"",IF(AC55<=75,IF(AC55<=AB29,"OK: PGT ≤ PD","NOK: PGT > PD"),"PGT ACIMA DO LIMITE DO GRUPO B"))'
+C61='4. Documentos necessários que devem ser anexados à Solicitação de Orçamento de Conexão:'
+C63='Descrição' | V63='Observações'
+C64='1. Documento de responsabilidade técnica (projeto e execução) do conselho profissional competente, que identifique o número do registro válido e o nome do responsável técnico, o local da obra ou serviço e as atividades profissionais desenvolvidas, caso seja exigível na legislação específica e na forma prevista nessa legislação'
+C65='2. Indicação do local do padrão ou da subestação de entrada no imóvel, exclusivamente nos casos em que ainda não estiverem instalados'
+C66='3. Diagrama unifilar e de blocos do sistema de geração, carga e proteção'
+C67='4. Memorial Técnico Descritivo da instalação (Conforme Modelo do ANEXO III - MODELO DE MEMORIAL TÉCNICO DESCRITIVO)'
+C68='5. Relatório de ensaio, em língua portuguesa, atestando a conformidade de todos os conversores de potência para a tensão nominal de conexão com a rede, sempre que houver a utilização de conversores.'
+C69='6. Dados necessários ao registro da central geradora distribuída conforme disponível no site da ANEEL.'
+C70='7. Lista de unidades consumidoras participantes do sistema de compensação (se houver), indicando o percentual ou a ordem de utilização dos excedentes. (PLANILHA NA GUIA 2)' | V70='Para autoconsumo remoto, geração compartilhada e empreendimento de múltiplas unidades consumidoras'
+C71='8. Cópia de instrumento jurídico que comprove a participação dos integrantes para os casos de múltiplas unidades consumidoras e geração compartilhada. (Caso aplicável)' | V71='Apenas para os casos de empreendimentos com múltiplas unidades consumidoras e geração compartilhada.'
+C72='9. Documento que comprove o reconhecimento pela ANEEL, da cogeração qualificada (se houver)' | V72='Apenas para cogeração qualificada'
+C73='10. Dados de segurança das barragens no caso do uso de sistemas com fontes hídricas, conforme Resolução Normativa nº 696/2015. (Caso aplicável)'
+C74='11. Para centrais fotovoltaicas enquadradas como despacháveis, comprovação de que o sistema de armazenamento atende o disposto no art. 655-B da Resolução Normativa nº 1.000/2021. (Caso aplicável)'
+C75='12. Documento com data que comprove a propriedade ou posse do imóvel onde será implantada a unidade consumidora com microgeração ou minigeração distribuída, e que, no caso de unidade flutuante, deve ser complementado por autorização, licença ou documento equivalente exigível pelas autoridades competentes para a instalação flutuante, observada a possibilidade de dispensa prevista no §5º do art. 67 da Resolução Normativa nº 1.000/2021.' | V75='Apenas nos casos de Ligação Nova de UC com Microgeração ou Alteração da Potência Disponibilizada de UC Existente '
+C76='13. Formulário de Troca de Padrão ( de monofásico para bifásico ou trifásico, de bifásico para trifásico, de trifásico para bifásico ou monofásico, de bifásico para monofásico)  (Conforme ANEXO IV - FORMULÁRIO DE TROCA DE PADRÃO)' | V76='Apenas no caso de unidade consumidora existente com alteração de potência disponibilizada que implique em troca de padrão'
+C77='14. Autorização de uso de área comum em condomínio (quando necessário, conforme observação)' | V77='Quando uma UC individualmente construir uma central geradora utilizando a área comum do condomínio'
+C78='15. Procuração Autenticada (quando necesário, conforme observação)' | V78='Quando a solicitação for feita por terceiros'
+C79='16. Apresentação de licença ou declaração emitida pelo órgão competente caso as instalações ou a extensão de rede de responsabilidade do consumidor e demais usuários ocuparem áreas protegidas pela legislação, tais como unidades de conservação, reservas legais, áreas de preservação permanente, territórios indígenas e quilombolas. (Caso aplicável)'
+C81='5. Documentos necessários que devem ser anexados à Solicitação de Orçamento Estimado:'
+C83='Para solicitar orçamento estimado é necessário preencher apenas os dados básicos da unidade consumidora, a tensão de conexão e indicação da potência de geração no campo que surgirá ao lado do tipo de orçamento.'
+C84='Caso o orçamento estimado seja solicitado para uma localização onde ainda não exista unidade consumidora, é necessário anexar à solicitação planta de situação conforme modelo da norma NT.00020.EQTL.'
+C85='Devem ser enviados também documentos de identificação do consumidor e, caso existam, procurações e documentações dos representantes legais, conforme Tabela 3 da norma NT.00020.EQTL.'
+C87='6. Solicitações e Declarações'
+C89='Solicito que a contagem do prazo para realização da vistoria pela CONCESSIONÁRIA, conforme art. 68 da Resolução Normativa nº 1.000/2021, inicie-se somente após minha solicitação.' | AD89='SIM'
+C90='Autorizo a distribuidora a entregar junto com o orçamento de conexão os contratos e o documento ou meio para pagamento de custos de minha responsabilidade.' | AD90='SIM'
+C91='Declaro que as instalações internas da minha unidade consumidora, incluindo a geração distribuída, atendem às normas e padrões da distribuidora, às normas da Associação Brasileira de Normas Técnica - ABNT e às normas dos órgãos oficiais competentes, e ao art. 8º da Lei nº 9.074, de 1995, naquilo que for aplicável.' | AD91='SIM'
+C92='Solicito dispensa da análise de inversão de fluxo por enquadramento no art. 73-A da REN 1000, na seguinte regra: '
+C93='     Não injeção na rede de distribuição de energia elétrica (“Grid Zero”)' | AD93='NÃO'
+C94='     Enquadramento nos critérios de gratuidade da REN 1.000/2021 e potência de geração compatível com o consumo no horário de geração' | AD94='NÃO'
+C95='     Modalidade autoconsumo local, com potência instalada de geração igual ou inferior a 7,5 kW, observado o item 7' | AD95='NÃO'
+C96='Declaro, para todos os fins, que todas as informações prestadas neste documento são verdadeiras.' | AD96='SIM'
+C98='7. Termo de Aceite das condições para afastamento da análise de inversão de fluxo (Opcional)'
+C100='Solicito o afastamento da análise de inversão de fluxo, nos termos do inciso III do caput do art. 73-A da Resolução Normativa nº 1.000/2021, e declaro estar ciente de que:\n1) a unidade consumidora será enquadrada na modalidade autoconsumo local;\n2) fica vedada, em qualquer hipótese, a alocação ou realocação de excedentes ou de créditos de energia em unidade consumidora distinta de onde ocorreu a geração de energia elétrica, afastando-se as disposições de que trata o art. 655-M da Resolução Normativa nº 1.000/2021; e\n3) para alteração de enquadramento da modalidade da microgeração deverá ser encerrado o contrato e solicitado novo orçamento de conexão, vedada a aplicação do art. 655-M.\nDeclaro também reconhecer que essa opção é irrevogável e irretratável, implicando no meu dever de observar o que estabelece o art. 73-A da referida Resolução.'
+C101='Local e Data:'
+C102='Assinatura:'
+C104='8. Este formulário deve ser preenchido e encaminhado aos canais de atendimento Corporativo da Concessionária'
+C105='ALAGOAS - Sede de regionais (Maceio,Arapiraca, Matriz de Camaragibe e Santana' | O105='Eu, acessante identificado neste formulário, venho por meio deste instrumento, solicitar o acesso para microgeração distribuída, fornecendo meus dados cadastrais assim como as documentos necessários, em conformidade com as normas e resoluções aplicáveis.'
+C106='do Ipanema)'
+C107='AMAPÁ - Sede de regionais (Macapá)'
+C108='GOIÁS - Sede de regionais (Goiânia, Luziânia, Anápolis, Rio Verde e Iporá)'
+C109='MARANHÃO - Sede de regionais (São Luís, Imperatriz, Timon, Balsas e Bacabal)'
+C110='PARÁ - Sede de regionais (Belém, Castanhal, Marabá, Santarém e Altamira)'
+C111='PIAUÍ - Sede de regionais (Teresina, Parnaíba, Picos, Bom Jesus e Floriano)'
+C112='RIO GRANDE DO SUL - Sede de regionais (Porto Alegre, Osório e Pelotas)'
+C114='Em caso de dúvidas entrar em contato com os canais de atendimento disponibilizados na norma NT.00020.EQTL.Normas e Qualidade.'
+O115='Local' | U115='Data' | Z115='Assinatura do Responsável'
+B117='GERÊNCIA CORPORATIVA DE NORMAS E QUALIDADE. NT.00020.EQTL.Normas e Qualidade ANEXO I - FORMULÁRIO DE SOLICITAÇÃO DE ORÇAMENTO DE MICROGERAÇÃO DISTRIBUÍDA GRUPO B REVISÃO 05. DATA: 13/01/2025.'
+-- Planilha1 (77 rows x 2 cols) --
+A1='Campo' | B1='Marcador'
+A2='Nome do Cliente' | B2='{{NOME_CLIENTE}}'
+A3='CPF' | B3='{{CPF}}'
+A4='RG' | B4='{{RG}}'
+A5='Órgão Emissor RG' | B5='{{ORGAO_EMISSOR_RG}}'
+A6='UF RG' | B6='{{UF_RG}}'
+A7='Data de Nascimento' | B7='{{DATA_NASCIMENTO}}'
+A8='Endereço' | B8='{{ENDERECO}}'
+A9='Número' | B9='{{NUMERO}}'
+A10='Complemento' | B10='{{COMPLEMENTO}}'
+A11='Bairro' | B11='{{BAIRRO}}'
+A12='Cidade' | B12='{{CIDADE}}'
+A13='UF' | B13='{{UF}}'
+A14='CEP' | B14='{{CEP}}'
+A15='E-mail' | B15='{{EMAIL}}'
+A16='Telefone Celular' | B16='{{TELEFONE_CELULAR}}'
+A17='Telefone Fixo' | B17='{{TELEFONE_FIXO}}'
+A18='Conta Contrato/UC' | B18='{{CONTA_CONTRATO}}'
+A19='Classe' | B19='{{CLASSE}}'
+A20='Tipo de Ligação' | B20='{{TIPO_LIGACAO}}'
+A21='Tensão de Atendimento (V)' | B21='{{TENSAO_ATENDIMENTO}}'
+A22='Disjuntor de Entrada (A)' | B22='{{DISJUNTOR_ENTRADA}}'
+A23='Potência Disponibilizada (kW)' | B23='{{POTENCIA_DISPONIBILIZADA}}'
+A24='Nº Poste/Transformador' | B24='{{NUM_POSTE}}'
+A25='Coordenada UTM X' | B25='{{COORDENADA_UTM_X}}'
+A26='Coordenada UTM Y' | B26='{{COORDENADA_UTM_Y}}'
+A27='Nome Responsável Técnico' | B27='{{NOME_RESP_TECNICO}}'
+A28='Título Profissional' | B28='{{TITULO_PROFISSIONAL}}'
+A29='Registro Profissional' | B29='{{REGISTRO_PROFISSIONAL}}'
+A30='UF Registro' | B30='{{UF_REGISTRO}}'
+A31='E-mail Técnico' | B31='{{EMAIL_TECNICO}}'
+A32='Telefone Técnico' | B32='{{TELEFONE_TECNICO}}'
+A33='Endereço Técnico' | B33='{{ENDERECO_TECNICO}}'
+A34='Bairro Técnico' | B34='{{BAIRRO_TECNICO}}'
+A35='Cidade Técnico' | B35='{{CIDADE_TECNICO}}'
+A36='UF Técnico' | B36='{{UF_TECNICO}}'
+A37='CEP Técnico' | B37='{{CEP_TECNICO}}'
+A38='Tipo de Fonte' | B38='{{TIPO_FONTE}}'
+A39='Modalidade de Compensação' | B39='{{MODALIDADE_COMPENSACAO}}'
+A40='Potência de Geração (kW)' | B40='{{POTENCIA_GERACAO}}'
+A41='Potência Total Instalada (kW)' | B41='{{POTENCIA_TOTAL_INSTALADA}}'
+A42='Quantidade de Módulos' | B42='{{QTD_MODULOS}}'
+A43='Fabricante dos Módulos' | B43='{{FABRICANTE_MODULO}}'
+A44='Modelo dos Módulos' | B44='{{MODELO_MODULO}}'
+A45='Potência Unitária dos Módulos (Wp)' | B45='{{POTENCIA_MODULO}}'
+A46='Área dos Arranjos (m²)' | B46='{{AREA_ARRANJO}}'
+A47='Quantidade de Inversores' | B47='{{QTD_INVERSORES}}'
+A48='Fabricante dos Inversores' | B48='{{FABRICANTE_INVERSOR}}'
+A49='Modelo dos Inversores' | B49='{{MODELO_INVERSOR}}'
+A50='Potência Nominal dos Inversores (kW)' | B50='{{POTENCIA_INVERSOR}}'
+A51='Corrente Nominal dos Inversores (A)' | B51='{{CORRENTE_INVERSOR}}'
+A52='Faixa de Tensão dos Inversores (V)' | B52='{{FAIXA_TENSAO_INVERSOR}}'
+A53='Fator de Potência' | B53='{{FATOR_POTENCIA}}'
+A54='Rendimento (%)' | B54='{{RENDIMENTO}}'
+A55='DHT de Corrente (%)' | B55='{{DHT}}'
+A56='Data Prevista de Operação' | B56='{{DATA_OPERACAO}}'
+A57='Armazenamento (se houver)' | B57='{{ARMAZENAMENTO}}'
+A58='Potência Máxima Injetável (kW)' | B58='{{POTENCIA_MAX_INJETAVEL}}'
+A59='Nome do Procurador' | B59='{{NOME_PROCURADOR}}'
+A60='CPF Procurador' | B60='{{CPF_PROCURADOR}}'
+A61='RG Procurador' | B61='{{RG_PROCURADOR}}'
+A62='Órgão Emissor RG Procurador' | B62='{{ORGAO_EMISSOR_RG_PROCURADOR}}'
+A63='UF RG Procurador' | B63='{{UF_RG_PROCURADOR}}'
+A64='Endereço Procurador' | B64='{{ENDERECO_PROCURADOR}}'
+A65='Telefone Procurador' | B65='{{TELEFONE_PROCURADOR}}'
+A66='E-mail Procurador' | B66='{{EMAIL_PROCURADOR}}'
+A67='Valor do Investimento (R$)' | B67='{{VALOR_INVESTIMENTO}}'
+A68='Forma de Pagamento' | B68='{{FORMA_PAGAMENTO}}'
+A69='Banco' | B69='{{BANCO}}'
+A70='Agência' | B70='{{AGENCIA}}'
+A71='Conta' | B71='{{CONTA}}'
+A72='CNPJ Integrador' | B72='{{CNPJ_INTEGRADOR}}'
+A73='Pix Integrador' | B73='{{PIX_INTEGRADOR}}'
+A74='Nome Testemunha 1' | B74='{{NOME_TESTEMUNHA_1}}'
+A75='CPF Testemunha 1' | B75='{{CPF_TESTEMUNHA_1}}'
+A76='Nome Testemunha 2' | B76='{{NOME_TESTEMUNHA_2}}'
+A77='CPF Testemunha 2' | B77='{{CPF_TESTEMUNHA_2}}'
+-- 2 (405 rows x 27 cols) --
+D2='LISTA DE RATEIO PARA AS UNIDADES CONSUMIDORAS PARTICIPANTES DO SISTEMA DE COMPENSAÇÃO\n(Autoconsumo Remoto, Geração Compartilhada e EMUC)'
+B3='Conta Contrato da UC geradora' | I3='Enquadramento' | P3='Autoconsumo Remoto'
+B4='Local da solicitação' | L4='Data solicitação' | P4='Geração Compartilhada'
+B5='Forma de alocação dos créditos' | G5='Percentual do Excedente' | I5='=IF(G5="","",IF(G5="Ordem de Prioridade","Não preencher as porcentagens, será considerada a ordem","Prencher as porcentagens"))' | P5='Empreendimento de Múltiplas Unidades'
+B6='=IF(G5="Ordem de Prioridade", "Indicar unidade consumidora que receberá eventual excedente de energia (opcional)","")'
+B8='Ordem' | C8='% kWh' | D8='Conta Contrato' | G8='Classe de Consumo' | J8='ENDEREÇO'
+B9=1
+B10=2 | P10='Residencial'
+B11=3 | P11='Industrial'
+B12=4 | P12='Comércio, serviços e outras atividades'
+B13=5 | P13='Rural'
+B14=6 | P14='Poder Público'
+B15=7 | P15='Iluminação Pública'
+B16=8 | P16='Serviço Público'
+B17=9 | P17='Consumo próprio'
+B18=10
+B19=11 | P19='Ordem de Prioridade'
+B20=12 | P20='Percentual do Excedente'
+B21=13
+B22=14
+B23=15
+B24=16
+B25=17
+B26=18
+B27=19
+B28=20
+B29=21
+B30=22
+B31=23
+B32=24
+B33=25
+B34=26
+B35=27
+B36=28
+B37=29
+B38=30
+B39=31
+B40=32
+B41=33
+B42=34
+B43=35
+B44=36
+B45=37
+B46=38
+B47=39
+B48=40
+B49=41
+B50=42
+B51=43
+B52=44
+B53=45
+B54=46
+B55=47
+B56=48
+B57=49
+B58=50
+B59=51
+B60=52
+B61=53
+B62=54
+B63=55
+B64=56
+B65=57
+B66=58
+B67=59
+B68=60
+B69='TOTAL' | C69='=IF(G5="","",IF(G5="Percentual do Excedente", SUM(C9:C68)/100, "Definir ordem de prioridade"))'
+-- FONTES (35 rows x 3 cols) --
+A2='Origem' | C2='Fontes'
+A3='Biomassa' | B3='Floresta' | C3='Biogás - Floresta'
+C4='Carvão Vegetal'
+C5='Gás de Alto Forno - Biomassa'
+C6='Lenha'
+C7='Licor Negro'
+C8='Resíduos de Madeira'
+B9='Resíduos sólidos urbanos' | C9='Biogás - RU'
+B10='Resíduos animais' | C10='Biogás - RA'
+B11='Biocombustíveis líquidos' | C11='Etanol'
+C12='Óleos vegetais'
+B13='Agroindustriais' | C13='Bagaço de Cana de Açúcar'
+C14='Biogás-AGR'
+C15='Capim Elefante'
+C16='Casca de Arroz'
+A17='Eólica' | B17='Cinética do vento' | C17='Cinética do vento'
+A18='Fóssil' | B18='Petróleo' | C18='Gás de Alto Forno - PE'
+C19='Gás de Refinaria'
+C20='Óleo Combustível'
+C21='Óleo Diesel'
+C22='Outros Energéticos de Petróleo'
+B23='Carvão mineral' | C23='Calor de Processo - CM'
+C24='Carvão Mineral'
+C25='Gás de Alto Forno - CM'
+B26='Gás natural' | C26='Calor de Processo - GN'
+C27='Gás Natural'
+B28='Outros Fósseis' | C28='Calor de Processo - OF'
+C29='Turfa'
+C30='Xisto'
+A31='Hídrica' | B31='Potencial hidráulico' | C31='Potencial hidráulico'
+A32='Nuclear' | B32='Urânio' | C32='Urânio'
+A33='Solar' | B33='Radiação solar' | C33='Radiação solar'
+A34='Undi-Elétrica' | B34='Cinética da água' | C34='Cinética da água'
+
+=== planilha_chaves_para_templates.xltx ===
+SHEETS: ['PRINCIPAL', 'INVERSOR', 'DISJUNTOR', 'Disjuntor de Entrada', 'POTENCIA DISPONIBILIZADA', 'MODULO', 'DPS']
+-- PRINCIPAL (78 rows x 3 cols) --
+A1='Campo' | B1='Marcador' | C1='dados'
+A2='Nome do Cliente' | B2='{{NOME_CLIENTE}}'
+A3='CPF' | B3='{{CPF}}'
+A4='RG' | B4='{{RG}}'
+A5='Órgão Emissor RG' | B5='{{ORGAO_EMISSOR_RG}}'
+A6='Data de Expedição do RG' | B6='{{DT_EXP}}'
+A7='UF RG' | B7='{{UF_RG}}'
+A8='Data de Nascimento' | B8='{{DATA_NASCIMENTO}}'
+A9='Endereço' | B9='{{ENDERECO}}'
+A10='Número' | B10='{{NUMERO}}'
+A11='Complemento' | B11='{{COMPLEMENTO}}'
+A12='Bairro' | B12='{{BAIRRO}}'
+A13='Cidade' | B13='{{CIDADE}}'
+A14='UF' | B14='{{UF}}'
+A15='CEP' | B15='{{CEP}}'
+A16='E-mail' | B16='{{EMAIL}}'
+A17='Telefone Celular' | B17='{{TELEFONE_CELULAR}}'
+A18='Telefone Fixo' | B18='{{TELEFONE_FIXO}}'
+A19='Conta Contrato/UC' | B19='{{CONTA_CONTRATO}}'
+A20='Classe' | B20='{{CLASSE}}'
+A21='Tipo de Ligação' | B21='{{TIPO_LIGACAO}}'
+A22='Tensão de Atendimento (V)' | B22='{{TENSAO_ATENDIMENTO}}'
+A23='Disjuntor de Entrada (A)' | B23='{{DISJUNTOR_ENTRADA}}'
+A24='Potência Disponibilizada (kW)' | B24='{{POTENCIA_DISPONIBILIZADA}}'
+A25='Nº Poste/Transformador' | B25='{{NUM_POSTE}}'
+A26='Coordenada UTM X' | B26='{{COORDENADA_UTM_X}}'
+A27='Coordenada UTM Y' | B27='{{COORDENADA_UTM_Y}}'
+A28='Nome Responsável Técnico' | B28='{{NOME_RESP_TECNICO}}'
+A29='Título Profissional' | B29='{{TITULO_PROFISSIONAL}}'
+A30='Registro Profissional' | B30='{{REGISTRO_PROFISSIONAL}}'
+A31='UF Registro' | B31='{{UF_REGISTRO}}'
+A32='E-mail Técnico' | B32='{{EMAIL_TECNICO}}'
+A33='Telefone Técnico' | B33='{{TELEFONE_TECNICO}}'
+A34='Endereço Técnico' | B34='{{ENDERECO_TECNICO}}'
+A35='Bairro Técnico' | B35='{{BAIRRO_TECNICO}}'
+A36='Cidade Técnico' | B36='{{CIDADE_TECNICO}}'
+A37='UF Técnico' | B37='{{UF_TECNICO}}'
+A38='CEP Técnico' | B38='{{CEP_TECNICO}}'
+A39='Tipo de Fonte' | B39='{{TIPO_FONTE}}'
+A40='Modalidade de Compensação' | B40='{{MODALIDADE_COMPENSACAO}}'
+A41='Potência de Geração (kW)' | B41='{{POTENCIA_GERACAO}}'
+A42='Potência Total Instalada (kW)' | B42='{{POTENCIA_TOTAL_INSTALADA}}'
+A43='Quantidade de Módulos' | B43='{{QTD_MODULOS}}'
+A44='Fabricante dos Módulos' | B44='{{FABRICANTE_MODULO}}'
+A45='Modelo dos Módulos' | B45='{{MODELO_MODULO}}'
+A46='Potência Unitária dos Módulos (Wp)' | B46='{{POTENCIA_MODULO}}'
+A47='Área dos Arranjos (m²)' | B47='{{AREA_ARRANJO}}'
+A48='Quantidade de Inversores' | B48='{{QTD_INVERSORES}}'
+A49='Fabricante dos Inversores' | B49='{{FABRICANTE_INVERSOR}}'
+A50='Modelo dos Inversores' | B50='{{MODELO_INVERSOR}}'
+A51='Potência Nominal dos Inversores (kW)' | B51='{{POTENCIA_INVERSOR}}'
+A52='Corrente Nominal dos Inversores (A)' | B52='{{CORRENTE_INVERSOR}}'
+A53='Faixa de Tensão dos Inversores (V)' | B53='{{FAIXA_TENSAO_INVERSOR}}'
+A54='Fator de Potência' | B54='{{FATOR_POTENCIA}}'
+A55='Rendimento (%)' | B55='{{RENDIMENTO}}'
+A56='DHT de Corrente (%)' | B56='{{DHT}}'
+A57='Data Prevista de Operação' | B57='{{DATA_OPERACAO}}'
+A58='Armazenamento (se houver)' | B58='{{ARMAZENAMENTO}}'
+A59='Potência Máxima Injetável (kW)' | B59='{{POTENCIA_MAX_INJETAVEL}}'
+A60='Nome do Procurador' | B60='{{NOME_PROCURADOR}}'
+A61='CPF Procurador' | B61='{{CPF_PROCURADOR}}'
+A62='RG Procurador' | B62='{{RG_PROCURADOR}}'
+A63='Órgão Emissor RG Procurador' | B63='{{ORGAO_EMISSOR_RG_PROCURADOR}}'
+A64='UF RG Procurador' | B64='{{UF_RG_PROCURADOR}}'
+A65='Endereço Procurador' | B65='{{ENDERECO_PROCURADOR}}'
+A66='Telefone Procurador' | B66='{{TELEFONE_PROCURADOR}}'
+A67='E-mail Procurador' | B67='{{EMAIL_PROCURADOR}}'
+A68='Valor do Investimento (R$)' | B68='{{VALOR_INVESTIMENTO}}'
+A69='Forma de Pagamento' | B69='{{FORMA_PAGAMENTO}}'
+A70='Banco' | B70='{{BANCO}}'
+A71='Agência' | B71='{{AGENCIA}}'
+A72='Conta' | B72='{{CONTA}}'
+A73='CNPJ Integrador' | B73='{{CNPJ_INTEGRADOR}}'
+A74='Pix Integrador' | B74='{{PIX_INTEGRADOR}}'
+A75='Nome Testemunha 1' | B75='{{NOME_TESTEMUNHA_1}}'
+A76='CPF Testemunha 1' | B76='{{CPF_TESTEMUNHA_1}}'
+A77='Nome Testemunha 2' | B77='{{NOME_TESTEMUNHA_2}}'
+A78='CPF Testemunha 2' | B78='{{CPF_TESTEMUNHA_2}}'
+-- INVERSOR (24 rows x 3 cols) --
+A1='Campo' | B1='Marcador' | C1='dados'
+A2='Fabricante' | B2='{{FABRICANTE_INVERSOR}}'
+A3='Modelo' | B3='{{MODELO_INVERSOR}}'
+A4='Quantidade' | B4='{{QTD_INVERSORES}}'
+A5='Potência nominal – Pn [kW]' | B5='{{POTENCIA_INVERSOR}}'
+A6='Máxima potência na entrada CC – Pmax-cc [kW]' | B6='{{POTENCIA_MAX_CC_INVERSOR}}'
+A7='Máxima tensão CC – Vcc-máx [V]' | B7='{{TENSAO_MAX_CC_INVERSOR}}'
+A8='Máxima corrente CC – Icc-máx [V]' | B8='{{CORRENTE_MAX_CC_INVERSOR}}'
+A9='Máxima tensão MPPT – Vpmp-máx [V]' | B9='{{TENSAO_MPPT_MAX_INVERSOR}}'
+A10='Mínima tensão MPPT – Vpmp-min [V]' | B10='{{TENSAO_MPPT_MIN_INVERSOR}}'
+A11='Tensão CC de partida – Vcc-part [V]' | B11='{{TENSAO_PARTIDA_CC_INVERSOR}}'
+A12='Quantidade de Strings' | B12='{{QTD_STRINGS_INVERSOR}}'
+A13='Quantidade de entradas MPPT' | B13='{{QTD_ENTRADAS_MPPT_INVERSOR}}'
+A14='Potência nominal CA – Pca [kW]' | B14='{{POTENCIA_NOMINAL_CA_INVERSOR}}'
+A15='Máxima potência na saída CA – Pca-máx [kW]' | B15='{{POTENCIA_MAX_SAIDA_CA_INVERSOR}}'
+A16='Máxima corrente na saída CA – Imáx-ca [A]' | B16='{{CORRENTE_MAX_SAIDA_CA_INVERSOR}}'
+A17='Tensão nominal CA – Vnon-ca [V]' | B17='{{TENSAO_NOMINAL_CA_INVERSOR}}'
+A18='Frequência nominal – Fn [Hz]' | B18='{{FREQUENCIA_NOMINAL_INVERSOR}}'
+A19='Máxima tensão CA – Vca-máx [V]' | B19='{{TENSAO_MAX_CA_INVERSOR}}'
+A20='Mínima tensão CA – Vca-min [V]' | B20='{{TENSAO_MIN_CA_INVERSOR}}'
+A21='THD de corrente [%]' | B21='{{THD_CORRENTE_INVERSOR}}'
+A22='Fator de potência' | B22='{{FATOR_POTENCIA_INVERSOR}}'
+A23='Tipo de conexão – número de fases + neutro + terra' | B23='{{TIPO_CONEXAO_INVERSOR}}'
+A24='Eficiência máxima [%]' | B24='{{EFICIENCIA_MAX_INVERSOR}}'
+-- DISJUNTOR (7 rows x 3 cols) --
+A1='campo' | B1='Marcador' | C1='dados'
+A2='Número de pólos' | B2='{{NUM_POLOS_DISJUNTOR}}'
+A3='Tensão nominal CA ou CC [V]' | B3='{{TENSAO_NOMINAL_DISJUNTOR}}'
+A4='Corrente Nominal [A]' | B4='{{CORRENTE_NOMINAL_DISJUNTOR}}'
+A5='Frequência [Hz], para disjuntor CA' | B5='{{FREQUENCIA_DISJUNTOR}}'
+A6='Capacidade máxima de interrupção [kA]' | B6='{{CAPACIDADE_INT_DISJUNTOR}}'
+A7='Curva de atuação' | B7='{{CURVA_ATUACAO_DISJUNTOR}}'
+-- Disjuntor de Entrada (9 rows x 3 cols) --
+A1='Campo' | B1='Marcador' | C1='dados'
+A2='NÚMERO DE POLOS' | B2='{{NUM_POLOS_DISJUNTOR}}'
+A3='TENSÃO NOMINAL' | B3='{{TENSAO_NOMINAL_DISJUNTOR}}'
+A4='CORRENTE NOMINAL' | B4='{{CORRENTE_NOMINAL_DISJUNTOR}}'
+A5='FREQUÊNCIA NOMINAL' | B5='{{FREQUENCIA_DISJUNTOR}}'
+A6='ELEMENTO DE PROTECAO' | B6='{{ELEMENTO_PROTECAO_DISJUNTOR}}'
+A7='CAPACIDADE MAXIMA DE INTERRUPCAO' | B7='{{CAPACIDADE_INT_DISJUNTOR}}'
+A8='ACIONAMENTO' | B8='{{ACIONAMENTO_DISJUNTOR}}'
+A9='CURVA DE ATUACAO (DISPARO)' | B9='{{CURVA_ATUACAO_DISJUNTOR}}'
+-- POTENCIA DISPONIBILIZADA (7 rows x 3 cols) --
+A1='Campo' | B1='Marcador para usar no .docx' | C1='dados'
+A2='VN = V' | B2='{{TENSAO_NOMINAL}} V'
+A3='IDG = A' | B3='{{CORRENTE_ENTRADA}} A'
+A4='NF =' | B4='{{NUM_FASES}}'
+A5='FP =' | B5='{{FATOR_POTENCIA}}'
+A6='PD (kVA) = KVA' | B6='{{POTENCIA_DISP_KVA}} kVA'
+A7='PD (kW) = kW' | B7='{{POTENCIA_DISP_KW}} kW'
+-- MODULO (15 rows x 3 cols) --
+A1='Campo' | B1='Marcador' | C1='dados'
+A2='Fabricante' | B2='{{FABRICANTE_MODULO}}'
+A3='Modelo' | B3='{{MODELO_MODULO}}'
+A4='Potência nominal – Pn [W]' | B4='{{POTENCIA_MODULO}}'
+A5='Tensão de circuito aberto – Voc [V]' | B5='{{TENSAO_CIRCUITO_ABERTO}}'
+A6='Corrente de curto circuito – Isc [A]' | B6='{{CORRENTE_CURTO_CIRCUITO}}'
+A7='Tensão de máxima potência – Vpmp [V]' | B7='{{TENSAO_MAX_POTENCIA}}'
+A8='Corrente de máxima potência – Ipmp [A]' | B8='{{CORRENTE_MAX_POTENCIA}}'
+A9='Eficiência [%]' | B9='{{EFICIENCIA_MODULO}}'
+A10='Comprimento [m]' | B10='{{COMPRIMENTO_MODULO}}'
+A11='Largura [m]' | B11='{{LARGURA_MODULO}}'
+A12='Área [m2]' | B12='{{AREA_MODULO}}'
+A13='Peso [kg]' | B13='{{PESO_MODULO}}'
+A14='Quantidade' | B14='{{QTD_MODULOS}}'
+A15='Potência do gerador [kW]' | B15='{{POTENCIA_GERADOR}}'
+-- DPS (6 rows x 2 cols) --
+A1='Campo' | B1='Marcador'
+A2='Tipo CC ou CA' | B2='{{TIPO_DPS}}'
+A3='Classe' | B3='{{CLASSE_DPS}}'
+A4='Tensão CC ou CA [V]' | B4='{{TENSAO_DPS}}'
+A5='Corrente nominal [kA]' | B5='{{CORRENTE_NOMINAL_DPS}}'
+A6='Corrente máxima [kA]' | B6='{{CORRENTE_MAXIMA_DPS}}'
+

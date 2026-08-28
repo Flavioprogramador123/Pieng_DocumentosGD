@@ -1,0 +1,105 @@
+# DADOS DO CLIENTE
+Nome: 
+CPF: 
+RG: 
+Data de Nascimento: 
+Endereço: 
+Número: 
+Complemento: 
+Bairro: 
+Cidade/UF: 
+CEP: 
+Telefone: 
+E-mail: 
+Unidade Consumidora (UC): 
+
+# DADOS DA SOLICITAÇÃO
+Data do Documento: 
+Cidade do Documento: 
+Classe: Rural
+Tipo de Ligação: 
+Tensão de Atendimento (V): 
+Disjuntor de Entrada (A): 
+Nº Poste/Transformador: 
+Coordenada UTM X: 
+Coordenada UTM Y: 
+Tipo de Fonte: SOLAR FOTOVOLTAICA
+Modalidade de Compensação: AUTOCONSUMO LOCAL
+Data Prevista de Operação: 
+Armazenamento (se houver): NÃO
+Potência Máxima Injetável (kW): 
+
+# MÓDULOS FOTOVOLTAICOS
+Quantidade de Módulos: 
+Fabricante dos Módulos: 
+Modelo dos Módulos: 
+Potência Unitária dos Módulos (Wp): 
+Área dos Arranjos (m²): 
+Tensão de circuito aberto (Voc) [V]: 
+Corrente de curto circuito (Isc) [A]: 
+Tensão de máxima potência (Vpmp) [V]: 
+Corrente de máxima potência (Ipmp) [A]: 
+Eficiência do Módulo (%): 
+Comprimento do Módulo (m): 
+Largura do Módulo (m): 
+Área do Módulo (m²): 
+Peso do Módulo (kg): 
+Potência Total Instalada (kW): 
+
+# INVERSORES
+Quantidade de Inversores: 
+Fabricante dos Inversores: 
+Modelo dos Inversores: 
+Potência Nominal dos Inversores (kW): 
+Corrente Nominal dos Inversores (A): 
+Faixa de Tensão dos Inversores (V): 
+Fator de Potência: 
+Rendimento (%): 
+DHT de Corrente (%): 
+Máxima potência na entrada CC (kW): 
+Máxima tensão CC (V): 
+Máxima corrente CC (A): 
+Máxima tensão MPPT (V): 
+Mínima tensão MPPT (V): 
+Tensão CC de partida (V): 
+Quantidade de Strings: 
+Quantidade de entradas MPPT: 
+Potência nominal CA (kW): 
+Máxima potência na saída CA (kW): 
+Máxima corrente na saída CA (A): 
+Tensão nominal CA (V): 
+Frequência nominal (Hz): 
+Máxima tensão CA (V): 
+Mínima tensão CA (V): 
+THD de corrente (%): 
+Fator de potência do inversor: 
+Tipo de conexão do inversor: 
+Eficiência máxima do inversor (%): 
+
+# DISJUNTOR E DPS
+Número de polos do disjuntor: 
+Tensão nominal do disjuntor (V): 
+Corrente nominal do disjuntor (A): 
+Frequência do disjuntor (Hz): 
+Capacidade máxima de interrupção (kA): 
+Curva de atuação: 
+Elemento de proteção do disjuntor: 
+Acionamento do disjuntor: 
+Tipo DPS: 
+Classe DPS: 
+Tensão DPS (V): 
+Corrente nominal DPS (kA): 
+Corrente máxima DPS (kA): 
+
+# RESPONSÁVEL PELO CONTRATO / TESTEMUNHAS (OPCIONAIS)
+Valor do Investimento (R$): 
+Forma de Pagamento: 
+Banco: 
+Agência: 
+Conta: 
+CNPJ Integrador: 
+Pix Integrador: 
+Nome Testemunha 1: 
+CPF Testemunha 1: 
+Nome Testemunha 2: 
+CPF Testemunha 2: 

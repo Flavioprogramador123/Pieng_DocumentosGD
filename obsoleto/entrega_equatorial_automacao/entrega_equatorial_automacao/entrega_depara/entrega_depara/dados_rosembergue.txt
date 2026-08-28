@@ -1,0 +1,71 @@
+# Dados do cliente Rosembegue Leao e Silva
+Nome: ROSEMBERGUE LEAO E SILVA
+CPF: 426.985.961-04
+RG: 2372249 SSP GO
+Data de Nascimento: 18/02/1970
+Validade CNH: 23/01/2030
+Pai: EDIO JOSE DA SILVA
+Mãe: ANA ROSA LEAO DA SILVA
+Endereço: Rua Pernambuco, Q. F, L. 5/6, Anexo Itamaraty
+Cidade/UF: Anápolis/GO
+Unidade Consumidora (UC): 000068889901235
+Telefone: 62 9274-3040
+E-mail: doceslu@uol.com.br
+
+# Dados técnicos informados pelo usuário
+Classe: Industrial
+Tipo de Ligação: Trifásico
+Tensão de Atendimento (V): 220/380
+Tipo de Rede: Circuito trifásico a 4 condutores
+Número de Fases: 3
+Tensão Nominal: 220
+Fator de Potência: 0.92
+Quantidade de Condutores Fase: 3
+Quantidade de Condutores Neutro: 1
+Bitola Cabo Padrão: 10 mm²
+Bitola Cabo CA: 10 mm²
+Disjuntor de Entrada (A): 40
+Corrente Nominal do Disjuntor (A): 40
+Número de Polos do Disjuntor: 3
+Descrição dos Polos do Disjuntor: tripolar
+Frequência do Disjuntor (Hz): 60
+Curva de Atuação: C
+Elemento de Proteção do Disjuntor: Termomagnético
+Acionamento do Disjuntor: Alavanca manual
+Tipo de Fonte: SOLAR FOTOVOLTAICA
+Modalidade de Compensação: AUTOCONSUMO LOCAL
+Quantidade de Módulos: 32
+Fabricante dos Módulos: RENEPV
+Modelo dos Módulos: MÓDULO 680W RENEPV BIFACIAL 30MM
+Potência Unitária dos Módulos (Wp): 680
+Tipo de Arranjo: A CONFIRMAR PELO TÉCNICO
+Quantidade de Inversores: 8
+Fabricante dos Inversores: DEYE
+Modelo dos Inversores: S2.25K-G4 220V
+Potência Nominal dos Inversores (kW): 2.25
+Potência Total dos Inversores (kW): 18
+Tensão Nominal CA (V): 220
+
+# Dados de catálogo: preencher após ficha técnica/OCR oficial
+Potência Máxima na Entrada CC (kW):
+Máxima Tensão CC (V):
+Máxima Corrente CC (A):
+Tensão MPPT Máxima (V):
+Tensão MPPT Mínima (V):
+Quantidade de Entradas MPPT:
+Máxima Corrente na Saída CA (A):
+Frequência Nominal (Hz): 60
+THD de Corrente (%):
+Fator de Potência do Inversor:
+Eficiência Máxima do Inversor (%):
+Tensão de Circuito Aberto (Voc) [V]:
+Corrente de Curto Circuito (Isc) [A]:
+Tensão de Máxima Potência (Vpmp) [V]:
+Corrente de Máxima Potência (Ipmp) [A]:
+Eficiência do Módulo (%):
+
+# Dados do documento
+Cidade do Documento: Anápolis
+
+# Tabela de carga: rascunho industrial, demanda-alvo de 20 kW, validar no local
+Demanda Alvo da Unidade (kW): 20

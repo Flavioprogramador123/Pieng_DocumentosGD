@@ -1,0 +1,25 @@
+Aqui estão os dados extraídos dos documentos enviados, organizados no padrão estabelecido e incluindo as informações de contato que você forneceu:
+
+**Dados da CNH**
+
+* Nome: LAESTE MENDES FERREIRA
+* CPF: 319.257.231-00 / 31925723100
+* RG: 1898967 SSP GO
+* Data de Nascimento: 25/05/1962
+* Pai: CIRILO MENDES FERREIRA
+* Mãe: ZULMIRA SOARES MENDES
+* Validade CNH: 26/05/2027
+
+**Dados da Fatura de Energia**
+
+* Titular: LAESTE MENDES FERREIRA
+* Endereço: FAZENDA BOA VISTA, N. 0, - ROTA 961
+* Bairro: ZONA RURAL
+* Cidade/UF: ANAPOLIS GO
+* CEP: 75149899
+* Unidade Consumidora (UC): 704.212.012-65
+
+**Dados de Contato**
+
+* Telefone: 62 9314-0893
+* E-mail: cirilomendesferreiraneto@gmail.com

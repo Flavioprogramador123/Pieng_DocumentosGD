@@ -1,0 +1,32 @@
+**Dados da CNH**
+
+* Nome: ROSEMBERGUE LEAO E SILVA
+* CPF: 426.985.961-04 / 42698596104
+* RG: 2372249 SSP GO
+* Data de Nascimento: 18/02/1970
+* Pai: EDIO JOSE DA SILVA
+* Mãe: ANA ROSA LEAO DA SILVA
+* Validade CNH: 23/01/2030
+
+**Dados da Fatura / Documento de Energia**
+
+* Titular: Fábrica de Doces Lu - 1
+* CNPJ: 00.023.416/0001-25
+* Endereço: Rua Pernambuco, Q. F, L. 5/6, Anexo Itamaraty
+* Cidade/UF: Anápolis/GO
+* Unidade Consumidora (UC): 000068889901235
+
+**Dados de Contato**
+
+* Telefone: 62 9274-3040
+* E-mail: doceslu@uol.com.br
+
+**Equipamentos do Sistema e Instalação Elétrica**
+
+* Módulos Fotovoltaicos: 32 unidades de MÓDULO 680W RENEPV BIFACIAL 30MM
+* Inversores: 8 unidades de MICRO INVERSOR DEYE-S2.25K-G4 220V
+* Padrão de Conexão: Trifásico 220/380V
+* Cabeamento AC: 3x Fase 10mm² + 1x Neutro 10mm²
+* Disjuntor de Proteção AC: 40A
+
+criar tabela industrial para demanda de demanda para colocar no memorial descritivo, 20kw

@@ -1,0 +1,11 @@
+#!/bin/bash
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+echo "=== Diagnostico ==="
+python3 --version || echo "Python ausente"
+node --version || echo "Node ausente"
+pnpm --version || echo "pnpm ausente"
+test -f "$ROOT/backend/api_server.py" && echo "OK backend" || echo "ERRO backend"
+test -f "$ROOT/equatorial_automation_frontend/package.json" && echo "OK frontend" || echo "ERRO frontend"
+test -f "$ROOT/templates/modelo_procuracao_marcadores.docx" && echo "OK templates" || echo "ERRO templates"
+test -x "$ROOT/backend/.venv/bin/python" && echo "OK venv" || echo "AVISO: crie o venv com iniciar.sh"
+test -d "$ROOT/equatorial_automation_frontend/node_modules" && echo "OK node_modules" || echo "AVISO: pnpm install"

@@ -1,0 +1,19 @@
+Titular da conta contrato: Cliente Exemplo Industrial
+CPF/CNPJ: 42698596104
+Logradouro do imóvel: Rua Pernambuco
+Número da casa: 5/6
+Quadra: F
+Lote: 5/6
+Bairro: Anexo Itamaraty
+Município/Estado: Anápolis/GO
+Número da UC: 000068889901235
+Tensão da rede: 220/380 V
+Conexão da rede: Trifásico
+Disjuntor geral: 40 A
+Seção do cabo de entrada: 10 mm²
+Quantidade de painéis: 32 unidades
+Potência dos painéis (Wp): 680
+Modelo dos painéis: MÓDULO 680W RENEPV BIFACIAL 30MM
+Microinversores: 8 unidades de MICRO INVERSOR DEYE-S2.25K-G4 220V
+Potência do microinversor (kW): 2.25
+Tipo de estrutura/arranjo: A CONFIRMAR PELO TÉCNICO

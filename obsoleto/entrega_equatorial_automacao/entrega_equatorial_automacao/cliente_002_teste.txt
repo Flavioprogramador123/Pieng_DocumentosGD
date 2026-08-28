@@ -1,0 +1,88 @@
+# CLIENTE 002 - JOSÉ PEREIRA OLIVEIRA
+# Sistema Solar Fotovoltaico Comercial - 10.8 kWp
+
+# DADOS DO CLIENTE
+Nome: JOSÉ PEREIRA OLIVEIRA
+CPF: 987.654.321-00
+RG: 9876543 DGPC GO
+Data de Nascimento: 22/07/1968
+Endereço: AVENIDA BRASIL, N. 1500
+Complemento: LOJA 3
+Bairro: SETOR CENTRAL
+Cidade/UF: ANÁPOLIS GO
+CEP: 75020-000
+Telefone: 62 99234-5678
+E-mail: jose.oliveira@comercial.com.br
+Unidade Consumidora (UC): 702.345.678-90
+
+# DADOS DA SOLICITAÇÃO
+Data do Documento: 27/08/2026
+Cidade do Documento: Anápolis
+Classe: Comercial
+Tipo de Ligação: Trifásica
+Tensão de Atendimento (V): 380
+Disjuntor de Entrada (A): 100
+Nº Poste/Transformador: 45678
+Coordenada UTM X: 712543.80
+Coordenada UTM Y: 8191234.50
+Data Prevista de Operação: 20/10/2026
+
+# MÓDULOS FOTOVOLTAICOS
+Quantidade de Módulos: 20
+Fabricante dos Módulos: JINKO SOLAR
+Modelo dos Módulos: JKM540M-7RL4-V
+Potência Unitária dos Módulos (Wp): 540
+Área do Módulo (m²): 2.58
+Tensão de circuito aberto (Voc) [V]: 49.65
+Corrente de curto circuito (Isc) [A]: 13.88
+Tensão de máxima potência (Vpmp) [V]: 41.65
+Corrente de máxima potência (Ipmp) [A]: 12.96
+Eficiência do Módulo (%): 20.95
+Comprimento do Módulo (m): 2.28
+Largura do Módulo (m): 1.13
+Peso do Módulo (kg): 28.2
+
+# INVERSORES
+Quantidade de Inversores: 1
+Fabricante dos Inversores: FRONIUS
+Modelo dos Inversores: PRIMO 10.0-1
+Potência Nominal dos Inversores (kW): 10.0
+Corrente Nominal dos Inversores (A): 14.5
+Faixa de Tensão dos Inversores (V): 80-800
+Fator de Potência: 1.0
+Rendimento (%): 98.0
+DHT de Corrente (%): 2.5
+Máxima potência na entrada CC (kW): 15.0
+Máxima tensão CC (V): 1000
+Máxima corrente CC (A): 20.0
+Máxima tensão MPPT (V): 800
+Mínima tensão MPPT (V): 80
+Tensão CC de partida (V): 120
+Quantidade de Strings: 2
+Quantidade de entradas MPPT: 2
+Potência nominal CA (kW): 10.0
+Máxima potência na saída CA (kW): 10.0
+Máxima corrente na saída CA (A): 14.5
+Tensão nominal CA (V): 380
+Frequência nominal (Hz): 60
+Máxima tensão CA (V): 437
+Mínima tensão CA (V): 323
+THD de corrente (%): 2.5
+Fator de potência do inversor: 1.0
+Tipo de conexão do inversor: Trifásico
+Eficiência máxima do inversor (%): 98.0
+
+# DISJUNTOR E DPS
+Número de polos do disjuntor: 3
+Tensão nominal do disjuntor (V): 400
+Corrente nominal do disjuntor (A): 25
+Frequência do disjuntor (Hz): 60
+Capacidade máxima de interrupção (kA): 15
+Curva de atuação: C
+Elemento de proteção do disjuntor: Termomagnético
+Acionamento do disjuntor: Manual
+Tipo DPS: Classe II
+Classe DPS: II
+Tensão DPS (V): 440
+Corrente nominal DPS (kA): 20
+Corrente máxima DPS (kA): 40

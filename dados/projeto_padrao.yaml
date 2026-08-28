@@ -1,0 +1,111 @@
+# =============================================================================
+# PROJETO EQUATORIAL — YAML padrão de entrada
+# =============================================================================
+# Preencha este arquivo manualmente ou peça a uma IA externa (Gemini, Claude…)
+# usando as instruções em dados/YAML_INSTRUCOES.md
+#
+# Importe na aba Entrada → YAML do formulário web, ou use:
+#   POST /api/import-yaml  { "yaml": "<conteúdo>" }
+# =============================================================================
+
+versao: "1.0"
+
+# --- CLIENTE ---
+cliente:
+  nome: ""                    # Nome completo do titular
+  cpf: ""                     # 000.000.000-00
+  rg: ""                      # RG (não confundir com data)
+  data_nascimento: ""         # AAAA-MM-DD
+  telefone: ""                # (62) 99999-9999
+  email: ""
+  logradouro: ""
+  numero: ""
+  complemento: ""
+  bairro: ""
+  cidade: ""
+  uf: "GO"                    # UF — usada para padrão de entrada e tensão
+  cep: ""                     # 00000-000
+
+# --- UNIDADE CONSUMIDORA ---
+unidade_consumidora:
+  numero: ""                    # UC Equatorial (ex.: 704.212.012-65)
+  classe: "RESIDENCIAL"       # RESIDENCIAL | COMERCIAL | RURAL | INDUSTRIAL
+  tipo_ligacao: "MONOFASICO"  # MONOFASICO | BIFASICO | TRIFASICO
+  tensao_atendimento: "220V"  # 220V | 220/380V | 127/220V
+  modalidade_compensacao: "AUTOCONSUMO LOCAL"
+  disjuntor_entrada: ""       # A — se vazio, catálogo preenche por UF/ligação
+  num_poste: ""
+  coordenada_utm_x: ""
+  coordenada_utm_y: ""
+  fuso_utm: "22S"
+
+# --- MÓDULOS FOTOVOLTAICOS (lista — pode ter mais de um modelo) ---
+modulos:
+  - quantidade: 8
+    fabricante: "Jinko"
+    modelo: "JKM555M-72HL4-V"
+    potencia: 555               # Wp por módulo
+    voc: ""                       # V — catálogo preenche se vazio
+    isc: ""                       # A
+    vmpp: ""                      # V
+    impp: ""                      # A
+    eficiencia: ""                # %
+
+# --- INVERSORES ---
+inversores:
+  - quantidade: 1
+    fabricante: "Growatt"
+    modelo: "MIN 5000TL-X"
+    potencia: 5.0                 # kW nominal
+    tipo_inversor: "STRING"       # STRING | MICRO | HIBRIDO
+    num_mppt: 2
+    mppt_min: ""                  # V — catálogo preenche
+    mppt_max: ""
+    tensao_nominal: ""            # V CA
+    corrente_nominal: ""          # A CA
+    eficiencia: ""                # %
+
+# --- DADOS TÉCNICOS / MEMORIAL ---
+dados_tecnicos:
+  tipo_fonte: "SOLAR FOTOVOLTAICA"
+  tipo_arranjo: "Telhado inclinado"
+  area_arranjo: ""                # m² total dos arranjos
+  data_documento: ""              # AAAA-MM-DD — vazio = hoje
+  data_operacao: ""               # previsão de operação
+
+  # Cabos e proteção
+  bitola_cabo_cc: "6 mm²"
+  bitola_cabo_ca: "10 mm²"
+  bitola_cabo_padrao: "10 mm²"
+  disjuntor_curva: "C"
+  dps_tipo: "DPS Classe II"
+  dps_cc: "DPS Classe II"
+  dps_ca: "275 V"
+  dr_sensibilidade_ma: "30"
+  dr_tipo: "DR 30 mA — alta sensibilidade"
+
+  # Aterramento
+  tipo_aterramento: "Haste copper 2,4 m com caixa de inspeção"
+  resistencia_aterramento: "≤ 10 Ω"
+
+  # Georreferenciamento (opcional)
+  latitude: ""
+  longitude: ""
+
+  # Strings / MPPT (calculados ou informados)
+  modulos_por_string: ""
+  num_mppt: "2"
+  tipo_inversor: "STRING"
+
+  # Tabela de demanda (memorial — Tabela 1)
+  demanda_alvo_kw: ""             # ex.: 4.5 — gera tabela automaticamente
+  demanda_notas: ""
+  tabela_demanda_text: ""         # texto pronto (alternativa à geração auto)
+
+# --- CAMPOS OPCIONAIS (contrato / integrador — se aplicável) ---
+# responsavel_tecnico:
+#   nome: ""
+#   crea: ""
+# integrador:
+#   cnpj: ""
+#   razao_social: ""

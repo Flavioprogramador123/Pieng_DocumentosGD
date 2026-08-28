@@ -1,0 +1,94 @@
+# CLIENTE 003 - FRANCISCO ALVES COSTA
+# Sistema Solar Fotovoltaico Rural - 16.2 kWp
+
+# DADOS DO CLIENTE
+Nome: FRANCISCO ALVES COSTA
+CPF: 456.789.123-00
+RG: 4567891 SSP GO
+Data de Nascimento: 10/11/1972
+Endereço: FAZENDA SANTA RITA, KM 15, RODOVIA GO-222
+Bairro: ZONA RURAL
+Cidade/UF: SILVÂNIA GO
+CEP: 75190-000
+Telefone: 62 99876-5432
+E-mail: francisco.costa@fazenda.com.br
+Unidade Consumidora (UC): 703.456.789-01
+
+# DADOS DA SOLICITAÇÃO
+Data do Documento: 27/08/2026
+Cidade do Documento: Silvânia
+Classe: Rural
+Tipo de Ligação: Trifásica
+Tensão de Atendimento (V): 380
+Disjuntor de Entrada (A): 125
+Nº Poste/Transformador: 78901
+Coordenada UTM X: 698765.40
+Coordenada UTM Y: 8145678.90
+Data Prevista de Operação: 30/10/2026
+
+# MÓDULOS FOTOVOLTAICOS
+Quantidade de Módulos: 30
+Fabricante dos Módulos: TRINA SOLAR
+Modelo dos Módulos: TSM-540DE18M(II)
+Potência Unitária dos Módulos (Wp): 540
+Área do Módulo (m²): 2.57
+Tensão de circuito aberto (Voc) [V]: 49.8
+Corrente de curto circuito (Isc) [A]: 13.85
+Tensão de máxima potência (Vpmp) [V]: 41.7
+Corrente de máxima potência (Ipmp) [A]: 12.95
+Eficiência do Módulo (%): 21.0
+Comprimento do Módulo (m): 2.28
+Largura do Módulo (m): 1.13
+Peso do Módulo (kg): 28.0
+
+# INVERSORES
+Quantidade de Inversores: 1
+Fabricante dos Inversores: SUNGROW
+Modelo dos Inversores: SG15RT
+Potência Nominal dos Inversores (kW): 15.0
+Corrente Nominal dos Inversores (A): 21.7
+Faixa de Tensão dos Inversores (V): 160-950
+Fator de Potência: 0.99
+Rendimento (%): 98.5
+DHT de Corrente (%): 2.0
+Máxima potência na entrada CC (kW): 22.5
+Máxima tensão CC (V): 1000
+Máxima corrente CC (A): 26.0
+Máxima tensão MPPT (V): 950
+Mínima tensão MPPT (V): 160
+Tensão CC de partida (V): 180
+Quantidade de Strings: 3
+Quantidade de entradas MPPT: 2
+Potência nominal CA (kW): 15.0
+Máxima potência na saída CA (kW): 15.0
+Máxima corrente na saída CA (A): 21.7
+Tensão nominal CA (V): 380
+Frequência nominal (Hz): 60
+Máxima tensão CA (V): 437
+Mínima tensão CA (V): 323
+THD de corrente (%): 2.0
+Fator de potência do inversor: 0.99
+Tipo de conexão do inversor: Trifásico
+Eficiência máxima do inversor (%): 98.5
+
+# DISJUNTOR E DPS
+Número de polos do disjuntor: 3
+Tensão nominal do disjuntor (V): 400
+Corrente nominal do disjuntor (A): 32
+Frequência do disjuntor (Hz): 60
+Capacidade máxima de interrupção (kA): 20
+Curva de atuação: C
+Elemento de proteção do disjuntor: Termomagnético
+Acionamento do disjuntor: Manual
+Tipo DPS: Classe I+II
+Classe DPS: I+II
+Tensão DPS (V): 440
+Corrente nominal DPS (kA): 25
+Corrente máxima DPS (kA): 50
+
+# RESPONSÁVEL PELO CONTRATO / TESTEMUNHAS (OPCIONAIS)
+Valor do Investimento (R$): 48500.00
+Forma de Pagamento: Financiamento Banco do Brasil
+Banco: Banco do Brasil
+Agência: 1234-5
+Conta: 98765-4
