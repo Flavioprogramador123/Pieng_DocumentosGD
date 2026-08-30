@@ -247,12 +247,12 @@ export function Login({ onSuccess, authStatus, confirmToken = null }) {
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center space-y-3">
           <img
-            src="/brand/logo-app-48.png"
-            srcSet="/brand/logo-app-48.png 1x, /brand/logo-app-96.png 2x"
+            src="/brand/logo-app-96.png"
+            srcSet="/brand/logo-app-96.png 1x, /brand/icon-192.png 2x"
             alt="PIENG"
-            width={48}
-            height={48}
-            className="h-12 w-12 mx-auto object-contain"
+            width={96}
+            height={96}
+            className="h-20 w-20 sm:h-24 sm:w-24 mx-auto object-contain"
             onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
           <CardTitle className="text-xl text-primary font-semibold">Automação Equatorial</CardTitle>

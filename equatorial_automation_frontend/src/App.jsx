@@ -1049,17 +1049,17 @@ function App() {
     <div className="min-h-screen pieng-page-bg p-8">
       <div
         className="max-w-7xl mx-auto transition-[margin] duration-200"
-        style={{ marginRight: deParaOpen ? deParaWidth : 0 }}
+        style={deParaOpen ? { marginRight: deParaWidth } : undefined}
       >
         <header className="flex items-start justify-between gap-4 mb-8">
           <div className="flex items-start gap-5 min-w-0 flex-1">
             <img
-              src="/brand/logo-app-48.png"
-              srcSet="/brand/logo-app-48.png 1x, /brand/logo-app-96.png 2x"
-              width={48}
-              height={48}
+              src="/brand/logo-app-96.png"
+              srcSet="/brand/logo-app-96.png 1x, /brand/icon-192.png 2x"
+              width={96}
+              height={96}
               alt="PIENG Soluções Energéticas"
-              className="h-12 w-12 shrink-0 object-contain"
+              className="h-24 w-24 sm:h-28 sm:w-28 shrink-0 object-contain"
             />
             <div className="min-w-0">
               <h1 className="text-2xl sm:text-3xl font-semibold text-primary tracking-tight mb-1 text-left">
