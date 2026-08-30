@@ -98,3 +98,4 @@ python gerar_documentos.py --input ..\dados\cliente_fabrica_doces.txt --template
 ## Pastas que não usar
 
 Tudo em `obsoleto/` ficou de fora do fluxo (backend Flask antigo, pastas aninhadas, templates sem marcadores, manuais duplicados). Leia `obsoleto/LEIA-ME.md` antes de apagar.
+# Pieng_DocumentosGD
