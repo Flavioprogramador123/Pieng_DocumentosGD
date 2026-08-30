@@ -38,6 +38,7 @@ import { getInitialTechnicalData, getInitialContractData, EXEMPLO_TEXTO_VALOR_PA
 import { parseCoordinateText, syncTechnicalCoordinates } from './utils/coordinateUtils'
 import { computeAreaArranjo } from './utils/areaUtils'
 import { FiguraLocalizacaoPreview } from '@/components/FiguraLocalizacaoPreview.jsx'
+import { OdaSetupPrompt, shouldShowOdaPrompt } from '@/components/OdaSetupPrompt.jsx'
 
 function App() {
   const [activeTab, setActiveTab] = useState('entrada')
@@ -126,6 +127,8 @@ function App() {
   const [authUser, setAuthUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [authStatus, setAuthStatus] = useState({ master_configured: false })
+  const [odaStatus, setOdaStatus] = useState(null)
+  const [odaPromptOpen, setOdaPromptOpen] = useState(false)
   /** Disjuntor informado manualmente ou via TXT — não sobrescrever ao mudar ligação/classe. */
   const disjuntorEntradaManual = useRef(false)
   const loadFormInputRef = useRef(null)
@@ -215,6 +218,16 @@ function App() {
         }
       })
       .catch(() => setDemandModels([]))
+
+    apiJson('/system/requirements')
+      .then(({ response, data }) => {
+        if (!response.ok || !data.success) return
+        setOdaStatus(data.oda)
+        if (shouldShowOdaPrompt(data.oda)) {
+          setOdaPromptOpen(true)
+        }
+      })
+      .catch(() => {})
   }, [authUser])
 
   const buildRequestPayload = (options = {}) => {
@@ -1009,7 +1022,10 @@ function App() {
         if (deParaOpen) fetchDeParaPreview()
         const dest = data.output_directory ? `\n\nPasta:\n${data.output_directory}` : ''
         const warn = data.output_warning ? `\n\n⚠ ${data.output_warning}` : ''
-        alert(`Documentos gerados com sucesso!${dest}${warn}`)
+        const cadWarn = data.planta_format === 'dxf'
+          ? '\n\n⚠ Planta entregue como planta.dxf (~25 MB). Instale o ODA File Converter para planta.dwg (~2 MB).'
+          : ''
+        alert(`Documentos gerados com sucesso!${dest}${warn}${cadWarn}`)
       } else {
         alert('Erro ao gerar documentos: ' + (data.error || 'Erro desconhecido'))
       }
@@ -2612,6 +2628,16 @@ Data do Documento: 15/08/2026
         onFilterChange={setDeParaFilter}
         error={deParaError}
         onWidthChange={setDeParaWidth}
+      />
+
+      <OdaSetupPrompt
+        open={odaPromptOpen}
+        odaStatus={odaStatus}
+        onClose={() => setOdaPromptOpen(false)}
+        onStatusChange={(status) => {
+          setOdaStatus(status)
+          if (status?.installed) setOdaPromptOpen(false)
+        }}
       />
     </div>
   )

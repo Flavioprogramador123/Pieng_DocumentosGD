@@ -24,6 +24,12 @@ DEFAULT_ODA_PATHS = (
 ODA_OUTPUT_VERSION = os.environ.get('ODA_OUTPUT_VERSION', 'ACAD2018')
 ODA_TIMEOUT_SEC = int(os.environ.get('ODA_CONVERT_TIMEOUT', '180'))
 
+ODA_DOWNLOAD_PAGE = 'https://www.opendesign.com/guestfiles/oda_file_converter'
+ODA_MSI_URL = (
+    'https://www.opendesign.com/guestfiles/get?filename='
+    'ODAFileConverter_QT6_vc16_amd64dll_27.1.msi'
+)
+
 
 def find_oda_converter() -> Path | None:
     """Localiza ODAFileConverter.exe (env ODA_FILE_CONVERTER ou caminhos padrão)."""
@@ -44,6 +50,21 @@ def find_oda_converter() -> Path | None:
                 return path
 
     return None
+
+
+def get_oda_status() -> dict:
+    """Status do ODA File Converter para checagem na primeira execução / UI."""
+    path = find_oda_converter()
+    return {
+        'installed': path is not None,
+        'path': str(path) if path else None,
+        'download_page': ODA_DOWNLOAD_PAGE,
+        'install_script': 'INSTALAR_ODA.bat',
+        'purpose': (
+            'Converte planta.dxf (~25 MB) em planta.dwg (~2 MB) para entrega ao cliente. '
+            'Sem ODA, o sistema entrega planta.dxf (fallback).'
+        ),
+    }
 
 
 def convert_dxf_to_dwg(dxf_path: Path, dwg_path: Path) -> bool:

@@ -903,6 +903,57 @@ def health_check():
     })
 
 
+@app.route('/api/system/requirements', methods=['GET'])
+def system_requirements():
+    """Dependências opcionais do sistema (ex.: ODA File Converter para planta.dwg)."""
+    from dxf_to_dwg import get_oda_status
+
+    oda = get_oda_status()
+    install_bat = ROOT_DIR / 'INSTALAR_ODA.bat'
+    return jsonify({
+        'success': True,
+        'oda': {
+            **oda,
+            'install_script_available': install_bat.is_file(),
+            'install_script_path': str(install_bat) if install_bat.is_file() else None,
+        },
+    })
+
+
+@app.route('/api/system/oda/launch-installer', methods=['POST'])
+def launch_oda_installer():
+    """Inicia INSTALAR_ODA.bat (Windows) — o usuário confirma elevação UAC."""
+    if os.name != 'nt':
+        return jsonify({
+            'success': False,
+            'error': 'Instalação automática do ODA disponível apenas no Windows.',
+        }), 400
+
+    install_bat = ROOT_DIR / 'INSTALAR_ODA.bat'
+    if not install_bat.is_file():
+        return jsonify({
+            'success': False,
+            'error': 'INSTALAR_ODA.bat não encontrado na pasta do projeto.',
+        }), 404
+
+    try:
+        subprocess.Popen(
+            ['cmd', '/c', 'start', '', str(install_bat)],
+            cwd=str(ROOT_DIR),
+            shell=False,
+        )
+    except OSError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+    return jsonify({
+        'success': True,
+        'message': (
+            'Instalador do ODA File Converter iniciado. '
+            'Confirme a permissão de administrador (UAC) e aguarde a conclusão.'
+        ),
+    })
+
+
 @app.route('/api/ai-status', methods=['GET'])
 def ai_status():
     """Verifica status da IA (Ollama e Gemini)"""
@@ -1638,6 +1689,10 @@ def fill_documents():
                 'planta': planta_file,
                 'outros': other_files
             },
+            'planta_format': (
+                'dwg' if planta_file and planta_file['name'].lower().endswith('.dwg')
+                else 'dxf' if planta_file else None
+            ),
             'txt_content': txt_content,
             'enrichment_sources': enrich_sources,
             'cep_source': cep_source,

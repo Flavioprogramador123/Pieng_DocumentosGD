@@ -157,6 +157,23 @@ Para que o sistema inicie automaticamente com o Windows:
 
 ---
 
+## 📐 ODA File Converter (planta.dwg compacto)
+
+Na **primeira execução** do sistema (após login), a interface verifica se o **ODA File Converter** está instalado.
+
+| Com ODA | Sem ODA (fallback) |
+|---------|-------------------|
+| `planta.dwg` ~2 MB | `planta.dxf` ~25 MB |
+
+**Instalar:**
+- Pelo aviso na web: **Instalar ODA File Converter**
+- Ou execute `INSTALAR_ODA.bat` (como administrador)
+- Ou durante `INSTALAR_NOVA_MAQUINA.bat` (passo 8)
+
+Download manual: https://www.opendesign.com/guestfiles/oda_file_converter
+
+---
+
 ## 🔧 Solução de Problemas
 
 ### Sistema não abre

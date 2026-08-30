@@ -80,6 +80,18 @@ if exist "backend\.env" (
     echo     [!] backend\.env NAO encontrado
 )
 
+REM ODA File Converter (planta.dwg compacto)
+echo [*] Verificando ODA File Converter...
+set "ODA_FOUND="
+for /f "delims=" %%F in ('dir /s /b "C:\Program Files\ODA\ODAFileConverter.exe" 2^>nul') do set "ODA_FOUND=%%F"
+if defined ODA_FOUND (
+    echo     [OK] ODA File Converter
+    echo          %ODA_FOUND%
+) else (
+    echo     [!] ODA NAO instalado — planta sera entregue como .dxf (~25 MB)
+    echo         Execute INSTALAR_ODA.bat ou instale pela primeira abertura do sistema
+)
+
 echo.
 echo ========================================
 echo   Verificacao concluida!

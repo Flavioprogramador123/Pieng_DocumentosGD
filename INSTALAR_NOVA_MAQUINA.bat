@@ -27,7 +27,7 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo [1/7] Verificando dependencias...
+echo [1/8] Verificando dependencias...
 echo.
 
 REM Verifica Python
@@ -71,7 +71,7 @@ if %errorlevel%==0 (
 )
 
 echo.
-echo [2/7] Criando ambiente virtual Python...
+echo [2/8] Criando ambiente virtual Python...
 cd backend
 if exist ".venv" (
     echo     [!] Ambiente virtual ja existe
@@ -86,7 +86,7 @@ if exist ".venv" (
 )
 
 echo.
-echo [3/7] Instalando dependencias Python...
+echo [3/8] Instalando dependencias Python...
 call .venv\Scripts\activate.bat
 pip install --upgrade pip >nul 2>&1
 pip install -r requirements.txt
@@ -101,7 +101,7 @@ call deactivate
 cd ..
 
 echo.
-echo [4/7] Instalando dependencias Node.js...
+echo [4/8] Instalando dependencias Node.js...
 cd equatorial_automation_frontend
 pnpm install
 if %errorlevel% neq 0 (
@@ -114,7 +114,7 @@ echo     [OK] Dependencias Node.js instaladas
 cd ..
 
 echo.
-echo [5/7] Configurando arquivos .env...
+echo [5/8] Configurando arquivos .env...
 if not exist ".env" (
     echo     [*] Criando .env na raiz...
     copy ".env.example" ".env" >nul 2>&1
@@ -130,7 +130,7 @@ if not exist "backend\.env" (
 echo     [OK] Arquivos .env criados
 
 echo.
-echo [6/7] Inicializando banco de dados...
+echo [6/8] Inicializando banco de dados...
 cd backend
 call .venv\Scripts\activate.bat
 python -c "from catalog_db import init_db; init_db()"
@@ -143,7 +143,7 @@ call deactivate
 cd ..
 
 echo.
-echo [7/7] Criando atalhos...
+echo [7/8] Criando atalhos...
 
 REM Cria atalho na área de trabalho usando PowerShell
 powershell -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('%USERPROFILE%\Desktop\PIENG - Automacao Equatorial.lnk'); $s.TargetPath = '%~dp0PIENG.vbs'; $s.WorkingDirectory = '%~dp0'; $s.Description = 'PIENG - Sistema de Automacao Equatorial'; $s.Save()"
@@ -155,6 +155,23 @@ if %errorlevel%==0 (
 )
 
 echo.
+echo [8/8] ODA File Converter (planta.dwg ~2 MB)...
+set "ODA_FOUND="
+for /f "delims=" %%F in ('dir /s /b "C:\Program Files\ODA\ODAFileConverter.exe" 2^>nul') do set "ODA_FOUND=%%F"
+if defined ODA_FOUND (
+    echo     [OK] ODA ja instalado
+) else (
+    echo     [!] ODA nao instalado — recomendado para planta.dwg compacto
+    echo.
+    choice /C SN /M "Instalar ODA File Converter agora"
+    if errorlevel 2 (
+        echo     [!] Pulado — use INSTALAR_ODA.bat depois ou instale pela web na 1a execucao
+    ) else (
+        call "%~dp0INSTALAR_ODA.bat"
+    )
+)
+
+echo.
 echo ========================================
 echo   Instalacao concluida!
 echo ========================================
@@ -163,7 +180,8 @@ echo PROXIMOS PASSOS:
 echo.
 echo 1. Edite os arquivos .env e backend\.env com suas configuracoes
 echo 2. Instale o Google Drive for Desktop
-echo 3. Use o atalho "PIENG - Automacao Equatorial" na area de trabalho
+echo 3. Se nao instalou o ODA no passo 8, execute INSTALAR_ODA.bat (planta.dwg)
+echo 4. Use o atalho "PIENG - Automacao Equatorial" na area de trabalho
 echo.
 echo Para mais informacoes, leia o arquivo LEIA-ME_INSTALACAO.md
 echo.
