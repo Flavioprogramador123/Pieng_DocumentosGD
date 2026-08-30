@@ -13,6 +13,12 @@ import {
 import { apiFetch } from '@/utils/api.js'
 
 function mapModuleRow(row) {
+  const comp = row.comprimento_m
+  const larg = row.largura_m
+  let area_modulo = ''
+  if (comp != null && larg != null) {
+    area_modulo = String(Math.round(Number(comp) * Number(larg) * 1000) / 1000)
+  }
   return {
     fabricante: row.fabricante || '',
     model: row.modelo || '',
@@ -22,7 +28,36 @@ function mapModuleRow(row) {
     vmpp: row.vmpp != null ? String(row.vmpp) : '',
     impp: row.impp != null ? String(row.impp) : '',
     eficiencia: row.eficiencia != null ? String(row.eficiencia) : '',
+    comprimento_m: comp != null ? String(comp) : '',
+    largura_m: larg != null ? String(larg) : '',
+    area_modulo,
   }
+}
+
+function parseStringsPorMppt(raw) {
+  if (!raw) return ''
+  try {
+    const arr = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (Array.isArray(arr) && arr.length) {
+      return String(Math.max(...arr.map((n) => Number(n) || 1)))
+    }
+  } catch {
+    /* ignore */
+  }
+  return ''
+}
+
+function formatMpptLayout(raw) {
+  if (!raw) return null
+  try {
+    const arr = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (Array.isArray(arr) && arr.length) {
+      return arr.join('+')
+    }
+  } catch {
+    /* ignore */
+  }
+  return null
 }
 
 function mapInverterRow(row) {
@@ -36,6 +71,11 @@ function mapInverterRow(row) {
     mppt_max: row.mppt_max != null ? String(row.mppt_max) : '',
     eficiencia: row.eficiencia != null ? String(row.eficiencia) : '',
     thd_pct: row.thd_pct != null ? String(row.thd_pct) : '',
+    num_mppt: row.num_mppt != null ? String(row.num_mppt) : '',
+    tipo_inversor: row.tipo_inversor || '',
+    fase_ca: row.fase_ca || '',
+    strings_por_mppt_json: row.strings_por_mppt_json || '',
+    strings_por_mppt_suggested: parseStringsPorMppt(row.strings_por_mppt_json),
   }
 }
 
@@ -97,6 +137,8 @@ export function CatalogEquipmentPicker({ kind, current, onApply, label }) {
   }
 
   const title = label || (isModule ? 'Catálogo — módulo' : 'Catálogo — inversor')
+  const selectedRow = rows.find((r) => String(r.id) === selectedId)
+  const mpptLayout = !isModule && selectedRow ? formatMpptLayout(selectedRow.strings_por_mppt_json) : null
 
   return (
     <div className="rounded-lg border border-dashed border-blue-200 bg-blue-50/60 p-3 space-y-3">
@@ -135,6 +177,17 @@ export function CatalogEquipmentPicker({ kind, current, onApply, label }) {
         <p className="text-xs text-muted-foreground">
           Atual: {current.fabricante || '—'} — {current.model}
         </p>
+      )}
+
+      {!isModule && selectedRow && (
+        <div className="rounded border border-blue-300 bg-white/80 p-2 text-xs text-blue-950 space-y-1">
+          <p className="font-medium">Topologia MPPT (catálogo)</p>
+          <p>MPPT: {selectedRow.num_mppt ?? '—'} · Fase: {selectedRow.fase_ca || '—'} · Tipo: {selectedRow.tipo_inversor || '—'}</p>
+          {mpptLayout && <p>Strings/MPPT: {mpptLayout} (máx. paralelo por entrada)</p>}
+          {(selectedRow.mppt_min != null || selectedRow.mppt_max != null) && (
+            <p>Faixa MPPT: {selectedRow.mppt_min ?? '—'}–{selectedRow.mppt_max ?? '—'} V</p>
+          )}
+        </div>
       )}
 
       {error && <p className="text-xs text-red-600">{error}</p>}

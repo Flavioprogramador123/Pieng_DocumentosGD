@@ -18,7 +18,7 @@ python --version >nul 2>&1
 if errorlevel 1 (
     color 0C
     echo   [X] ERRO: Python nao encontrado
-    echo   [!] Instale Python 3.10 ou superior
+    echo   [i] Instale Python 3.10 ou superior
     echo.
     pause
     exit /b 1
@@ -28,7 +28,7 @@ node --version >nul 2>&1
 if errorlevel 1 (
     color 0C
     echo   [X] ERRO: Node.js nao encontrado
-    echo   [!] Instale Node.js
+    echo   [i] Instale Node.js
     echo.
     pause
     exit /b 1
@@ -65,8 +65,8 @@ for /L %%i in (1,1,90) do (
         set "BACKEND_OK=1"
         goto :backend_ready
     )
-    if %%i==30 echo         ... ainda aguardando backend (30s)
-    if %%i==60 echo         ... ainda aguardando backend (60s)
+    if %%i==30 echo         ... ainda aguardando backend - 30s
+    if %%i==60 echo         ... ainda aguardando backend - 60s
     timeout /T 1 /NOBREAK >nul
 )
 :backend_ready
@@ -86,19 +86,20 @@ echo.
 echo   [3/4] Preparando frontend e subindo Vite...
 cd /d "%~dp0equatorial_automation_frontend"
 if not exist "node_modules" (
-    echo         Instalando npm install (primeira vez)...
-    call npm install
+    echo         Instalando pnpm install - primeira vez...
+    call pnpm install
     if errorlevel 1 (
         color 0C
-        echo   [X] Falha no npm install
+        echo   [X] Falha no pnpm install
         cd /d "%~dp0"
         pause
         exit /b 1
     )
 ) else (
-    call npm install >nul 2>&1
+    call pnpm install >nul 2>&1
 )
 cd /d "%~dp0"
+call "%~dp0kill_port_5173.bat"
 start /min "" cmd /k "%~dp0start_frontend.bat"
 
 set "FRONTEND_OK=0"
@@ -108,15 +109,15 @@ for /L %%i in (1,1,60) do (
         set "FRONTEND_OK=1"
         goto :frontend_ready
     )
-    if %%i==20 echo         ... aguardando Vite (20s)
-    if %%i==40 echo         ... aguardando Vite (40s)
+    if %%i==20 echo         ... aguardando Vite - 20s
+    if %%i==40 echo         ... aguardando Vite - 40s
     timeout /T 1 /NOBREAK >nul
 )
 :frontend_ready
 
 if "!FRONTEND_OK!"=="0" (
     color 0E
-    echo         [!] Frontend ainda nao respondeu — abra manualmente http://localhost:5173
+    echo         [AVISO] Frontend ainda nao respondeu - tentando abrir mesmo assim
     color 0A
 ) else (
     echo         [OK] Frontend online
@@ -124,11 +125,7 @@ if "!FRONTEND_OK!"=="0" (
 echo.
 
 echo   [4/4] Abrindo navegador...
-if "!FRONTEND_OK!"=="1" (
-    start http://localhost:5173
-) else (
-    echo         Pulando abertura automatica ate o Vite ficar pronto.
-)
+start http://127.0.0.1:5173
 timeout /T 1 /NOBREAK >nul
 
 cls
@@ -138,11 +135,11 @@ echo   ===================================================
 echo   ^|        Sistema Iniciado com Sucesso            ^|
 echo   ===================================================
 echo.
-echo   Backend:   http://127.0.0.1:5000  (online)
+echo   Backend:   http://127.0.0.1:5000  - online
 if "!FRONTEND_OK!"=="1" (
-    echo   Frontend:  http://localhost:5173  (online)
+    echo   Frontend:  http://127.0.0.1:5173  - online
 ) else (
-    echo   Frontend:  http://localhost:5173  (iniciando — aguarde a janela Vite)
+    echo   Frontend:  http://127.0.0.1:5173  - iniciando, aguarde a janela Vite
 )
 echo.
 echo   ===================================================

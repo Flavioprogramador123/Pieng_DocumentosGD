@@ -4,6 +4,29 @@ Registro de alterações do projeto. Versões seguem ordem cronológica de marco
 
 ---
 
+## [0.5.6] — 2026-08-30 — *topologia MPPT / strings*
+
+Integração inteligente de strings CC com dados SAJ/DEYE do catálogo.
+
+### Adicionado
+- **`string_topology.py`** — motor de sugestão (`suggest_string_layout`) com topologia por MPPT, Icc e faixa Voc/Vmpp.
+- **`inversores.yaml`** — SAJ/DEYE mono (3–10 kW) e tri (12–25 kW) com `strings_por_mppt` e Icc por MPPT.
+- **Módulo Risen 600 W** em `modulos_solares.yaml` (Isc alto — alerta Icc SAJ).
+- **Docs** — `docs/conhecimento_strings_mppt_saj_deye.md`, `equipamentos_referencia.yaml`, `exemplos_interacao_modulo_inversor.json`.
+- **Testes** — `test_string_topology.py` com casos do doc de exemplos.
+- **PII seguro** — `config_loader.py` + `config_padrao.local.json` (gitignored); variáveis `PROCURADOR_*` / `TECNICO_*` no `.env.example`.
+
+### Alterado
+- **`string_calculations.py`** — modo Auto usa topologia do catálogo (substitui `ceil(módulos/mppt)`).
+- **`import_inversores_yaml.py`** — importa `fase_ca`, `strings_por_mppt_json`, `icc_mppt_json`, `micros_max_disjuntor_ca`.
+- **UI** — catálogo preenche `num_mppt` / strings; cálculo sugere `modulos_por_string` e `strings_por_mppt` quando vazios.
+- **Scripts .bat** — `start_frontend.bat` e `iniciar.bat` usam `pnpm` em vez de `npm` (consistente com `package.json`).
+
+### Corrigido
+- **Excel corrompido** — `gerar_documentos.py` remove `calcChain.xml` e sua referência em `[Content_Types].xml` para evitar erro "Encontramos um problema em um conteúdo" ao abrir arquivos .xlsx gerados.
+
+---
+
 ## [0.5.5] — 2026-08-30 — *checkpoint pre-MPPT*
 
 Marco de restauração **antes** da integração de topologia MPPT/strings (SAJ/DEYE). Ver `docs/CHECKPOINT_2026-08-30_pre_mppt.md`.

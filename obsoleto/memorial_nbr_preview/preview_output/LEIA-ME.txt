@@ -1,0 +1,27 @@
+PREVIEW — Memorial Descritivo formatado NBR (ARQUIVADO)
+=======================================================
+
+STATUS: REPROVADO (30/08/2026) — formatação NBR não entrou no template oficial.
+Ajustes de layout/tipografia serão feitos manualmente no Word.
+
+Template em produção:
+  templates/MEMORIAL_DESCRITIVO_marcadores.docx
+
+Arquivos nesta pasta são apenas rascunho — podem ser ignorados ou apagados.
+
+Arquivos
+--------
+MEMORIAL_DESCRITIVO_marcadores_NBR.docx     Template formatado (tokens {{...}} intactos)
+MEMORIAL_DESCRITIVO_exemplo_preenchido.docx Exemplo preenchido
+relatorio_preenchimento_exemplo.txt         Tokens pendentes + valores usados
+
+Dados de entrada: ../dados_exemplo_memorial.txt
+
+Regenerar
+---------
+  backend\.venv\Scripts\python.exe obsoleto\memorial_nbr_preview\generate_memorial_nbr_preview.py
+
+Restaurar template oficial
+--------------------------
+  Copy-Item obsoleto\templates_backup\MEMORIAL_DESCRITIVO_marcadores_PRE_NBR.docx `
+    templates\MEMORIAL_DESCRITIVO_marcadores.docx -Force

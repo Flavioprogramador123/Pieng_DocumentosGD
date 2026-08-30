@@ -32,3 +32,16 @@ Não apague ainda se quiser comparar um documento antigo. Quando o `iniciar.bat`
 **Mantido no fluxo ativo:** `backend/patch_memorial_demand.py` (aplicado na subida da API), `export_calculations.py`, catálogo YAML, templates oficiais sem sufixo `.bak`.
 
 O sistema ativo está na raiz: `backend/`, `equatorial_automation_frontend/`, `templates/`, `saida/`, `dados/`.
+
+## Limpeza de 30/08/2026
+
+| Pasta / item | Conteúdo |
+|--------------|----------|
+| `memorial_nbr_preview/` | Scripts e preview do memorial NBR (reprovado; não entra na geração oficial) |
+| `templates_backup/` | Backups movidos de `templates/backup/` (incl. `MEMORIAL_*_PRE_NBR.docx`) |
+| `scripts_dev/list_dwg_tokens.py` | Utilitário para listar tokens em DXF/DWG |
+| `docs_checkpoints/` | Notas de checkpoint de desenvolvimento (`CHECKPOINT_2026-08-30_pre_mppt.md`) |
+
+Removido da raiz: pasta `templates/backup/`, duplicatas em `.temp/` (cópias já existem em `docs/`), artefato `nul` do Windows.
+
+Se ainda existir `.temp/memorial_nbr/` com arquivo aberto no Word, pode apagar manualmente após fechar o documento.

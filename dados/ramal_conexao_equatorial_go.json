@@ -1,0 +1,103 @@
+{
+  "meta": {
+    "versao": "1.0.0",
+    "atualizado": "2026-08-30",
+    "concessionaria": "Equatorial Energia Goiás",
+    "uf": "GO",
+    "referencias": [
+      "NT.00020.EQTL — Norma Técnica Equatorial (ramal de conexão BT)",
+      "NTC-04 Rev.4 CELG-D — dimensionamento padrão de entrada"
+    ],
+    "notas": [
+      "Disjuntor e cabos do ramal conforme carga instalada (kW) e tipo de fornecimento.",
+      "Bifásico GO: usar faixas Monofásico (mesma tensão fase-neutro 220 V).",
+      "Cabos: preferir cobre multiplexado para bitola_cabo_padrao quando informado."
+    ]
+  },
+  "ramal_de_conexao": [
+    {
+      "tipo_fornecimento": "Monofásico",
+      "tipo_ligacao": "MONOFASICO",
+      "faixas": [
+        {
+          "carga_kw": "Até 5",
+          "carga_kw_min": 0,
+          "carga_kw_max": 5,
+          "disjuntor_A": 25,
+          "cabo_cobre_concentrico_mm2": 4,
+          "cabo_cobre_multiplexado_mm2": 6,
+          "cabo_aluminio_multiplexado_mm2": 10
+        },
+        {
+          "carga_kw": "5,1 a 8",
+          "carga_kw_min": 5.1,
+          "carga_kw_max": 8,
+          "disjuntor_A": 40,
+          "cabo_cobre_concentrico_mm2": 6,
+          "cabo_cobre_multiplexado_mm2": 6,
+          "cabo_aluminio_multiplexado_mm2": 10
+        },
+        {
+          "carga_kw": "8,1 a 12",
+          "carga_kw_min": 8.1,
+          "carga_kw_max": 12,
+          "disjuntor_A": 63,
+          "cabo_cobre_concentrico_mm2": 10,
+          "cabo_cobre_multiplexado_mm2": 10,
+          "cabo_aluminio_multiplexado_mm2": 16
+        }
+      ]
+    },
+    {
+      "tipo_fornecimento": "Trifásico",
+      "tipo_ligacao": "TRIFASICO",
+      "faixas": [
+        {
+          "carga_kw": "12,1 a 24",
+          "carga_kw_min": 12.1,
+          "carga_kw_max": 24,
+          "disjuntor_A": 40,
+          "cabo_cobre_concentrico_mm2": 6,
+          "cabo_cobre_multiplexado_mm2": 6,
+          "cabo_aluminio_multiplexado_mm2": 10
+        },
+        {
+          "carga_kw": "24,1 a 38",
+          "carga_kw_min": 24.1,
+          "carga_kw_max": 38,
+          "disjuntor_A": 63,
+          "cabo_cobre_concentrico_mm2": 10,
+          "cabo_cobre_multiplexado_mm2": 16,
+          "cabo_aluminio_multiplexado_mm2": 25
+        },
+        {
+          "carga_kw": "38,1 a 48",
+          "carga_kw_min": 38.1,
+          "carga_kw_max": 48,
+          "disjuntor_A": 80,
+          "cabo_cobre_concentrico_mm2": 16,
+          "cabo_cobre_multiplexado_mm2": 25,
+          "cabo_aluminio_multiplexado_mm2": 35
+        },
+        {
+          "carga_kw": "48,1 a 60",
+          "carga_kw_min": 48.1,
+          "carga_kw_max": 60,
+          "disjuntor_A": 100,
+          "cabo_cobre_concentrico_mm2": null,
+          "cabo_cobre_multiplexado_mm2": 25,
+          "cabo_aluminio_multiplexado_mm2": 50
+        },
+        {
+          "carga_kw": "60,1 a 75",
+          "carga_kw_min": 60.1,
+          "carga_kw_max": 75,
+          "disjuntor_A": 125,
+          "cabo_cobre_concentrico_mm2": null,
+          "cabo_cobre_multiplexado_mm2": 35,
+          "cabo_aluminio_multiplexado_mm2": 70
+        }
+      ]
+    }
+  ]
+}

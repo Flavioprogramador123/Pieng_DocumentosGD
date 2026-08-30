@@ -173,6 +173,8 @@ LABEL_ALIASES = {
     'strings por mppt': 'STRINGS_POR_MPPT',
     'tipo de inversor (topologia)': 'TIPO_INVERSOR',
     'tipo de inversor': 'TIPO_INVERSOR',
+    'tipo equipamento inversor': 'TIPO_EQUIPAMENTO_INVERSOR',
+    'equipamento inversor (tipo)': 'TIPO_EQUIPAMENTO_INVERSOR',
     'microinversores por grupo ca': 'MICROS_POR_GRUPO_CA',
     'potência nominal ca (kw)': 'POTENCIA_NOMINAL_CA_INVERSOR',
     'máxima potência na saída ca (kw)': 'POTENCIA_MAX_SAIDA_CA_INVERSOR',
@@ -281,7 +283,8 @@ OPTIONAL_KEYS = {
     'CALCULO_CORRENTE_SISTEMA', 'CALCULO_CORRENTE_INVERSOR',
     'CALCULO_CORRENTE_INVERSORES_TOTAL', 'CALCULO_IMAX_CA', 'CALCULO_CORRENTE_CA',
     'DISJUNTOR_RECOMENDADO_QDCA', 'COMPARATIVO_CORRENTE_DISJUNTOR',
-    'MARGEM_SEGURANCA_DISJUNTOR', 'DESCRICAO_TIPO_INVERSOR', 'DESCRICAO_CIRCUITO_PADRAO',
+    'MARGEM_SEGURANCA_DISJUNTOR', 'DESCRICAO_TIPO_INVERSOR', 'TIPO_EQUIPAMENTO_INVERSOR',
+    'DESCRICAO_CIRCUITO_PADRAO',
     'DESCRICAO_CONEXAO_INVERSORES', 'DESCRICAO_DISJUNTOR_PADRAO',
     'CONFIGURACAO_STRINGS_CC', 'PROTECAO_CC_DESCRICAO', 'PROTECAO_CA_DESCRICAO',
     'POTENCIA_DISP_KW_W', 'CORRENTE_PROTECAO_CA', 'TENSAO_DPS',
@@ -609,6 +612,24 @@ def numeric_value(value: object) -> str | None:
     return text
 
 
+def _apply_tipo_equipamento_inversor(values: dict) -> None:
+    """Token {{TIPO_EQUIPAMENTO_INVERSOR}} — 'Micro-inversor' ou 'Inversor' para planta/memorial."""
+    if values.get('TIPO_EQUIPAMENTO_INVERSOR'):
+        return
+    from string_calculations import label_tipo_equipamento_inversor
+
+    mps_raw = numeric_value(values.get('MODULOS_POR_STRING') or '')
+    mps = int(float(mps_raw)) if mps_raw else None
+    tipo = values.get('TIPO_INVERSOR')
+    topo = None
+    t_upper = (tipo or '').upper()
+    if t_upper in ('MICRO', 'MICROINVERSOR', 'MICRO-INVERSOR'):
+        topo = 'micro'
+    elif t_upper in ('STRING', 'CENTRAL', 'STRING/MPPT', 'HIBRIDO', 'HÍBRIDO'):
+        topo = 'string'
+    values['TIPO_EQUIPAMENTO_INVERSOR'] = label_tipo_equipamento_inversor(tipo, topo, mps)
+
+
 def _apply_dc_string_analysis(values: dict) -> None:
     """Deriva tokens de strings CC e textos de proteção para o memorial."""
     qtd_mod = numeric_value(values.get('QTD_MODULOS'))
@@ -655,12 +676,27 @@ def _apply_dc_string_analysis(values: dict) -> None:
     topo = dc.get('topology', '')
     if topo == 'micro':
         values.setdefault('DESCRICAO_TIPO_INVERSOR', 'microinversores monofásicos')
+        values.setdefault('TIPO_INVERSOR', 'MICRO')
     elif topo == 'string':
         values.setdefault('DESCRICAO_TIPO_INVERSOR', 'inversores string')
+        values.setdefault('TIPO_INVERSOR', 'STRING')
+    from string_calculations import label_tipo_equipamento_inversor
+
+    mps_raw = numeric_value(values.get('MODULOS_POR_STRING') or dc.get('modules_per_string') or '')
+    mps = int(float(mps_raw)) if mps_raw else None
+    values.setdefault(
+        'TIPO_EQUIPAMENTO_INVERSOR',
+        label_tipo_equipamento_inversor(
+            values.get('TIPO_INVERSOR'),
+            topo or None,
+            mps,
+        ),
+    )
 
 
 def load_defaults(path: Path) -> dict:
-    return json.loads(path.read_text(encoding='utf-8'))
+    from config_loader import load_project_defaults
+    return load_project_defaults(path)
 
 
 def format_thd_dht(value) -> str:
@@ -1159,10 +1195,7 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
                 bitola_ca = values.get('BITOLA_CABO_CA', '—')
                 values.setdefault(
                     'CALCULO_IMAX_CA',
-                    f'Imáx-ca (inversor) = {i_max_ca:g} A × {qtd_inv} = {i_max_total:.1f} A → Cabo {{BITOLA_CABO_CA}}',
-                )
-                values['CALCULO_IMAX_CA'] = values['CALCULO_IMAX_CA'].replace(
-                    '{{BITOLA_CABO_CA}}', str(bitola_ca)
+                    f'Imáx-ca (inversor) = {i_max_ca:g} A × {qtd_inv} = {i_max_total:.1f} A → Cabo {bitola_ca}',
                 )
             values.setdefault(
                 'CALCULO_CORRENTE_CA',
@@ -1205,6 +1238,8 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
         values.setdefault('DESCRICAO_TIPO_INVERSOR', 'microinversores monofásicos')
     else:
         values.setdefault('DESCRICAO_TIPO_INVERSOR', 'inversores')
+
+    _apply_tipo_equipamento_inversor(values)
 
     tipo_rede = values.get('TIPO_REDE', '')
     q_fase = values.get('QTD_CONDUTORES_FASE', values.get('NUM_FASES', ''))
@@ -1608,33 +1643,24 @@ def _recalc_guia1_formulas(root, guia0: dict[str, float]) -> None:
 
 
 def _patch_workbook_calc_pr(data: bytes) -> bytes:
-    text = data.decode('utf-8')
-    if 'fullCalcOnLoad' in text:
+    """Garante recálculo ao abrir no Excel sem quebrar XML (ex.: calcPr auto-fechado)."""
+    if b'fullCalcOnLoad' in data:
         return data
-    if re.search(r'<calcPr\b', text):
-        text = re.sub(
-            r'(<calcPr\b[^>]*)(/?>)',
-            lambda m: (
-                f'{m.group(1)} fullCalcOnLoad="1" calcMode="auto"{m.group(2)}'
-                if 'fullCalcOnLoad' not in m.group(1)
-                else m.group(0)
-            ),
-            text,
-            count=1,
-        )
-    elif '</workbookPr>' in text:
-        text = text.replace(
-            '</workbookPr>',
-            '</workbookPr><calcPr calcMode="auto" fullCalcOnLoad="1"/>',
-            1,
-        )
+    root = etree.fromstring(data)
+    calc_pr = root.find(f'{{{S_NS}}}calcPr')
+    if calc_pr is not None:
+        calc_pr.set('fullCalcOnLoad', '1')
+        calc_pr.set('calcMode', 'auto')
     else:
-        text = text.replace(
-            '<sheets>',
-            '<calcPr calcMode="auto" fullCalcOnLoad="1"/><sheets>',
-            1,
-        )
-    return text.encode('utf-8')
+        calc_pr = etree.Element(f'{{{S_NS}}}calcPr')
+        calc_pr.set('calcMode', 'auto')
+        calc_pr.set('fullCalcOnLoad', '1')
+        sheets = root.find(f'{{{S_NS}}}sheets')
+        if sheets is not None:
+            root.insert(list(root).index(sheets), calc_pr)
+        else:
+            root.append(calc_pr)
+    return etree.tostring(root, xml_declaration=True, encoding='UTF-8', standalone=True)
 
 
 def _workbook_needs_xlsx_package(source: Path, destination: Path) -> bool:
@@ -1643,14 +1669,21 @@ def _workbook_needs_xlsx_package(source: Path, destination: Path) -> bool:
 
 
 def _patch_workbook_package_bytes(filename: str, data: bytes, *, as_xlsx: bool) -> bytes:
-    if not as_xlsx or filename != '[Content_Types].xml':
-        return data
-    text = data.decode('utf-8')
-    text = text.replace(
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml',
-    )
-    return text.encode('utf-8')
+    if filename == '[Content_Types].xml':
+        text = data.decode('utf-8')
+        # Remover referência ao calcChain.xml para evitar erros ao abrir no Excel
+        text = re.sub(
+            r'<Override\s+PartName="/xl/calcChain\.xml"[^>]*/>',
+            '',
+            text,
+        )
+        if as_xlsx:
+            text = text.replace(
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml',
+            )
+        return text.encode('utf-8')
+    return data
 
 
 def fill_workbook(source: Path, destination: Path, values: dict[str, str]) -> set[str]:
@@ -1672,6 +1705,9 @@ def fill_workbook(source: Path, destination: Path, values: dict[str, str]) -> se
 
         for item in source_zip.infolist():
             data = source_zip.read(item.filename)
+            # Remover calcChain.xml para evitar erros ao abrir no Excel
+            if item.filename == 'xl/calcChain.xml':
+                continue
             if item.filename == 'xl/sharedStrings.xml':
                 if has_shared_strings:
                     data = etree.tostring(shared_root, xml_declaration=True, encoding='UTF-8', standalone=True)

@@ -1,0 +1,64 @@
+{
+  "descricao": "Casos de teste para validar motor de strings após integração",
+  "casos": [
+    {
+      "id": "saj_3k_8x_risen600",
+      "modulo": { "modelo": "RSM120-8-600BMDG", "wp": 600, "voc": 41.7, "isc": 18.26, "vmpp": 34.8 },
+      "inversor": { "modelo": "R6-3K-S3", "kw": 3, "mppt": 3, "strings_por_mppt": [1, 1, 1], "icc_mppt": 16 },
+      "projeto": { "qtd_modulos": 8, "qtd_inversores": 1 },
+      "config_esperada": { "modulos_por_string": 8, "strings_total": 1, "strings_por_mppt": 1, "mppt_usados": 1 },
+      "validacao": {
+        "vmpp_string_v": 278.4,
+        "voc_string_v": 333.6,
+        "mppt_ok": true,
+        "icc_ok": false,
+        "motivo_icc": "Isc 18,26 A > limite 16 A SAJ R6-S3"
+      }
+    },
+    {
+      "id": "saj_3k_8x_tsun600",
+      "modulo": { "modelo": "TS600S8E-132GANT", "wp": 600, "voc": 48.28, "isc": 15.84, "vmpp": 40.16 },
+      "inversor": { "modelo": "R6-3K-S3", "kw": 3, "mppt": 3, "strings_por_mppt": [1, 1, 1], "icc_mppt": 16 },
+      "projeto": { "qtd_modulos": 8, "qtd_inversores": 1 },
+      "config_esperada": { "modulos_por_string": 8, "strings_total": 1, "strings_por_mppt": 1 },
+      "validacao": { "vmpp_string_v": 321.28, "icc_ok": true, "wp_total": 4800 }
+    },
+    {
+      "id": "saj_6k_12x_tsun600_2strings",
+      "modulo": { "modelo": "TS600S8E-132GANT", "wp": 600, "isc": 15.84, "vmpp": 40.16 },
+      "inversor": { "modelo": "R6-6K-S3", "kw": 6, "mppt": 3, "strings_por_mppt": [1, 1, 1] },
+      "projeto": { "qtd_modulos": 12, "qtd_inversores": 1 },
+      "config_esperada": { "modulos_por_string": 6, "strings_total": 2, "strings_por_mppt": 1, "mppt_usados": 2 },
+      "validacao": { "wp_total": 7200, "isc_design_por_mppt_a": 19.8 }
+    },
+    {
+      "id": "saj_25k_36x_risen690_4strings",
+      "modulo": { "modelo": "RSM132-8-690BHDG", "wp": 690, "isc": 17.66, "vmpp": 41.63, "voc": 49.65 },
+      "inversor": { "modelo": "R6-25K-T2-32", "kw": 25, "mppt": 2, "strings_por_mppt": [2, 2], "icc_mppt": 32 },
+      "projeto": { "qtd_modulos": 36, "qtd_inversores": 1 },
+      "config_esperada": { "modulos_por_string": 9, "strings_total": 4, "strings_por_mppt": 2 },
+      "validacao": {
+        "vmpp_string_v": 374.67,
+        "isc_paralelo_mppt_a": 35.32,
+        "icc_ok": false,
+        "alternativa": "1 string por MPPT (9+9 módulos) ou reduzir paralelo"
+      }
+    },
+    {
+      "id": "micro_saj_4x_risen690",
+      "modulo": { "modelo": "RSM132-8-690BHDG", "wp": 690, "vmpp": 41.63, "impp": 16.6 },
+      "inversor": { "modelo": "M2-2.25K-S4", "tipo": "micro", "mppt": 4, "modulos_por_mppt": 1 },
+      "projeto": { "qtd_modulos": 4, "qtd_inversores": 1 },
+      "config_esperada": { "modulos_por_string": 1, "strings_total": 4, "micros_por_grupo_ca": 1 },
+      "validacao": { "pdc_wp": 2760, "pac_w": 2250, "clipping": true, "vmpp_ok": true }
+    },
+    {
+      "id": "deye_6k_12x_tsun600",
+      "modulo": { "modelo": "TS600S8E-132GANT", "wp": 600, "isc": 15.84, "vmpp": 40.16 },
+      "inversor": { "modelo": "SUN-6K-G06P3-EU-AM2", "kw": 6, "mppt": 2, "strings_por_mppt": [1, 1] },
+      "projeto": { "qtd_modulos": 12, "qtd_inversores": 1 },
+      "config_esperada": { "modulos_por_string": 6, "strings_total": 2, "strings_por_mppt": 1 },
+      "validacao": { "wp_total": 7200, "topologia": "1+1 nos dois MPPT" }
+    }
+  ]
+}

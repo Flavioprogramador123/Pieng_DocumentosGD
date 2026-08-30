@@ -12,6 +12,14 @@ from pathlib import Path
 from typing import Any
 
 NORMAS_PATH = Path(__file__).resolve().parent.parent / 'dados' / 'normas_equatorial_go.json'
+RAMAL_CONEXAO_PATH = Path(__file__).resolve().parent.parent / 'dados' / 'ramal_conexao_equatorial_go.json'
+
+# Carga (kW) usada para sugerir disjuntor quando demanda não informada (faixa central típica)
+DEFAULT_CARGA_KW_POR_LIGACAO: dict[str, float] = {
+    'MONOFASICO': 6.0,
+    'BIFASICO': 6.0,
+    'TRIFASICO': 30.0,
+}
 
 
 def _norm_ligacao(value: str | None) -> str:
@@ -61,6 +69,111 @@ def get_uf_voltage_map() -> dict[str, dict[str, float]]:
         if entry:
             result[uf] = entry
     return result
+
+
+@lru_cache(maxsize=1)
+def load_ramal_conexao() -> dict[str, Any]:
+    if not RAMAL_CONEXAO_PATH.is_file():
+        return {}
+    return json.loads(RAMAL_CONEXAO_PATH.read_text(encoding='utf-8'))
+
+
+def _tipo_fornecimento_ramal(tipo_ligacao: str | None) -> str:
+    lig = _norm_ligacao(tipo_ligacao)
+    if lig == 'TRIFASICO':
+        return 'Trifásico'
+    return 'Monofásico'
+
+
+def _faixa_carga_bounds(faixa: dict) -> tuple[float, float]:
+    if faixa.get('carga_kw_min') is not None and faixa.get('carga_kw_max') is not None:
+        return float(faixa['carga_kw_min']), float(faixa['carga_kw_max'])
+    label = str(faixa.get('carga_kw') or '')
+    if re.match(r'(?i)at[eé]\s', label.strip()):
+        m = re.search(r'([\d,]+)', label)
+        if m:
+            return 0.0, float(m.group(1).replace(',', '.'))
+    m = re.match(r'([\d,]+)\s*a\s*([\d,]+)', label, re.I)
+    if m:
+        return float(m.group(1).replace(',', '.')), float(m.group(2).replace(',', '.'))
+    return 0.0, 9999.0
+
+
+def lookup_ramal_conexao(
+    tipo_ligacao: str | None,
+    carga_kw: float,
+) -> dict[str, Any] | None:
+    """
+    Faixa do ramal de conexão BT (disjuntor + cabos) por carga instalada e tipo de fornecimento.
+    Fonte: dados/ramal_conexao_equatorial_go.json (NT.00020.EQTL).
+    """
+    data = load_ramal_conexao()
+    blocos = data.get('ramal_de_conexao') or []
+    alvo = _tipo_fornecimento_ramal(tipo_ligacao)
+    bloco = next(
+        (b for b in blocos if (b.get('tipo_fornecimento') or '').lower() == alvo.lower()),
+        None,
+    )
+    if not bloco:
+        return None
+    try:
+        carga = float(carga_kw)
+    except (TypeError, ValueError):
+        return None
+    for faixa in bloco.get('faixas') or []:
+        lo, hi = _faixa_carga_bounds(faixa)
+        if lo <= carga <= hi + 1e-6:
+            return dict(faixa)
+    faixas = bloco.get('faixas') or []
+    if faixas and carga < _faixa_carga_bounds(faixas[0])[0]:
+        return dict(faixas[0])
+    if faixas:
+        return dict(faixas[-1])
+    return None
+
+
+def _bitola_mm2_label(val: Any) -> str | None:
+    if val in (None, ''):
+        return None
+    try:
+        n = float(str(val).replace(',', '.'))
+        if n == int(n):
+            return f'{int(n)} mm²'
+        return f'{n:g} mm²'
+    except (TypeError, ValueError):
+        return str(val) if 'mm' in str(val) else None
+
+
+def resolve_entrada_uc(
+    uf: str | None = None,
+    tipo_ligacao: str | None = None,
+    classe: str | None = None,
+    carga_kw: float | None = None,
+) -> dict[str, Any]:
+    """
+    Padrão de entrada UC: mescla padrao_entrada (DPS, curva, DR) com ramal de conexão
+    (disjuntor e cabo do ramal conforme carga kW).
+    """
+    lig = _norm_ligacao(tipo_ligacao)
+    padrao = dict(get_padrao_entrada(uf, lig, classe) or {})
+    if carga_kw is None:
+        carga_kw = DEFAULT_CARGA_KW_POR_LIGACAO.get(lig, 6.0)
+    faixa = lookup_ramal_conexao(lig, float(carga_kw))
+    if faixa:
+        padrao['disjuntor_a'] = int(faixa['disjuntor_A'])
+        padrao['carga_kw_faixa'] = faixa.get('carga_kw')
+        padrao['carga_kw_usada'] = float(carga_kw)
+        bitola = _bitola_mm2_label(faixa.get('cabo_cobre_multiplexado_mm2'))
+        if not bitola:
+            bitola = _bitola_mm2_label(faixa.get('cabo_cobre_concentrico_mm2'))
+        if bitola:
+            padrao['bitola_cabo_padrao_mm2'] = bitola
+        padrao['ramal_cabo_cobre_multiplexado_mm2'] = faixa.get('cabo_cobre_multiplexado_mm2')
+        padrao['ramal_cabo_cobre_concentrico_mm2'] = faixa.get('cabo_cobre_concentrico_mm2')
+        padrao['ramal_cabo_aluminio_multiplexado_mm2'] = faixa.get('cabo_aluminio_multiplexado_mm2')
+    elif not padrao.get('disjuntor_a'):
+        padrao['disjuntor_a'] = 40
+    return padrao
 
 
 def get_padrao_entrada(
@@ -259,6 +372,11 @@ def build_ai_context(mode: str = 'completo') -> str:
             f"cabos CC/CA/padrão {padrao.get('bitola_cabo_cc_mm2')}/{padrao.get('bitola_cabo_ca_inversor_mm2')}/"
             f"{padrao.get('bitola_cabo_padrao_mm2')}, DPS {padrao.get('dps_tipo')}, curva {padrao.get('curva_disjuntor')}"
         )
+    ramal = load_ramal_conexao().get('meta')
+    if ramal:
+        parts.append(
+            'Ramal BT: disjuntor/cabo por carga kW — dados/ramal_conexao_equatorial_go.json (NT.00020.EQTL)'
+        )
 
     pd_mono = calc_pd_max_kw('GO', 'MONOFASICO', 40)
     if pd_mono:
@@ -286,7 +404,13 @@ def apply_normas_to_payload(normalized: dict[str, Any]) -> None:
     uf = _norm_uf(cliente.get('uf'))
     lig = _norm_ligacao(uc.get('tipo_ligacao'))
     cls = _norm_classe(uc.get('classe'))
-    padrao = get_padrao_entrada(uf, lig, cls)
+    carga_kw = None
+    if not _empty(tec.get('demanda_alvo_kw')):
+        try:
+            carga_kw = float(str(tec['demanda_alvo_kw']).replace(',', '.'))
+        except (TypeError, ValueError):
+            pass
+    padrao = resolve_entrada_uc(uf, lig, cls, carga_kw=carga_kw)
     if not padrao:
         return
 

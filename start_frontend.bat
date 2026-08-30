@@ -4,15 +4,17 @@ color 0E
 
 cd /d "%~dp0equatorial_automation_frontend"
 
+call "%~dp0kill_port_5173.bat"
+
 REM Verificar node_modules
 if not exist "node_modules" (
     echo [*] Instalando dependencias do frontend...
-    call npm install >nul 2>&1
+    call pnpm install >nul 2>&1
     echo [OK] Dependencias instaladas
     echo.
 ) else (
     REM Verificar atualizacoes silenciosamente
-    call npm install >nul 2>&1
+    call pnpm install >nul 2>&1
 )
 
 REM Iniciar Vite
@@ -22,6 +24,6 @@ echo   Frontend React - Equatorial Energia
 echo ============================================
 echo.
 
-call npm run dev
+call pnpm run dev
 
 pause

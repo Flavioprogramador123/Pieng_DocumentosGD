@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Input } from '@/components/ui/input.jsx'
@@ -28,6 +28,7 @@ import './App.css'
 import { buildLocalDeParaPreview } from './utils/deParaMapper'
 import { getInitialTechnicalData, getInitialContractData, EXEMPLO_TEXTO_VALOR_PAGAMENTO_CONTRATO, contractFromLegacyTechnical } from './utils/formDefaults'
 import { parseCoordinateText, syncTechnicalCoordinates } from './utils/coordinateUtils'
+import { computeAreaArranjo } from './utils/areaUtils'
 import { FiguraLocalizacaoPreview } from '@/components/FiguraLocalizacaoPreview.jsx'
 
 function App() {
@@ -78,7 +79,10 @@ function App() {
       isc: '',
       vmpp: '',
       impp: '',
-      eficiencia: ''
+      eficiencia: '',
+      comprimento_m: '',
+      largura_m: '',
+      area_modulo: '',
     }
   ])
 
@@ -109,9 +113,26 @@ function App() {
   const [deParaFilter, setDeParaFilter] = useState('')
   const [deParaError, setDeParaError] = useState('')
   const [demandModels, setDemandModels] = useState([])
+  const [stringPreview, setStringPreview] = useState(null)
+  const [stringPreviewLoading, setStringPreviewLoading] = useState(false)
   const [authUser, setAuthUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [authStatus, setAuthStatus] = useState({ master_configured: false })
+  /** Disjuntor informado manualmente ou via TXT — não sobrescrever ao mudar ligação/classe. */
+  const disjuntorEntradaManual = useRef(false)
+
+  const modulesAreaKey = modules
+    .map((m) => `${m.quantity}|${m.area_modulo}|${m.comprimento_m}|${m.largura_m}`)
+    .join(';')
+
+  useEffect(() => {
+    const computed = computeAreaArranjo(modules)
+    if (computed === '') return
+    setTechnicalData((prev) => {
+      if (prev.area_arranjo === computed) return prev
+      return { ...prev, area_arranjo: computed }
+    })
+  }, [modulesAreaKey])
 
   const handleLogout = async () => {
     try {
@@ -261,22 +282,90 @@ function App() {
     }
   }
 
-  const suggestTensao = async (uf, tipoLigacao) => {
+  const estimateCargaKw = () => {
+    const demanda = parseFloat(String(technicalData.demanda_alvo_kw || '').replace(',', '.'))
+    if (Number.isFinite(demanda) && demanda > 0) return demanda
+    let potMod = 0
+    for (const m of modules) {
+      const q = parseInt(String(m.quantity || '').trim(), 10) || 0
+      const p = parseFloat(String(m.power || '').replace(',', '.')) || 0
+      if (q > 0 && p > 0) potMod += (q * p) / 1000
+    }
+    if (potMod > 0) return Math.round(potMod * 10) / 10
+    let potInv = 0
+    for (const inv of inverters) {
+      const q = parseInt(String(inv.quantity || '').trim(), 10) || 0
+      const p = parseFloat(String(inv.power || '').replace(',', '.')) || 0
+      if (q > 0 && p > 0) potInv += q * p
+    }
+    return potInv > 0 ? Math.round(potInv * 10) / 10 : undefined
+  }
+
+  const syncPadraoEntrada = async (uf, tipoLigacao, classe, cargaKw) => {
+    const ufVal = (uf || 'GO').trim().toUpperCase()
+    const tipo = tipoLigacao || 'MONOFASICO'
+    const cls = classe || 'RESIDENCIAL'
+    const carga = cargaKw ?? estimateCargaKw()
     try {
-      const res = await apiFetch('/grid-voltage/suggest', {
-        method: 'POST',
-        body: JSON.stringify({ uf, tipo_ligacao: tipoLigacao }),
+      const qs = new URLSearchParams({
+        uf: ufVal,
+        tipo_ligacao: tipo,
+        classe: cls,
       })
+      if (carga != null && carga > 0) {
+        qs.set('carga_kw', String(carga))
+      }
+      const res = await apiFetch(`/normas?${qs}`)
       const data = await res.json()
-      if (data.success && data.tensao_atendimento) {
+      if (!data.success) return
+      const padrao = data.padrao_entrada
+      if (padrao?.tensao_v) {
         setClientData((prev) => ({
           ...prev,
-          tensao_atendimento: data.tensao_atendimento,
+          tensao_atendimento: padrao.tensao_v,
+        }))
+      }
+      const disjA = padrao?.disjuntor_a ?? 40
+      if (!disjuntorEntradaManual.current) {
+        setTechnicalData((prev) => ({
+          ...prev,
+          disjuntor_entrada: String(disjA),
+          ...(padrao?.bitola_cabo_padrao_mm2 && !prev.bitola_cabo_padrao
+            ? { bitola_cabo_padrao: padrao.bitola_cabo_padrao_mm2 }
+            : {}),
+          ...(padrao?.curva_disjuntor && !prev.curva_disjuntor
+            ? { curva_disjuntor: padrao.curva_disjuntor }
+            : {}),
         }))
       }
     } catch {
-      // silencioso — usuário pode ajustar manualmente
+      if (!disjuntorEntradaManual.current) {
+        setTechnicalData((prev) => ({
+          ...prev,
+          disjuntor_entrada: prev.disjuntor_entrada || '40',
+        }))
+      }
     }
+  }
+
+  const suggestTensao = (uf, tipoLigacao) => syncPadraoEntrada(uf, tipoLigacao, clientData.classe)
+
+  const cargaKwKey = `${technicalData.demanda_alvo_kw}|${modulesAreaKey}|${inverters.map((i) => `${i.quantity}|${i.power}`).join(';')}`
+
+  useEffect(() => {
+    if (!authUser) return
+    syncPadraoEntrada(clientData.uf, clientData.tipo_ligacao, clientData.classe)
+  }, [authUser, clientData.uf, clientData.tipo_ligacao, clientData.classe, cargaKwKey])
+
+  const normalizeConsumerUnit = (value) => {
+    const digits = String(value || '').replace(/\D/g, '')
+    if (digits.length >= 20 && digits.length % 2 === 0) {
+      const half = digits.length / 2
+      if (digits.slice(0, half) === digits.slice(half)) {
+        return digits.slice(0, half)
+      }
+    }
+    return digits
   }
 
   const fetchDeParaPreview = async () => {
@@ -331,6 +420,9 @@ function App() {
 
     setClientData((prev) => fillGaps(mergeFilled(prev, parsed.client), aiClient))
     setTechnicalData((prev) => fillGaps(mergeFilled(prev, parsed.technical), aiTechnical))
+    if (parsed.technical?.disjuntor_entrada || aiTechnical.disjuntor_entrada) {
+      disjuntorEntradaManual.current = true
+    }
     setContractData((prev) => fillGaps(mergeFilled(prev, parsed.contract || {}), aiPatch?.contract || {}))
 
     const mergeEquip = (localList, aiList, blank) => {
@@ -616,7 +708,10 @@ function App() {
       isc: '',
       vmpp: '',
       impp: '',
-      eficiencia: ''
+      eficiencia: '',
+      comprimento_m: '',
+      largura_m: '',
+      area_modulo: '',
     }])
   }
 
@@ -663,9 +758,66 @@ function App() {
   }
 
   const applyCatalogToInverter = (index, fields) => {
+    const { strings_por_mppt_suggested, strings_por_mppt_json, ...invFields } = fields
     setInverters((prev) => prev.map((item, i) => (
-      i === index ? applyCatalogFieldsToItem(item, fields) : item
+      i === index ? applyCatalogFieldsToItem(item, invFields) : item
     )))
+    setTechnicalData((prev) => ({
+      ...prev,
+      ...(invFields.num_mppt ? { num_mppt: invFields.num_mppt } : {}),
+      ...(invFields.tipo_inversor ? { tipo_inversor: invFields.tipo_inversor } : {}),
+      ...(strings_por_mppt_suggested ? { strings_por_mppt: strings_por_mppt_suggested } : {}),
+    }))
+  }
+
+  const previewStringLayout = async () => {
+    setStringPreviewLoading(true)
+    setStringPreview(null)
+    try {
+      const requestData = {
+        client: clientData,
+        technical: technicalData,
+        modules,
+        inverters,
+        demanda_alvo_kw: technicalData.demanda_alvo_kw,
+        demand_table_ai: technicalData.demand_table_ai,
+        demanda_modelo_id: technicalData.demanda_modelo_id,
+      }
+      const response = await apiFetch('/calculate-system', {
+        method: 'POST',
+        body: JSON.stringify(requestData),
+      })
+      const data = await response.json()
+      if (response.ok && data.success) {
+        const dc = data.calculations?.dc_strings
+        setStringPreview(dc || null)
+        if (dc) {
+          setTechnicalData((prev) => ({
+            ...prev,
+            ...(dc.suggested_modulos_por_string
+              ? { modulos_por_string: String(dc.suggested_modulos_por_string) }
+              : {}),
+            ...(dc.suggested_strings_por_mppt
+              ? { strings_por_mppt: String(dc.suggested_strings_por_mppt) }
+              : {}),
+            ...(dc.num_mppt_per_inverter
+              ? { num_mppt: String(dc.num_mppt_per_inverter) }
+              : {}),
+            ...(dc.topology === 'micro'
+              ? { tipo_inversor: 'MICRO' }
+              : dc.topology === 'string'
+                ? { tipo_inversor: 'STRING' }
+                : {}),
+          }))
+        }
+      } else {
+        alert('Erro ao calcular strings: ' + (data.error || 'Erro desconhecido'))
+      }
+    } catch {
+      alert('Erro ao conectar com o servidor')
+    } finally {
+      setStringPreviewLoading(false)
+    }
   }
 
   const calculateSystem = async () => {
@@ -697,12 +849,22 @@ function App() {
           setInverters((prev) => prev.map((inv, i) => mergeFilled(inv, data.inverters[i] || {})))
         }
         const calc = data.calculations
+        const dc = calc?.dc_strings
         setTechnicalData((prev) => ({
           ...prev,
           tabela_demanda_text: calc.demand_table?.memorial_text || prev.tabela_demanda_text,
           tabela_demanda_json: calc.demand_table
             ? JSON.stringify(calc.demand_table)
             : prev.tabela_demanda_json,
+          ...(dc?.suggested_modulos_por_string && !prev.modulos_por_string
+            ? { modulos_por_string: String(dc.suggested_modulos_por_string) }
+            : {}),
+          ...(dc?.suggested_strings_por_mppt && !prev.strings_por_mppt
+            ? { strings_por_mppt: String(dc.suggested_strings_por_mppt) }
+            : {}),
+          ...(dc?.num_mppt_per_inverter && !prev.num_mppt
+            ? { num_mppt: String(dc.num_mppt_per_inverter) }
+            : {}),
         }))
         const cableWarnings = calc.cable_warnings || []
         if (cableWarnings.length) {
@@ -1294,6 +1456,12 @@ Data do Documento: 15/08/2026
                         id="consumer_unit"
                         value={clientData.consumer_unit}
                         onChange={(e) => setClientData({...clientData, consumer_unit: e.target.value})}
+                        onBlur={(e) => {
+                          const normalized = normalizeConsumerUnit(e.target.value)
+                          if (normalized !== e.target.value) {
+                            setClientData({...clientData, consumer_unit: normalized})
+                          }
+                        }}
                         placeholder="000.000.000-00"
                       />
                     </div>
@@ -1322,7 +1490,7 @@ Data do Documento: 15/08/2026
                         value={clientData.tipo_ligacao}
                         onValueChange={(value) => {
                           setClientData({...clientData, tipo_ligacao: value})
-                          suggestTensao(clientData.uf, value)
+                          syncPadraoEntrada(clientData.uf, value, clientData.classe)
                         }}
                       >
                         <SelectTrigger>
@@ -1340,7 +1508,10 @@ Data do Documento: 15/08/2026
                       <Label htmlFor="classe">Classe</Label>
                       <Select
                         value={clientData.classe}
-                        onValueChange={(value) => setClientData({...clientData, classe: value})}
+                        onValueChange={(value) => {
+                          setClientData({...clientData, classe: value})
+                          syncPadraoEntrada(clientData.uf, clientData.tipo_ligacao, value)
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -1352,6 +1523,26 @@ Data do Documento: 15/08/2026
                           <SelectItem value="RURAL">Rural</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="disjuntor_entrada">Disjuntor do padrão de entrada (A)</Label>
+                      <Input
+                        id="disjuntor_entrada"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={technicalData.disjuntor_entrada || '40'}
+                        onChange={(e) => {
+                          disjuntorEntradaManual.current = true
+                          setTechnicalData({ ...technicalData, disjuntor_entrada: e.target.value })
+                        }}
+                        placeholder="40"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Tabela ramal BT (NT.00020.EQTL): disjuntor e cabo conforme carga kW
+                        (demanda-alvo ou potência FV). Padrão 40 A se não informado.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1654,6 +1845,63 @@ Data do Documento: 15/08/2026
                 </CardContent>
               </Card>
 
+              <Card>
+                <CardHeader>
+                  <CardTitle>Layout de strings CC</CardTitle>
+                  <CardDescription>
+                    Sugestão automática com topologia MPPT do catálogo (módulos/série, strings por MPPT, Icc/Voc).
+                    Preenche os campos em Técnico → Strings CC / MPPT.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full"
+                    disabled={stringPreviewLoading}
+                    onClick={previewStringLayout}
+                  >
+                    {stringPreviewLoading ? 'Calculando strings…' : 'Sugerir layout de strings'}
+                  </Button>
+
+                  {stringPreview && (
+                    <div className={`rounded-lg border p-4 text-sm space-y-2 ${
+                      stringPreview.status === 'OK'
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-amber-50 border-amber-200'
+                    }`}>
+                      <p className="font-semibold">
+                        Status: {stringPreview.status} · Topologia: {stringPreview.topology}
+                      </p>
+                      <p>
+                        {stringPreview.modules_per_string} módulo(s)/string ·{' '}
+                        {stringPreview.strings_count} string(s) total ·{' '}
+                        até {stringPreview.strings_per_mppt} em paralelo/MPPT
+                      </p>
+                      <p>
+                        Voc string: {stringPreview.string_voc_v} V · Vmpp: {stringPreview.string_vmpp_v} V ·{' '}
+                        Isc: {stringPreview.string_isc_a} A
+                      </p>
+                      {stringPreview.mppt_layout?.length > 0 && (
+                        <p>Topologia catálogo: {stringPreview.mppt_layout.join('+')}</p>
+                      )}
+                      {stringPreview.icc_ok === false && (
+                        <p className="text-red-700 font-medium">Atenção: Isc excede Icc do MPPT</p>
+                      )}
+                      {stringPreview.mppt_ok === false && (
+                        <p className="text-red-700 font-medium">Atenção: faixa MPPT (Voc/Vmpp) fora do limite</p>
+                      )}
+                      {(stringPreview.messages || []).map((msg, i) => (
+                        <p key={i} className="text-xs text-gray-700">• {msg}</p>
+                      ))}
+                      {stringPreview.configuracao_strings_text && (
+                        <p className="text-xs mt-2">{stringPreview.configuracao_strings_text}</p>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               <Button onClick={() => setActiveTab('contrato')} className="w-full">
                 Próximo: Contrato →
               </Button>
@@ -1799,8 +2047,11 @@ Data do Documento: 15/08/2026
                       <Label>Disjuntor de Entrada (A)</Label>
                       <Input
                         type="number"
-                        value={technicalData.disjuntor_entrada}
-                        onChange={(e) => setTechnicalData({...technicalData, disjuntor_entrada: e.target.value})}
+                        value={technicalData.disjuntor_entrada || '40'}
+                        onChange={(e) => {
+                          disjuntorEntradaManual.current = true
+                          setTechnicalData({...technicalData, disjuntor_entrada: e.target.value})
+                        }}
                         placeholder="40"
                       />
                     </div>
@@ -2033,8 +2284,11 @@ Data do Documento: 15/08/2026
                         step="0.01"
                         value={technicalData.area_arranjo}
                         onChange={(e) => setTechnicalData({...technicalData, area_arranjo: e.target.value})}
-                        placeholder="64"
+                        placeholder="125"
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Calculado: quantidade de módulos × área do módulo (catálogo ou 2,5 m² padrão).
+                      </p>
                     </div>
                   </div>
                 </div>

@@ -19,7 +19,8 @@ PENDING_FILE = ROOT_DIR / 'data' / 'pending_device_verifications.json'
 MASTER_VERIFY_EMAIL = os.environ.get('MASTER_VERIFY_EMAIL', 'solarlassis@gmail.com').strip()
 APP_BASE_URL = os.environ.get('APP_BASE_URL', 'http://localhost:5173').strip().rstrip('/')
 DEVICE_VERIFY_MINUTES = int(os.environ.get('DEVICE_VERIFY_MINUTES', '20') or '20')
-DEVICE_VERIFY_ENABLED = os.environ.get('AUTH_DEVICE_VERIFY', '1').strip().lower() not in ('0', 'false', 'no')
+# Padrão desligado — login só usuário/senha. Ative com AUTH_DEVICE_VERIFY=1 quando SMTP estiver pronto.
+DEVICE_VERIFY_ENABLED = os.environ.get('AUTH_DEVICE_VERIFY', '0').strip().lower() in ('1', 'true', 'yes')
 
 
 def _now() -> datetime:

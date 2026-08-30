@@ -36,6 +36,9 @@ def _normalize_module(module):
         'vmpp': _first(module, 'vmpp'),
         'impp': _first(module, 'impp'),
         'eficiencia': _first(module, 'eficiencia', 'efficiency'),
+        'comprimento_m': _first(module, 'comprimento_m'),
+        'largura_m': _first(module, 'largura_m'),
+        'area_modulo': _first(module, 'area_modulo'),
     }
 
 
@@ -155,6 +158,7 @@ def normalize_form_payload(data):
         'tipo_aterramento': ('tipo_aterramento',),
         'resistencia_aterramento': ('resistencia_aterramento',),
         'disjuntor_curva': ('curva_disjuntor', 'disjuntor_curva'),
+        'disjuntor_entrada': ('disjuntor_entrada',),
         'tipo_arranjo': ('tipo_arranjo',),
         'latitude': ('latitude',),
         'longitude': ('longitude',),

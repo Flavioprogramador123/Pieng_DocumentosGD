@@ -5,6 +5,8 @@
     "concessionaria": "Equatorial Energia Goiás",
     "uf_principal": "GO",
     "referencias": [
+      "NT.00020.EQTL — Norma Técnica Equatorial (ramal de conexão BT)",
+      "dados/ramal_conexao_equatorial_go.json — disjuntor/cabo por carga kW",
       "NTC-04 Rev.4 CELG-D — Norma Técnica de Construção, fatores de demanda BT secundária",
       "PRODIST Módulo 3 — Acesso de microgeração e minigeração distribuída",
       "NBR 5410:2004 — Instalações elétricas de baixa tensão",
@@ -270,7 +272,8 @@
       "Ajuste potências/quantidades para aproximar demanda-alvo — validar in loco"
     ],
     "pos_processamento": [
-      "Após extrair TXT, cruzar com padrao_entrada GO por UF+tipo_ligacao+classe",
+      "Após extrair TXT, cruzar carga kW com ramal_conexao_equatorial_go.json (disjuntor + cabo)",
+      "Completar com padrao_entrada GO por UF+tipo_ligacao+classe (DPS, curva, DR)",
       "Preencher bitolas conforme tabela_cabos se potência FV conhecida",
       "Gerar tabela de demanda se demanda_alvo_kw presente",
       "Sincronizar tokens do memorial com dados enriquecidos"

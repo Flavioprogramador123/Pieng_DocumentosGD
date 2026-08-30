@@ -1,0 +1,29 @@
+PREVIEW MEMORIAL NBR — Automação Equatorial
+Entrada: dados_exemplo_memorial.txt
+Template formatado: MEMORIAL_DESCRITIVO_marcadores_NBR.docx
+Saída preenchida: MEMORIAL_DESCRITIVO_exemplo_preenchido.docx
+
+Restaurar original:
+  Copy-Item templates\backup\MEMORIAL_DESCRITIVO_marcadores_PRE_NBR.docx templates\MEMORIAL_DESCRITIVO_marcadores.docx -Force
+
+Valores principais:
+  NOME_CLIENTE: Cliente Exemplo Memorial NBR
+  QTD_MODULOS: 50
+  POTENCIA_TOTAL_INSTALADA: 31 kW
+  QTD_INVERSORES: 2
+  TIPO_EQUIPAMENTO_INVERSOR: Inversor
+  DISJUNTOR_ENTRADA: 63 A
+  AREA_ARRANJO: 125 m²
+
+Tokens ainda no DOCX (11):
+  {{ACIONAMENTO_DISJUNTOR}}
+  {{CAPACIDADE_INT_DISJUNTOR}}
+  {{CORRENTE_MAX_CC_INVERSOR}}
+  {{ELEMENTO_PROTECAO_DISJUNTOR}}
+  {{FAIXA_TENSAO_CA_INVERSOR}}
+  {{FREQUENCIA_DISJUNTOR}}
+  {{FREQUENCIA_NOMINAL_INVERSOR}}
+  {{TABELA_DEMANDA}}
+  {{TENSAO_DPS}}
+  {{TENSAO_MAX_CC_INVERSOR}}
+  {{TENSAO_NOMINAL_CA_INVERSOR}}

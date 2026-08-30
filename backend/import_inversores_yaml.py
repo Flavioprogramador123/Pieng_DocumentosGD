@@ -5,6 +5,7 @@ Fonte: dados/inversores.yaml ou obsoleto/Yamlinversores.yaml
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -82,6 +83,28 @@ def _potencia_kw_from_modelo(modelo: str, potencia_w: float | None) -> float | N
     return None
 
 
+def _infer_fase_ca(entry: dict[str, Any], potencia_kw: float | None) -> str:
+    explicit = (entry.get('fase_ca') or entry.get('fase') or '').upper()
+    if explicit in ('MONOFASICO', 'MONO', 'MONOFÁSICO'):
+        return 'MONOFASICO'
+    if explicit in ('TRIFASICO', 'TRI', 'TRIFÁSICO'):
+        return 'TRIFASICO'
+    if potencia_kw is not None:
+        if potencia_kw >= 12:
+            return 'TRIFASICO'
+        if potencia_kw <= 10:
+            return 'MONOFASICO'
+    return 'MONOFASICO'
+
+
+def _json_list(val: Any) -> str | None:
+    if val is None:
+        return None
+    if isinstance(val, list):
+        return json.dumps(val)
+    return None
+
+
 def yaml_entry_to_catalog(entry: dict[str, Any]) -> dict[str, Any]:
     cc = entry.get('entrada_cc') or {}
     ca = entry.get('saida_ca') or {}
@@ -100,6 +123,18 @@ def yaml_entry_to_catalog(entry: dict[str, Any]) -> dict[str, Any]:
 
     potencia_kw = _potencia_kw_from_modelo(modelo, pot_saida_w)
 
+    strings_arr = cc.get('strings_por_mppt')
+    if isinstance(strings_arr, list):
+        qtd_strings_max = sum(max(1, int(x)) for x in strings_arr)
+    else:
+        qtd_strings_max = cc.get('numero_mppts') or cc.get('num_mppt')
+
+    icc_raw = cc.get('corrente_entrada_cc_max_a_por_mppt')
+    icc_json = _json_list(icc_raw)
+    strings_json = _json_list(strings_arr)
+    micros_max = cc.get('micros_max_por_disjuntor_ca') or cc.get('micros_max_disjuntor_ca')
+    fase_ca = _infer_fase_ca(entry, potencia_kw)
+
     notas_parts = [tipo_raw] if tipo_raw else []
     if perf.get('grau_protecao'):
         notas_parts.append(str(perf['grau_protecao']))
@@ -116,6 +151,7 @@ def yaml_entry_to_catalog(entry: dict[str, Any]) -> dict[str, Any]:
         'modelo': modelo,
         'potencia_kw': potencia_kw,
         'tipo_inversor': _map_tipo_inversor(tipo_raw),
+        'fase_ca': fase_ca,
         'num_mppt': cc.get('numero_mppts') or cc.get('num_mppt'),
         'mppt_min': mppt_lo,
         'mppt_max': mppt_hi,
@@ -133,7 +169,10 @@ def yaml_entry_to_catalog(entry: dict[str, Any]) -> dict[str, Any]:
         'fator_potencia': fp if fp is not None else 0.99,
         'frequencia_hz': freq if freq is not None else 60,
         'tensao_partida_cc': oper_lo or mppt_lo,
-        'qtd_strings_max': cc.get('numero_mppts') or cc.get('num_mppt'),
+        'qtd_strings_max': qtd_strings_max,
+        'strings_por_mppt_json': strings_json,
+        'icc_mppt_json': icc_json,
+        'micros_max_disjuntor_ca': int(micros_max) if micros_max else None,
         'notas': ' — '.join(notas_parts),
     }
 
@@ -171,7 +210,7 @@ def load_yaml_inversores(path: Path | None = None) -> list[dict[str, Any]]:
 
 def import_inversores_yaml(path: Path | None = None) -> dict[str, Any]:
     """Upsert de todos os inversores do YAML no SQLite."""
-    from catalog_db import INVERTER_FIELDS, _connect, _now, init_db
+    from catalog_db import INVERTER_FIELDS, _connect, _migrate_schema, _now
 
     yaml_path = path
     if yaml_path is None:
@@ -189,29 +228,7 @@ def import_inversores_yaml(path: Path | None = None) -> dict[str, Any]:
     placeholders = ', '.join('?' * len(cols))
 
     with _connect() as conn:
-        conn.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS catalog_inverters (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                fabricante TEXT NOT NULL,
-                modelo TEXT NOT NULL,
-                potencia_kw REAL,
-                tipo_inversor TEXT,
-                num_mppt INTEGER,
-                mppt_min REAL, mppt_max REAL,
-                tensao_nominal REAL, corrente_nominal REAL,
-                eficiencia REAL,
-                corrente_max_cc REAL, tensao_max_cc REAL, potencia_max_cc_kw REAL,
-                potencia_max_saida_ca_kw REAL, corrente_max_saida_ca REAL,
-                tensao_min_ca REAL, tensao_max_ca REAL, thd_pct REAL,
-                fator_potencia REAL, frequencia_hz REAL, tensao_partida_cc REAL,
-                qtd_strings_max INTEGER,
-                notas TEXT,
-                updated_at TEXT,
-                UNIQUE(fabricante, modelo)
-            );
-            """
-        )
+        _migrate_schema(conn)
         for row in rows:
             try:
                 payload = {f: row.get(f) for f in fields}
@@ -230,11 +247,6 @@ def import_inversores_yaml(path: Path | None = None) -> dict[str, Any]:
             except Exception as exc:
                 errors.append(f"{row.get('fabricante')} {row.get('modelo')}: {exc}")
         conn.commit()
-
-    try:
-        init_db()
-    except Exception:
-        pass
 
     return {
         'success': len(errors) == 0,

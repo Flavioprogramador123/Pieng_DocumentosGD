@@ -2,6 +2,18 @@
 # Usado para popular catalog.db (SQLite) — specs para memorial e cálculos de string
 modulos_solares:
   - marca: "RENE PV"
+    potencia_w: 600
+    eficiencia_pct: 21.20
+    tecnologia: "PERC Bifacial"
+    voc_v: 41.70
+    isc_a: 18.26
+    vmp_v: 34.80
+    imp_a: 17.25
+    dimensoes_mm: "2172x1303x35"
+    peso_kg: 37.0
+    notas: "Risen RSM120-8-600BMDG — Isc alto; conferir Icc 16 A SAJ R6"
+
+  - marca: "RENE PV"
     potencia_w: 620
     eficiencia_pct: 22.90
     tecnologia: "Bifacial"

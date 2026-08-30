@@ -1,0 +1,32 @@
+{
+  "_comentario": "Copie para config_padrao.local.json (gitignored). Sobrescreve config_padrao.json.",
+  "procurador": {
+    "nome": "NOME DO PROCURADOR",
+    "cpf": "000.000.000-00",
+    "rg": "0000000",
+    "orgao_emissor_rg": "DGPC-GO",
+    "uf_rg": "GO",
+    "registro_profissional": "00000000000",
+    "titulo_profissional": "TECNICO EM ELETROTÉCNICA",
+    "endereco": "RUA EXEMPLO",
+    "bairro": "BAIRRO",
+    "cidade": "CIDADE",
+    "uf": "GO",
+    "cep": "00000-000",
+    "telefone": "(62) 00000-0000",
+    "email": "email@exemplo.com"
+  },
+  "responsavel_tecnico": {
+    "nome": "NOME DO RESPONSÁVEL TÉCNICO",
+    "titulo_profissional": "TECNICO EM ELETROTÉCNICA",
+    "registro_profissional": "00000000000",
+    "uf_registro": "GO",
+    "endereco": "RUA EXEMPLO",
+    "bairro": "BAIRRO",
+    "cidade": "CIDADE",
+    "uf": "GO",
+    "cep": "00000-000",
+    "telefone": "62000000000",
+    "email": "email@exemplo.com"
+  }
+}

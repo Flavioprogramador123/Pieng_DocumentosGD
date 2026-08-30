@@ -1,0 +1,139 @@
+# Rascunho — importação futura para dados/inversores.yaml e SQLite catalog_db
+# Revisar potências/fases com modelos comercializados no Brasil antes de commitar
+
+modulos:
+  - fabricante: Risen
+    modelo: RSM120-8-600BMDG
+    potencia_wp: 600
+    voc_v: 41.70
+    isc_a: 18.26
+    vmpp_v: 34.80
+    impp_a: 17.25
+    eficiencia_pct: 21.2
+    fusivel_serie_a: 30
+    notas: "Isc 18,26 A — verificar compatibilidade com SAJ R6-S3 (Icc 16 A)"
+
+  - fabricante: Risen
+    modelo: RSM132-8-690BHDG
+    potencia_wp: 690
+    voc_v: 49.65
+    isc_a: 17.66
+    vmpp_v: 41.63
+    impp_a: 16.60
+    eficiencia_pct: 22.2
+    fusivel_serie_a: 35
+
+  - fabricante: TSUN
+    modelo: TS600S8E-132GANT
+    potencia_wp: 600
+    voc_v: 48.28
+    isc_a: 15.84
+    vmpp_v: 40.16
+    impp_a: 14.94
+    eficiencia_pct: 22.6
+    fusivel_serie_a: 35
+    notas: "Melhor match Icc 16 A SAJ R6-S3"
+
+inversores:
+  - fabricante: SAJ
+    modelo: R6-3K-S3
+    tipo: Inversor String On-Grid
+    fase: monofasico
+    potencia_kw: 3
+    entrada_cc:
+      potencia_max_arranjo_wp: 4500
+      tensao_rastreamento_mppt_v: "90-550"
+      tensao_entrada_max_v: 600
+      corrente_entrada_cc_max_a_por_mppt: [16, 16, 16]
+      numero_mppts: 3
+      strings_por_mppt: [1, 1, 1]
+      topologia_tipica: "1 string total em 1 MPPT; demais MPPT vazios"
+    saida_ca:
+      potencia_max_saida_w: 3000
+      tensao_ca_nominal_faixa_v: "220 / 180-280"
+
+  - fabricante: SAJ
+    modelo: R6-6K-S3
+    tipo: Inversor String On-Grid
+    fase: monofasico
+    potencia_kw: 6
+    entrada_cc:
+      potencia_max_arranjo_wp: 9000
+      tensao_rastreamento_mppt_v: "90-550"
+      tensao_entrada_max_v: 600
+      corrente_entrada_cc_max_a_por_mppt: [16, 16, 16]
+      numero_mppts: 3
+      strings_por_mppt: [1, 1, 1]
+      topologia_tipica: "2-3 strings independentes (1 por MPPT)"
+    saida_ca:
+      potencia_max_saida_w: 6000
+
+  - fabricante: SAJ
+    modelo: R6-25K-T2-32
+    tipo: Inversor String On-Grid
+    fase: trifasico
+    potencia_kw: 25
+    entrada_cc:
+      potencia_max_arranjo_wp: 37500
+      tensao_rastreamento_mppt_v: "180-1000"
+      tensao_entrada_max_v: 1100
+      corrente_entrada_cc_max_a_por_mppt: [32, 32]
+      numero_mppts: 2
+      strings_por_mppt: [2, 2]
+      topologia_tipica: "Até 4 strings; cuidado Isc paralelo ≤ 32 A/MPPT"
+    saida_ca:
+      potencia_max_saida_w: 25000
+      tensao_ca_nominal_faixa_v: "380/220 trifásico"
+
+  - fabricante: SAJ
+    modelo: M2-2.25K-S4
+    tipo: Microinversor
+    fase: monofasico
+    potencia_kw: 2.25
+    entrada_cc:
+      numero_mppts: 4
+      modulos_por_mppt: 1
+      potencia_modulo_recomendada_wp: "400-700+"
+      tensao_rastreamento_mppt_v: "35-50"
+      tensao_entrada_max_v: 60
+      corrente_entrada_cc_max_a: 20
+      micros_max_por_disjuntor_ca: 3
+    saida_ca:
+      potencia_max_saida_w: 2250
+      corrente_saida_max_a: 9.78
+
+  - fabricante: DEYE
+    modelo: SUN-3K-G06P3-EU-AM2
+    tipo: Inversor String On-Grid
+    fase: trifasico
+    potencia_kw: 3
+    entrada_cc:
+      potencia_max_arranjo_wp: 4500
+      tensao_rastreamento_mppt_v: "120-1000"
+      tensao_entrada_max_v: 1100
+      corrente_entrada_cc_max_a_por_mppt: [13, 13]
+      numero_mppts: 2
+      strings_por_mppt: [1, 1]
+
+  - fabricante: DEYE
+    modelo: SUN-6K-G06P3-EU-AM2
+    tipo: Inversor String On-Grid
+    fase: trifasico
+    potencia_kw: 6
+    entrada_cc:
+      potencia_max_arranjo_wp: 9000
+      tensao_rastreamento_mppt_v: "120-1000"
+      numero_mppts: 2
+      strings_por_mppt: [1, 1]
+
+  - fabricante: DEYE
+    modelo: SUN-25K-G06P3-EU-AM2
+    tipo: Inversor String On-Grid
+    fase: trifasico
+    potencia_kw: 25
+    entrada_cc:
+      potencia_max_arranjo_wp: 37500
+      tensao_rastreamento_mppt_v: "200-1000"
+      corrente_entrada_cc_max_a_por_mppt: [54, 48]
+      numero_mppts: 2
+      strings_por_mppt: [2, 2]

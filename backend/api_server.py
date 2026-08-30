@@ -950,7 +950,8 @@ def get_normas():
     try:
         from normas_loader import (
             calc_pd_max_kw,
-            get_padrao_entrada,
+            lookup_ramal_conexao,
+            resolve_entrada_uc,
             load_normas,
             suggest_demanda_alvo_kw,
         )
@@ -958,12 +959,21 @@ def get_normas():
         uf = request.args.get('uf', 'GO')
         tipo = request.args.get('tipo_ligacao', 'MONOFASICO')
         classe = request.args.get('classe', 'RESIDENCIAL')
-        padrao = get_padrao_entrada(uf, tipo, classe)
+        carga_kw = request.args.get('carga_kw') or request.args.get('demanda_alvo_kw')
+        carga_f = None
+        if carga_kw not in (None, ''):
+            try:
+                carga_f = float(str(carga_kw).replace(',', '.'))
+            except (TypeError, ValueError):
+                pass
+        padrao = resolve_entrada_uc(uf, tipo, classe, carga_kw=carga_f)
         disj = padrao.get('disjuntor_a') if padrao else 40
+        ramal_faixa = lookup_ramal_conexao(tipo, carga_f) if carga_f is not None else None
         return jsonify({
             'success': True,
             'meta': (load_normas() or {}).get('meta'),
             'padrao_entrada': padrao,
+            'ramal_faixa': ramal_faixa,
             'pd_max_kw': calc_pd_max_kw(uf, tipo, disj),
             'demanda_alvo_sugerida_kw': suggest_demanda_alvo_kw(
                 uf=uf, tipo_ligacao=tipo, disjuntor_a=disj, classe=classe,

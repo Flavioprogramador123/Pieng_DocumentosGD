@@ -1,0 +1,63 @@
+# Exemplo — 50×620 Wp RENE PV + 2× SAJ 25 kW (trifásico)
+# Gerado para preview NBR em .temp/memorial_nbr/
+
+Nome: Cliente Exemplo Memorial NBR
+CPF: 123.456.789-09
+RG: 1234567 SSP GO
+Data de Nascimento: 15/03/1985
+Endereço: Rua Exemplo
+Número: 100
+Bairro: Centro
+Cidade/UF: Anápolis/GO
+UF: GO
+CEP: 75000-000
+Telefone: (62) 99999-0000
+E-mail: cliente.exemplo@email.com
+Unidade Consumidora (UC): 427568201290
+
+Classe: Residencial
+Tipo de Ligação: Trifásico
+Tensão de Atendimento (V): 220/380V
+Disjuntor de Entrada (A): 63
+Nº Poste/Transformador: ilégível
+Coordenada UTM X: 678901
+Coordenada UTM Y: 8234567
+Fuso UTM: 22S
+Tipo de Fonte: SOLAR FOTOVOLTAICA
+Modalidade de Compensação: AUTOCONSUMO LOCAL
+Data Prevista de Operação: 2026-09-15
+Demanda Alvo da Unidade (kW): 31
+
+Quantidade de Módulos: 50
+Fabricante dos Módulos: RENE PV
+Modelo dos Módulos: RENE PV 620W
+Potência Unitária dos Módulos (Wp): 620
+Área dos Arranjos (m²): 125
+Tensão de circuito aberto (Voc) [V]: 41.7
+Corrente de curto circuito (Isc) [A]: 15.84
+Tensão de máxima potência (Vpmp) [V]: 34.8
+Corrente de máxima potência (Ipmp) [A]: 15.5
+Eficiência do Módulo (%): 21.2
+
+Quantidade de Inversores: 2
+Fabricante dos Inversores: SAJ
+Modelo dos Inversores: INVERSOR SAJ 25KW TRIFÁSICO 220V
+Potência Nominal dos Inversores (kW): 25
+Tipo de Inversor (topologia): STRING
+Quantidade de Entradas MPPT: 2
+Mínima Tensão MPPT (V): 180
+Máxima Tensão MPPT (V): 1000
+Máxima Corrente na Saída CA (A): 36.2
+Eficiência máxima do inversor (%): 98.8
+THD de Corrente (%): 3
+
+Bitola cabo CC: 6 mm²
+Bitola cabo CA: 10 mm²
+Bitola cabo padrão: 16 mm²
+Curva de atuação: C
+Tipo DPS: DPS Classe II
+Classe DPS: 275 V
+DR: DR 30 mA — alta sensibilidade
+
+Data do Documento: 30/08/2026
+Cidade do Documento: Anápolis

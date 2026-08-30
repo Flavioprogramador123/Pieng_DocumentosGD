@@ -21,12 +21,13 @@ MODULE_FIELDS = (
     'eficiencia', 'comprimento_m', 'largura_m', 'peso_kg', 'notas',
 )
 INVERTER_FIELDS = (
-    'fabricante', 'modelo', 'potencia_kw', 'tipo_inversor', 'num_mppt',
+    'fabricante', 'modelo', 'potencia_kw', 'tipo_inversor', 'fase_ca', 'num_mppt',
     'mppt_min', 'mppt_max', 'tensao_nominal', 'corrente_nominal', 'eficiencia',
     'corrente_max_cc', 'tensao_max_cc', 'potencia_max_cc_kw',
     'potencia_max_saida_ca_kw', 'corrente_max_saida_ca',
     'tensao_min_ca', 'tensao_max_ca', 'thd_pct', 'fator_potencia',
-    'frequencia_hz', 'tensao_partida_cc', 'qtd_strings_max', 'notas',
+    'frequencia_hz', 'tensao_partida_cc', 'qtd_strings_max',
+    'strings_por_mppt_json', 'icc_mppt_json', 'micros_max_disjuntor_ca', 'notas',
 )
 
 # Match por potência: só ±2 Wp (evita usar specs de outro módulo, ex. 544→620).
@@ -88,6 +89,8 @@ def _migrate_schema(conn: sqlite3.Connection) -> None:
         'tensao_min_ca REAL', 'tensao_max_ca REAL', 'thd_pct REAL',
         'fator_potencia REAL', 'frequencia_hz REAL', 'tensao_partida_cc REAL',
         'qtd_strings_max INTEGER',
+        'fase_ca TEXT', 'strings_por_mppt_json TEXT', 'icc_mppt_json TEXT',
+        'micros_max_disjuntor_ca INTEGER',
     ]
     for col in module_cols:
         try:
@@ -159,76 +162,81 @@ def init_db() -> None:
                 UNIQUE(uf, tipo_ligacao)
             );
             """
-        )
-        _migrate_schema(conn)
-        mod_set = (
-            'potencia_wp=excluded.potencia_wp, voc=excluded.voc, isc=excluded.isc, '
-            'vmpp=excluded.vmpp, impp=excluded.impp, eficiencia=excluded.eficiencia, '
-            'comprimento_m=excluded.comprimento_m, largura_m=excluded.largura_m, '
-            'peso_kg=excluded.peso_kg, notas=excluded.notas, updated_at=excluded.updated_at'
-        )
-        for row in SEED_MODULES:
-            conn.execute(
-                f"""
-                INSERT INTO catalog_modules
-                (fabricante, modelo, potencia_wp, voc, isc, vmpp, impp, eficiencia,
-                 comprimento_m, largura_m, peso_kg, notas, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(fabricante, modelo) DO UPDATE SET {mod_set}
-                """,
-                (*row, _now()),
             )
-        inv_set = (
-            'potencia_kw=excluded.potencia_kw, tipo_inversor=excluded.tipo_inversor, '
-            'num_mppt=excluded.num_mppt, mppt_min=excluded.mppt_min, mppt_max=excluded.mppt_max, '
-            'tensao_nominal=excluded.tensao_nominal, corrente_nominal=excluded.corrente_nominal, '
-            'eficiencia=excluded.eficiencia, corrente_max_cc=excluded.corrente_max_cc, '
-            'tensao_max_cc=excluded.tensao_max_cc, potencia_max_cc_kw=excluded.potencia_max_cc_kw, '
-            'potencia_max_saida_ca_kw=excluded.potencia_max_saida_ca_kw, '
-            'corrente_max_saida_ca=excluded.corrente_max_saida_ca, '
-            'tensao_min_ca=excluded.tensao_min_ca, tensao_max_ca=excluded.tensao_max_ca, '
-            'thd_pct=excluded.thd_pct, fator_potencia=excluded.fator_potencia, '
-            'frequencia_hz=excluded.frequencia_hz, tensao_partida_cc=excluded.tensao_partida_cc, '
-            'qtd_strings_max=excluded.qtd_strings_max, notas=excluded.notas, updated_at=excluded.updated_at'
-        )
-        for row in SEED_INVERTERS:
-            conn.execute(
-                f"""
-                INSERT INTO catalog_inverters
-                (fabricante, modelo, potencia_kw, tipo_inversor, num_mppt, mppt_min, mppt_max,
-                 tensao_nominal, corrente_nominal, eficiencia, corrente_max_cc, tensao_max_cc,
-                 potencia_max_cc_kw, potencia_max_saida_ca_kw, corrente_max_saida_ca,
-                 tensao_min_ca, tensao_max_ca, thd_pct, fator_potencia, frequencia_hz,
-                 tensao_partida_cc, qtd_strings_max, notas, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(fabricante, modelo) DO UPDATE SET {inv_set}
-                """,
-                (*row, _now()),
+            _migrate_schema(conn)
+            mod_set = (
+                'potencia_wp=excluded.potencia_wp, voc=excluded.voc, isc=excluded.isc, '
+                'vmpp=excluded.vmpp, impp=excluded.impp, eficiencia=excluded.eficiencia, '
+                'comprimento_m=excluded.comprimento_m, largura_m=excluded.largura_m, '
+                'peso_kg=excluded.peso_kg, notas=excluded.notas, updated_at=excluded.updated_at'
             )
-        for row in SEED_PADRAO:
-            conn.execute(
-                """
-                INSERT OR IGNORE INTO catalog_padrao
-                (uf, tipo_ligacao, tensao_v, disjuntor_a, bitola_cabo_mm2, dps_tipo,
-                 curva_disjuntor, dr_ma, notas, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (*row, _now()),
+            for row in SEED_MODULES:
+                conn.execute(
+                    f"""
+                    INSERT INTO catalog_modules
+                    (fabricante, modelo, potencia_wp, voc, isc, vmpp, impp, eficiencia,
+                     comprimento_m, largura_m, peso_kg, notas, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(fabricante, modelo) DO UPDATE SET {mod_set}
+                    """,
+                    (*row, _now()),
+                )
+            inv_set = (
+                'potencia_kw=excluded.potencia_kw, tipo_inversor=excluded.tipo_inversor, '
+                'fase_ca=excluded.fase_ca, num_mppt=excluded.num_mppt, mppt_min=excluded.mppt_min, '
+                'mppt_max=excluded.mppt_max, tensao_nominal=excluded.tensao_nominal, '
+                'corrente_nominal=excluded.corrente_nominal, eficiencia=excluded.eficiencia, '
+                'corrente_max_cc=excluded.corrente_max_cc, tensao_max_cc=excluded.tensao_max_cc, '
+                'potencia_max_cc_kw=excluded.potencia_max_cc_kw, '
+                'potencia_max_saida_ca_kw=excluded.potencia_max_saida_ca_kw, '
+                'corrente_max_saida_ca=excluded.corrente_max_saida_ca, '
+                'tensao_min_ca=excluded.tensao_min_ca, tensao_max_ca=excluded.tensao_max_ca, '
+                'thd_pct=excluded.thd_pct, fator_potencia=excluded.fator_potencia, '
+                'frequencia_hz=excluded.frequencia_hz, tensao_partida_cc=excluded.tensao_partida_cc, '
+                'qtd_strings_max=excluded.qtd_strings_max, '
+                'strings_por_mppt_json=excluded.strings_por_mppt_json, '
+                'icc_mppt_json=excluded.icc_mppt_json, '
+                'micros_max_disjuntor_ca=excluded.micros_max_disjuntor_ca, '
+                'notas=excluded.notas, updated_at=excluded.updated_at'
             )
-        try:
-            from normas_loader import iter_padrao_seed_rows
-            for row in iter_padrao_seed_rows():
+            for row in SEED_INVERTERS:
+                conn.execute(
+                    f"""
+                    INSERT INTO catalog_inverters
+                    (fabricante, modelo, potencia_kw, tipo_inversor, num_mppt, mppt_min, mppt_max,
+                     tensao_nominal, corrente_nominal, eficiencia, corrente_max_cc, tensao_max_cc,
+                     potencia_max_cc_kw, potencia_max_saida_ca_kw, corrente_max_saida_ca,
+                     tensao_min_ca, tensao_max_ca, thd_pct, fator_potencia, frequencia_hz,
+                     tensao_partida_cc, qtd_strings_max, notas, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(fabricante, modelo) DO UPDATE SET {inv_set}
+                    """,
+                    (*row, _now()),
+                )
+            for row in SEED_PADRAO:
                 conn.execute(
                     """
-                    INSERT OR REPLACE INTO catalog_padrao
+                    INSERT OR IGNORE INTO catalog_padrao
                     (uf, tipo_ligacao, tensao_v, disjuntor_a, bitola_cabo_mm2, dps_tipo,
                      curva_disjuntor, dr_ma, notas, updated_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (*row, _now()),
                 )
-        except Exception:
-            pass
+            try:
+                from normas_loader import iter_padrao_seed_rows
+                for row in iter_padrao_seed_rows():
+                    conn.execute(
+                        """
+                        INSERT OR REPLACE INTO catalog_padrao
+                        (uf, tipo_ligacao, tensao_v, disjuntor_a, bitola_cabo_mm2, dps_tipo,
+                         curva_disjuntor, dr_ma, notas, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (*row, _now()),
+                    )
+            except Exception:
+                pass
     finally:
         _db_initializing = False
 
@@ -399,7 +407,9 @@ def catalog_module_to_specs(row: dict) -> dict:
 def catalog_inverter_to_specs(row: dict) -> dict:
     return {
         'potencia': row.get('potencia_kw'),
+        'potencia_kw': row.get('potencia_kw'),
         'tipo_inversor': row.get('tipo_inversor'),
+        'fase_ca': row.get('fase_ca'),
         'num_mppt': row.get('num_mppt'),
         'mppt_min': row.get('mppt_min'),
         'mppt_max': row.get('mppt_max'),
@@ -418,6 +428,9 @@ def catalog_inverter_to_specs(row: dict) -> dict:
         'frequencia_hz': row.get('frequencia_hz'),
         'tensao_partida_cc': row.get('tensao_partida_cc'),
         'qtd_strings_max': row.get('qtd_strings_max'),
+        'strings_por_mppt_json': row.get('strings_por_mppt_json'),
+        'icc_mppt_json': row.get('icc_mppt_json'),
+        'micros_max_disjuntor_ca': row.get('micros_max_disjuntor_ca'),
     }
 
 
@@ -716,55 +729,75 @@ def find_inverter_by_name_or_power(fabricante='', modelo='', potencia_kw=0):
     if potencia_kw > 100:
         potencia_kw = potencia_kw / 1000
 
-    conn = _connect()
-    cursor = conn.cursor()
-    
-    # Tier 1: Match exato fabricante + modelo
-    if fabricante and modelo:
-        cursor.execute('''
-            SELECT * FROM catalog_inverters
-            WHERE LOWER(fabricante) LIKE ?
-              AND LOWER(modelo) LIKE ?
-            LIMIT 1
-        ''', (f'%{fabricante.lower()}%', f'%{modelo.lower()}%'))
-        
-        result = cursor.fetchone()
-        if result:
-            conn.close()
-            return dict(result)
-    
-    # Tier 2: Match exato por potência
-    if fabricante and potencia_kw > 0:
-        cursor.execute('''
-            SELECT * FROM catalog_inverters
-            WHERE LOWER(fabricante) LIKE ?
-              AND potencia_kw = ?
-            LIMIT 1
-        ''', (f'%{fabricante.lower()}%', potencia_kw))
-        
-        result = cursor.fetchone()
-        if result:
-            conn.close()
-            return dict(result)
-    
-    # Tier 3: Match com tolerância ±10%
-    if fabricante and potencia_kw > 0:
-        tolerance = 0.10
-        min_power = potencia_kw * (1 - tolerance)
-        max_power = potencia_kw * (1 + tolerance)
-        
-        cursor.execute('''
-            SELECT * FROM catalog_inverters
-            WHERE LOWER(fabricante) LIKE ?
-              AND potencia_kw BETWEEN ? AND ?
-            ORDER BY ABS(potencia_kw - ?) ASC
-            LIMIT 1
-        ''', (f'%{fabricante.lower()}%', min_power, max_power, potencia_kw))
-        
-        result = cursor.fetchone()
-        if result:
-            conn.close()
-            return dict(result)
-    
-    conn.close()
+    init_db()
+    fab = _norm(fabricante)
+    mod = _norm(modelo)
+
+    with _connect() as conn:
+        cursor = conn.cursor()
+
+        # Tier 1: fabricante + modelo
+        if fab and mod:
+            cursor.execute(
+                '''
+                SELECT * FROM catalog_inverters
+                WHERE LOWER(fabricante) LIKE ?
+                  AND LOWER(modelo) LIKE ?
+                LIMIT 1
+                ''',
+                (f'%{fab}%', f'%{mod}%'),
+            )
+            result = cursor.fetchone()
+            if result:
+                return _row_to_dict(result)
+
+        # Tier 1b: só modelo (formulário sem fabricante)
+        if mod:
+            cursor.execute(
+                '''
+                SELECT * FROM catalog_inverters
+                WHERE LOWER(modelo) LIKE ?
+                ORDER BY ABS(COALESCE(potencia_kw, 0) - ?) ASC
+                LIMIT 1
+                ''',
+                (f'%{mod}%', potencia_kw or 0),
+            )
+            result = cursor.fetchone()
+            if result:
+                return _row_to_dict(result)
+
+        # Tier 2: fabricante + potência exata
+        if fab and potencia_kw > 0:
+            cursor.execute(
+                '''
+                SELECT * FROM catalog_inverters
+                WHERE LOWER(fabricante) LIKE ?
+                  AND potencia_kw = ?
+                LIMIT 1
+                ''',
+                (f'%{fab}%', potencia_kw),
+            )
+            result = cursor.fetchone()
+            if result:
+                return _row_to_dict(result)
+
+        # Tier 3: fabricante + potência ±10%
+        if fab and potencia_kw > 0:
+            tolerance = 0.10
+            min_power = potencia_kw * (1 - tolerance)
+            max_power = potencia_kw * (1 + tolerance)
+            cursor.execute(
+                '''
+                SELECT * FROM catalog_inverters
+                WHERE LOWER(fabricante) LIKE ?
+                  AND potencia_kw BETWEEN ? AND ?
+                ORDER BY ABS(potencia_kw - ?) ASC
+                LIMIT 1
+                ''',
+                (f'%{fab}%', min_power, max_power, potencia_kw),
+            )
+            result = cursor.fetchone()
+            if result:
+                return _row_to_dict(result)
+
     return None
