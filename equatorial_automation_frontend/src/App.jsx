@@ -6,10 +6,14 @@ import { Label } from '@/components/ui/label.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
-import { Plus, Trash2, FileText, Calculator, Download, Upload, Save, FileJson, Search, Database } from 'lucide-react'
+import { Plus, Trash2, FileText, Calculator, Download, Upload, Save, FileJson, Search, Database, LogOut, Users } from 'lucide-react'
 import { DeParaPanel, DeParaPanelToggle } from '@/components/DeParaPanel.jsx'
 import { CalculationsResults } from '@/components/CalculationsResults.jsx'
 import { CatalogPanel } from '@/components/CatalogPanel.jsx'
+import { CatalogEquipmentPicker, applyCatalogFieldsToItem } from '@/components/CatalogEquipmentPicker.jsx'
+import { Login } from '@/components/Login.jsx'
+import { UserManagement } from '@/components/UserManagement.jsx'
+import { apiFetch, apiJson } from '@/utils/api.js'
 import {
   fillGaps,
   mapClasse,
@@ -22,9 +26,9 @@ import {
 import './App.css'
 
 import { buildLocalDeParaPreview } from './utils/deParaMapper'
-import { getInitialTechnicalData } from './utils/formDefaults'
-
-const API_BASE = '/api'
+import { getInitialTechnicalData, getInitialContractData, EXEMPLO_TEXTO_VALOR_PAGAMENTO_CONTRATO, contractFromLegacyTechnical } from './utils/formDefaults'
+import { parseCoordinateText, syncTechnicalCoordinates } from './utils/coordinateUtils'
+import { FiguraLocalizacaoPreview } from '@/components/FiguraLocalizacaoPreview.jsx'
 
 function App() {
   const [activeTab, setActiveTab] = useState('entrada')
@@ -61,6 +65,7 @@ function App() {
   })
 
   const [technicalData, setTechnicalData] = useState(getInitialTechnicalData)
+  const [contractData, setContractData] = useState(getInitialContractData)
   const [cepLookupLoading, setCepLookupLoading] = useState(false)
 
   const [modules, setModules] = useState([
@@ -94,6 +99,8 @@ function App() {
   const [calculations, setCalculations] = useState(null)
   const [loading, setLoading] = useState(false)
   const [generatedFiles, setGeneratedFiles] = useState(null)
+  const [outputDirectory, setOutputDirectory] = useState('')
+  const [outputWarning, setOutputWarning] = useState('')
   const [aiStatus, setAiStatus] = useState({ ollama: false, gemini: false, primary: 'none' })
   const [deParaOpen, setDeParaOpen] = useState(true)
   const [deParaWidth, setDeParaWidth] = useState(460)
@@ -101,10 +108,66 @@ function App() {
   const [deParaLoading, setDeParaLoading] = useState(false)
   const [deParaFilter, setDeParaFilter] = useState('')
   const [deParaError, setDeParaError] = useState('')
+  const [demandModels, setDemandModels] = useState([])
+  const [authUser, setAuthUser] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [authStatus, setAuthStatus] = useState({ master_configured: false })
 
-  // Verificar status da IA ao carregar
+  const handleLogout = async () => {
+    try {
+      await apiFetch('/auth/logout', { method: 'POST' })
+    } catch {
+      // ignore
+    }
+    setAuthUser(null)
+  }
+
+  const patchTechnicalCoordinates = (patch) => {
+    setTechnicalData((prev) => syncTechnicalCoordinates(prev, patch))
+  }
+
+  const handleCoordenadasRawBlur = (raw) => {
+    const parsed = parseCoordinateText(raw)
+    patchTechnicalCoordinates({ ...parsed, coordenadas_raw: raw })
+  }
+
+  const syncCoordinatesFromFields = () => {
+    setTechnicalData((prev) => syncTechnicalCoordinates(prev))
+  }
+
   useEffect(() => {
-    fetch(`${API_BASE}/ai-status`)
+    const onAuthRequired = () => setAuthUser(null)
+    window.addEventListener('auth:required', onAuthRequired)
+    return () => window.removeEventListener('auth:required', onAuthRequired)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const boot = async () => {
+      try {
+        const statusRes = await apiFetch('/auth/status')
+        const statusData = await statusRes.json()
+        if (!cancelled) setAuthStatus(statusData)
+
+        const { response, data } = await apiJson('/auth/me')
+        if (!cancelled && response.ok && data.authenticated) {
+          setAuthUser(data.user)
+        }
+      } catch {
+        if (!cancelled) setAuthUser(null)
+      } finally {
+        if (!cancelled) setAuthLoading(false)
+      }
+    }
+    boot()
+    return () => { cancelled = true }
+  }, [])
+
+  // Verificar status da IA após login
+  useEffect(() => {
+    if (!authUser) return undefined
+
+    apiFetch('/ai-status')
       .then(res => res.json())
       .then(status => {
         setAiStatus({
@@ -113,7 +176,16 @@ function App() {
         })
       })
       .catch(() => setAiStatus({ ollama: false, gemini: false, primary: 'none' }))
-  }, [])
+
+    apiFetch('/demanda-modelos')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.modelos)) {
+          setDemandModels(data.modelos)
+        }
+      })
+      .catch(() => setDemandModels([]))
+  }, [authUser])
 
   const buildRequestPayload = (options = {}) => {
     const endereco_completo = [
@@ -125,12 +197,16 @@ function App() {
     ].filter(Boolean).join(', ')
 
     return {
+      client: clientData,
+      contract: contractData,
+      technical: technicalData,
       client_name: clientData.client_name,
       client_address: endereco_completo,
       consumer_unit: clientData.consumer_unit,
       client_cpf: clientData.cpf,
       grid_voltage: clientData.tensao_atendimento,
       ...clientData,
+      ...contractData,
       ...technicalData,
       endereco_completo,
       modules,
@@ -152,9 +228,8 @@ function App() {
 
     setCepLookupLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/lookup-address`, {
+      const response = await apiFetch('/lookup-address', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           cep: clientData.cep,
           logradouro: clientData.logradouro,
@@ -188,9 +263,8 @@ function App() {
 
   const suggestTensao = async (uf, tipoLigacao) => {
     try {
-      const res = await fetch(`${API_BASE}/grid-voltage/suggest`, {
+      const res = await apiFetch('/grid-voltage/suggest', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uf, tipo_ligacao: tipoLigacao }),
       })
       const data = await res.json()
@@ -206,14 +280,13 @@ function App() {
   }
 
   const fetchDeParaPreview = async () => {
-    const local = buildLocalDeParaPreview(clientData, technicalData, modules, inverters)
+    const local = buildLocalDeParaPreview(clientData, contractData, technicalData, modules, inverters)
     setDeParaPreview(local)
     setDeParaLoading(true)
     setDeParaError('')
     try {
-      const response = await fetch(`${API_BASE}/preview-de-para`, {
+      const response = await apiFetch('/preview-de-para', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildRequestPayload({ enrich_specs: false })),
       })
       const data = await response.json()
@@ -236,12 +309,12 @@ function App() {
 
   useEffect(() => {
     if (!deParaOpen) return undefined
-    setDeParaPreview(buildLocalDeParaPreview(clientData, technicalData, modules, inverters))
+    setDeParaPreview(buildLocalDeParaPreview(clientData, contractData, technicalData, modules, inverters))
     const timer = setTimeout(() => {
       fetchDeParaPreview()
     }, 400)
     return () => clearTimeout(timer)
-  }, [deParaOpen, clientData, technicalData, modules, inverters])
+  }, [deParaOpen, clientData, contractData, technicalData, modules, inverters])
 
   const applyLocalParse = (parsed, aiPatch = null) => {
     const aiClient = aiPatch?.client || {}
@@ -258,6 +331,7 @@ function App() {
 
     setClientData((prev) => fillGaps(mergeFilled(prev, parsed.client), aiClient))
     setTechnicalData((prev) => fillGaps(mergeFilled(prev, parsed.technical), aiTechnical))
+    setContractData((prev) => fillGaps(mergeFilled(prev, parsed.contract || {}), aiPatch?.contract || {}))
 
     const mergeEquip = (localList, aiList, blank) => {
       const local = localList?.length ? localList : [blank]
@@ -293,9 +367,8 @@ function App() {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/analyze-text`, {
+      const response = await apiFetch('/analyze-text', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: txtInput }),
       })
 
@@ -389,7 +462,7 @@ function App() {
 
   const handleLoadYamlTemplate = async () => {
     try {
-      const response = await fetch(`${API_BASE}/yaml/template`)
+      const response = await apiFetch('/yaml/template')
       const data = await response.json()
       if (response.ok && data.success) {
         setYamlInput(data.content)
@@ -412,9 +485,8 @@ function App() {
 
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/import-yaml`, {
+      const response = await apiFetch('/import-yaml', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ yaml: yamlInput }),
       })
       const data = await response.json()
@@ -439,9 +511,8 @@ function App() {
 
   const handleExportYaml = async () => {
     try {
-      const response = await fetch(`${API_BASE}/export-yaml`, {
+      const response = await apiFetch('/export-yaml', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildRequestPayload()),
       })
       const data = await response.json()
@@ -470,6 +541,7 @@ function App() {
     const formData = {
       timestamp: new Date().toISOString(),
       client: clientData,
+      contract: contractData,
       technical: technicalData,
       modules,
       inverters,
@@ -477,9 +549,8 @@ function App() {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/save-form`, {
+      const response = await apiFetch('/save-form', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       })
 
@@ -517,6 +588,11 @@ function App() {
         const data = JSON.parse(e.target.result)
 
         if (data.client) setClientData(data.client)
+        if (data.contract) {
+          setContractData(data.contract)
+        } else if (data.technical) {
+          setContractData((prev) => fillGaps(prev, contractFromLegacyTechnical(data.technical)))
+        }
         if (data.technical) setTechnicalData(data.technical)
         if (data.modules) setModules(data.modules)
         if (data.inverters) setInverters(data.inverters)
@@ -555,6 +631,12 @@ function App() {
     setModules(updated)
   }
 
+  const applyCatalogToModule = (index, fields) => {
+    setModules((prev) => prev.map((item, i) => (
+      i === index ? applyCatalogFieldsToItem(item, fields) : item
+    )))
+  }
+
   const addInverter = () => {
     setInverters([...inverters, {
       quantity: '',
@@ -580,6 +662,12 @@ function App() {
     setInverters(updated)
   }
 
+  const applyCatalogToInverter = (index, fields) => {
+    setInverters((prev) => prev.map((item, i) => (
+      i === index ? applyCatalogFieldsToItem(item, fields) : item
+    )))
+  }
+
   const calculateSystem = async () => {
     setLoading(true)
     try {
@@ -590,11 +678,11 @@ function App() {
         inverters,
         demanda_alvo_kw: technicalData.demanda_alvo_kw,
         demand_table_ai: technicalData.demand_table_ai,
+        demanda_modelo_id: technicalData.demanda_modelo_id,
       }
 
-      const response = await fetch(`${API_BASE}/calculate-system`, {
+      const response = await apiFetch('/calculate-system', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestData),
       })
 
@@ -602,15 +690,27 @@ function App() {
 
       if (response.ok && data.success) {
         setCalculations(data.calculations)
+        if (data.modules?.length) {
+          setModules((prev) => prev.map((m, i) => mergeFilled(m, data.modules[i] || {})))
+        }
+        if (data.inverters?.length) {
+          setInverters((prev) => prev.map((inv, i) => mergeFilled(inv, data.inverters[i] || {})))
+        }
         const calc = data.calculations
         setTechnicalData((prev) => ({
           ...prev,
-          bitola_cabo_cc: prev.bitola_cabo_cc || calc.cable_section_cc?.replace('mm²', ' mm²'),
-          bitola_cabo_ca: prev.bitola_cabo_ca || calc.cable_section_ca?.replace('mm²', ' mm²'),
-          disjuntor_entrada: prev.disjuntor_entrada || String(calc.disjuntor_recomendado_a || ''),
           tabela_demanda_text: calc.demand_table?.memorial_text || prev.tabela_demanda_text,
-          modulos_por_string: prev.modulos_por_string || String(calc.dc_strings?.modules_per_string || ''),
+          tabela_demanda_json: calc.demand_table
+            ? JSON.stringify(calc.demand_table)
+            : prev.tabela_demanda_json,
         }))
+        const cableWarnings = calc.cable_warnings || []
+        if (cableWarnings.length) {
+          alert(
+            'Atenção — conferir cabos (valores do formulário mantidos):\n\n'
+            + cableWarnings.map((w) => `• ${w}`).join('\n')
+          )
+        }
         setActiveTab('calculos')
       } else {
         alert('Erro ao calcular: ' + (data.error || 'Erro desconhecido'))
@@ -628,8 +728,56 @@ function App() {
       ...prev,
       demanda_alvo_kw: String(demand.target_kw),
       tabela_demanda_text: demand.memorial_text,
+      tabela_demanda_json: JSON.stringify(demand),
+      demanda_modelo_id: demand.modelo_id || prev.demanda_modelo_id,
     }))
-    alert('Tabela de demanda aplicada ao formulário. Será incluída na geração dos documentos.')
+    alert('Tabela de demanda aplicada. Na geração do memorial será inserida como tabela Word formatada.')
+  }
+
+  const applyDemandModel = async (modelId) => {
+    if (!modelId) return
+    setLoading(true)
+    try {
+      const response = await apiFetch(`/demanda-modelos/${modelId}/gerar`, {
+        method: 'POST',
+        body: JSON.stringify({
+          client: clientData,
+          apply_form: true,
+          demanda_notas: technicalData.demanda_notas,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.success) {
+        alert('Erro ao aplicar modelo: ' + (data.error || 'Erro desconhecido'))
+        return
+      }
+      const patch = data.form_patch || {}
+      const table = data.demand_table
+      if (patch.classe) {
+        setClientData((prev) => ({ ...prev, classe: patch.classe }))
+      }
+      if (patch.tipo_ligacao) {
+        setClientData((prev) => ({
+          ...prev,
+          tipo_ligacao: patch.tipo_ligacao,
+          tensao_atendimento: patch.tensao_atendimento || prev.tensao_atendimento,
+        }))
+      }
+      setTechnicalData((prev) => ({
+        ...prev,
+        demanda_modelo_id: modelId,
+        demanda_alvo_kw: patch.demanda_alvo_kw || String(table?.target_kw ?? prev.demanda_alvo_kw),
+        disjuntor_entrada: patch.disjuntor_entrada || prev.disjuntor_entrada,
+        tabela_demanda_text: table?.memorial_text || prev.tabela_demanda_text,
+        tabela_demanda_json: table ? JSON.stringify(table) : prev.tabela_demanda_json,
+      }))
+      setCalculations((prev) => (prev ? { ...prev, demand_table: table } : prev))
+      alert(`Modelo aplicado: ${table?.modelo_nome || modelId}\nDemanda calculada: ${table?.calculated_d_kw ?? '—'} kW`)
+    } catch (error) {
+      alert('Erro ao aplicar modelo: ' + error.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleEnrichEquipment = async () => {
@@ -640,9 +788,8 @@ function App() {
 
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/enrich-equipment`, {
+      const response = await apiFetch('/enrich-equipment', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ modules, inverters }),
       })
       const data = await response.json()
@@ -667,13 +814,18 @@ function App() {
   }
 
   const generateDocuments = async () => {
+    if (!contractData.numero_contrato?.trim()) {
+      alert('Informe o número do contrato na aba Contrato.\n\nA pasta no Google Drive será: número + 1º e 2º nome (ex.: 80 - João Silva).')
+      setActiveTab('contrato')
+      return
+    }
+
     setLoading(true)
     try {
       const requestData = buildRequestPayload({ enrich_specs: false })
 
-      const response = await fetch(`${API_BASE}/fill-documents`, {
+      const response = await apiFetch('/fill-documents', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestData)
       })
 
@@ -681,8 +833,12 @@ function App() {
 
       if (response.ok) {
         setGeneratedFiles(data.files)
+        setOutputDirectory(data.output_directory || '')
+        setOutputWarning(data.output_warning || '')
         if (deParaOpen) fetchDeParaPreview()
-        alert('Documentos gerados com sucesso!')
+        const dest = data.output_directory ? `\n\nPasta:\n${data.output_directory}` : ''
+        const warn = data.output_warning ? `\n\n⚠ ${data.output_warning}` : ''
+        alert(`Documentos gerados com sucesso!${dest}${warn}`)
       } else {
         alert('Erro ao gerar documentos: ' + (data.error || 'Erro desconhecido'))
       }
@@ -694,23 +850,65 @@ function App() {
     }
   }
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <p className="text-gray-600">Verificando sessão...</p>
+      </div>
+    )
+  }
+
+  if (!authUser) {
+    const confirmToken = new URLSearchParams(window.location.search).get('confirm_device')
+    return (
+      <Login
+        authStatus={authStatus}
+        confirmToken={confirmToken}
+        onSuccess={(user) => {
+          setAuthUser(user)
+          if (confirmToken) {
+            window.history.replaceState({}, '', window.location.pathname)
+          }
+        }}
+      />
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
       <div
         className="max-w-7xl mx-auto transition-[margin] duration-200"
         style={{ marginRight: deParaOpen ? deParaWidth : 0 }}
       >
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Automação Equatorial Energia
-          </h1>
-          <p className="text-gray-600">
-            Sistema de Preenchimento de Documentos PRODIST 3 - Geração Distribuída
-          </p>
-        </div>
+        <header className="flex items-start gap-5 mb-8">
+          <img
+            src="/brand/logo-app-96.png"
+            srcSet="/brand/logo-app-96.png 1x, /brand/icon-192.png 2x"
+            width={96}
+            height={96}
+            alt="PIENG Soluções Energéticas"
+            className="h-20 w-20 sm:h-24 sm:w-24 shrink-0 object-contain"
+          />
+          <div className="pt-1 sm:pt-2 min-w-0">
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2 text-left">
+              Automação Equatorial Energia
+            </h1>
+            <p className="text-gray-600 text-left text-sm sm:text-base">
+              Sistema de Preenchimento de Documentos PRODIST 3 - Geração Distribuída
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {authUser.username}
+              {authUser.role === 'master' ? ' · administrador' : ' · operador'}
+            </p>
+          </div>
+        </header>
 
         {/* Botões de Ação Globais */}
         <div className="flex gap-4 justify-end mb-6 flex-wrap">
+          <Button variant="outline" onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Sair
+          </Button>
           {!deParaOpen && <DeParaPanelToggle onToggle={() => setDeParaOpen(true)} />}
           <Button
             variant={activeTab === 'catalogo' ? 'default' : 'outline'}
@@ -747,12 +945,19 @@ function App() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className={`grid w-full ${authUser.role === 'master' ? 'grid-cols-7' : 'grid-cols-6'}`}>
             <TabsTrigger value="entrada">📄 Entrada</TabsTrigger>
             <TabsTrigger value="cliente">👤 Cliente</TabsTrigger>
             <TabsTrigger value="equipamentos">⚡ Equipamentos</TabsTrigger>
+            <TabsTrigger value="contrato">📋 Contrato</TabsTrigger>
             <TabsTrigger value="tecnico">🔧 Dados Técnicos</TabsTrigger>
             <TabsTrigger value="calculos">📊 Cálculos</TabsTrigger>
+            {authUser.role === 'master' && (
+              <TabsTrigger value="usuarios">
+                <Users className="inline h-4 w-4 mr-1" />
+                Usuários
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* ABA 1: ENTRADA TXT / YAML */}
@@ -789,6 +994,10 @@ Unidade Consumidora: 704.212.012-65
 Tensão da rede: 220/380 V
 Quantidade de painéis: 32 unidades
 Potência dos painéis: 680 W
+Número do Contrato: 122/2026
+Texto Valor Pagamento Contrato: • O investimento objeto deste contrato é de R$ 12.000,00.
+Cidade do Documento: Goiânia
+Data do Documento: 15/08/2026
 ...`}
                       rows={20}
                       value={txtInput}
@@ -1203,6 +1412,12 @@ Potência dos painéis: 680 W
                         )}
                       </div>
 
+                      <CatalogEquipmentPicker
+                        kind="module"
+                        current={module}
+                        onApply={(fields) => applyCatalogToModule(index, fields)}
+                      />
+
                       <div className="grid grid-cols-3 gap-4">
                         <div>
                           <Label>Quantidade *</Label>
@@ -1331,6 +1546,12 @@ Potência dos painéis: 680 W
                         )}
                       </div>
 
+                      <CatalogEquipmentPicker
+                        kind="inverter"
+                        current={inverter}
+                        onApply={(fields) => applyCatalogToInverter(index, fields)}
+                      />
+
                       <div className="grid grid-cols-3 gap-4">
                         <div>
                           <Label>Quantidade *</Label>
@@ -1433,13 +1654,116 @@ Potência dos painéis: 680 W
                 </CardContent>
               </Card>
 
-              <Button onClick={() => setActiveTab('tecnico')} className="w-full">
-                Próximo: Dados Técnicos →
+              <Button onClick={() => setActiveTab('contrato')} className="w-full">
+                Próximo: Contrato →
               </Button>
             </div>
           </TabsContent>
 
-          {/* ABA 4: DADOS TÉCNICOS */}
+          {/* ABA 4: CONTRATO */}
+          <TabsContent value="contrato">
+            <Card>
+              <CardHeader>
+                <CardTitle>Contrato de prestação de serviços</CardTitle>
+                <CardDescription>
+                  Template oficial: ModeloContrato.docx — banco e dados da PIENG permanecem fixos no Word.
+                  Revise aqui o que varia por cliente.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="numero_contrato">Número do contrato *</Label>
+                    <Input
+                      id="numero_contrato"
+                      value={contractData.numero_contrato}
+                      onChange={(e) => setContractData({
+                        ...contractData,
+                        numero_contrato: e.target.value,
+                      })}
+                      placeholder="122/2026"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Nome da pasta no Google Drive: número do contrato + 1º e 2º nome (ex.: 80 - João Silva). Token {'{{NUMERO_CONTRATO}}'} no cabeçalho do contrato.
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="data_documento">Data de assinatura</Label>
+                    <Input
+                      id="data_documento"
+                      type="date"
+                      value={contractData.data_documento}
+                      onChange={(e) => setContractData({
+                        ...contractData,
+                        data_documento: e.target.value,
+                      })}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {'{{DATA_DOCUMENTO}}'} e {'{{DATA_DOCUMENTO_EXTENSO}}'} (também usados na procuração).
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="cidade_documento">Cidade da assinatura</Label>
+                    <Input
+                      id="cidade_documento"
+                      value={contractData.cidade_documento}
+                      onChange={(e) => setContractData({
+                        ...contractData,
+                        cidade_documento: e.target.value,
+                      })}
+                      placeholder={clientData.cidade || 'Goiânia'}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Token {'{{CIDADE_DOCUMENTO}}/{{UF}}'} — vazio usa a cidade do cliente ({clientData.cidade || '—'}).
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="texto_pagamento">Valor e forma de pagamento</Label>
+                  <Textarea
+                    id="texto_pagamento"
+                    value={contractData.texto_valor_pagamento_contrato}
+                    onChange={(e) => setContractData({
+                      ...contractData,
+                      texto_valor_pagamento_contrato: e.target.value,
+                    })}
+                    placeholder={EXEMPLO_TEXTO_VALOR_PAGAMENTO_CONTRATO}
+                    rows={6}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Texto livre → {'{{TEXTO_VALOR_PAGAMENTO_CONTRATO}}'} (Cláusula de valor/pagamento). Enter = nova linha.
+                  </p>
+                  {!contractData.texto_valor_pagamento_contrato?.trim() && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => setContractData({
+                        ...contractData,
+                        texto_valor_pagamento_contrato: EXEMPLO_TEXTO_VALOR_PAGAMENTO_CONTRATO,
+                      })}
+                    >
+                      Usar exemplo (R$ 12.000 / 18× cartão)
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setActiveTab('equipamentos')}>
+                    ← Equipamentos
+                  </Button>
+                  <Button onClick={() => setActiveTab('tecnico')} className="flex-1">
+                    Próximo: Dados Técnicos →
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ABA 5: DADOS TÉCNICOS */}
           <TabsContent value="tecnico">
             <Card>
               <CardHeader>
@@ -1449,25 +1773,10 @@ Potência dos painéis: 680 W
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Documento */}
+                {/* Documento / operação */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Documento</h3>
+                  <h3 className="text-lg font-semibold mb-4">Operação</h3>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Data de assinatura / documento</Label>
-                      <Input
-                        type="date"
-                        value={technicalData.data_documento}
-                        onChange={(e) => setTechnicalData({
-                          ...technicalData,
-                          data_documento: e.target.value,
-                          data_operacao: technicalData.data_operacao || e.target.value,
-                        })}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Padrão: dia de hoje. Altere se necessário.
-                      </p>
-                    </div>
                     <div>
                       <Label>Data prevista de operação</Label>
                       <Input
@@ -1477,6 +1786,9 @@ Potência dos painéis: 680 W
                       />
                     </div>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Data de assinatura do contrato/procuração: aba Contrato.
+                  </p>
                 </div>
 
                 {/* Proteção */}
@@ -1551,6 +1863,9 @@ Potência dos painéis: 680 W
                 {/* Cabos */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Cabeamento</h3>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Recomendações aparecem na aba Cálculos; o sistema não altera estes campos automaticamente.
+                  </p>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <Label>Bitola Cabo CA (mm²)</Label>
@@ -1609,21 +1924,37 @@ Potência dos painéis: 680 W
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Localização</h3>
                   <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <Label>Coordenadas georreferenciadas</Label>
+                      <Textarea
+                        value={technicalData.coordenadas_raw || ''}
+                        onChange={(e) => setTechnicalData({ ...technicalData, coordenadas_raw: e.target.value })}
+                        onBlur={(e) => handleCoordenadasRawBlur(e.target.value)}
+                        placeholder="-16.306664, -48.913032  ou  22 K 722986.05 m E 8196002.05 m S / -16.306664 -48.913032"
+                        rows={2}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Cole do Google Earth — UTM e graus decimais são calculados automaticamente.
+                      </p>
+                    </div>
+
                     <div>
-                      <Label>Coordenada UTM X</Label>
+                      <Label>Coordenada UTM X (E)</Label>
                       <Input
                         value={technicalData.coordenada_utm_x}
                         onChange={(e) => setTechnicalData({...technicalData, coordenada_utm_x: e.target.value})}
-                        placeholder="123456"
+                        onBlur={syncCoordinatesFromFields}
+                        placeholder="722986.05"
                       />
                     </div>
 
                     <div>
-                      <Label>Coordenada UTM Y</Label>
+                      <Label>Coordenada UTM Y (N/S)</Label>
                       <Input
                         value={technicalData.coordenada_utm_y}
                         onChange={(e) => setTechnicalData({...technicalData, coordenada_utm_y: e.target.value})}
-                        placeholder="7890123"
+                        onBlur={syncCoordinatesFromFields}
+                        placeholder="8196002.05"
                       />
                     </div>
 
@@ -1632,25 +1963,28 @@ Potência dos painéis: 680 W
                       <Input
                         value={technicalData.fuso_utm}
                         onChange={(e) => setTechnicalData({...technicalData, fuso_utm: e.target.value})}
+                        onBlur={syncCoordinatesFromFields}
                         placeholder="22S"
                       />
                     </div>
 
                     <div>
-                      <Label>Latitude</Label>
+                      <Label>Latitude (graus decimais)</Label>
                       <Input
                         value={technicalData.latitude}
                         onChange={(e) => setTechnicalData({...technicalData, latitude: e.target.value})}
-                        placeholder="-16.291613"
+                        onBlur={syncCoordinatesFromFields}
+                        placeholder="-16.306664"
                       />
                     </div>
 
                     <div>
-                      <Label>Longitude</Label>
+                      <Label>Longitude (graus decimais)</Label>
                       <Input
                         value={technicalData.longitude}
                         onChange={(e) => setTechnicalData({...technicalData, longitude: e.target.value})}
-                        placeholder="-48.973249"
+                        onBlur={syncCoordinatesFromFields}
+                        placeholder="-48.913032"
                       />
                     </div>
 
@@ -1662,6 +1996,11 @@ Potência dos painéis: 680 W
                         placeholder="Ex: 12345"
                       />
                     </div>
+
+                    <FiguraLocalizacaoPreview
+                      technicalData={technicalData}
+                      onTechnicalChange={(patch) => setTechnicalData((prev) => ({ ...prev, ...patch }))}
+                    />
                   </div>
                 </div>
 
@@ -1703,14 +2042,20 @@ Potência dos painéis: 680 W
                 <div className="border-t pt-6 space-y-4">
                   <h3 className="text-lg font-semibold">Strings CC / MPPT</h3>
                   <p className="text-sm text-gray-600">
-                    Em série: soma tensão (Voc), corrente permanece (Isc). Microinversor: 1 módulo/MPPT.
+                    Série: soma Voc, Isc permanece. String/MPPT: informe módulos por string e strings em paralelo por MPPT.
+                    Micro: 1 módulo/equipamento; até 3 micros em série por disjuntor CA.
                   </p>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <Label>Tipo de inversor</Label>
                       <Select
                         value={technicalData.tipo_inversor || 'STRING'}
-                        onValueChange={(v) => setTechnicalData({...technicalData, tipo_inversor: v})}
+                        onValueChange={(v) => setTechnicalData({
+                          ...technicalData,
+                          tipo_inversor: v,
+                          modulos_por_string: v === 'MICRO' ? '1' : technicalData.modulos_por_string,
+                          strings_por_mppt: v === 'MICRO' ? '1' : technicalData.strings_por_mppt,
+                        })}
                       >
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -1723,28 +2068,87 @@ Potência dos painéis: 680 W
                       <Label>MPPT por inversor</Label>
                       <Input
                         type="number"
+                        min="1"
                         value={technicalData.num_mppt}
                         onChange={(e) => setTechnicalData({...technicalData, num_mppt: e.target.value})}
                         placeholder="2"
                       />
                     </div>
-                    <div>
-                      <Label>Módulos por string (opcional)</Label>
-                      <Input
-                        type="number"
-                        value={technicalData.modulos_por_string}
-                        onChange={(e) => setTechnicalData({...technicalData, modulos_por_string: e.target.value})}
-                        placeholder="Auto"
-                      />
-                    </div>
+                    {technicalData.tipo_inversor === 'MICRO' ? (
+                      <div>
+                        <Label>Micros em série por disjuntor CA</Label>
+                        <Select
+                          value={String(technicalData.micros_por_grupo_ca || '3')}
+                          onValueChange={(v) => setTechnicalData({...technicalData, micros_por_grupo_ca: v})}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1 (1 disjuntor/micro)</SelectItem>
+                            <SelectItem value="2">2 em série</SelectItem>
+                            <SelectItem value="3">3 em série (máx.)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <Label>Módulos por string</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={technicalData.modulos_por_string}
+                            onChange={(e) => setTechnicalData({...technicalData, modulos_por_string: e.target.value})}
+                            placeholder="Auto"
+                          />
+                        </div>
+                        <div>
+                          <Label>Strings em paralelo / MPPT</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={technicalData.strings_por_mppt}
+                            onChange={(e) => setTechnicalData({...technicalData, strings_por_mppt: e.target.value})}
+                            placeholder="Auto"
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 <div className="border-t pt-6 space-y-4">
                   <h3 className="text-lg font-semibold">Tabela de demanda — Tabela 1 · Levantamento de Carga</h3>
                   <p className="text-sm text-gray-600">
-                    Informe a demanda-alvo (ex.: 7 kW residencial ou 20 kW comercial). Após calcular, preenche automaticamente o placeholder abaixo de &quot;Tabela 1 – Levantamento de Carga&quot; no memorial.
+                    Escolha um modelo pronto (NTC-04) ou informe a demanda-alvo manualmente. A tabela é inserida formatada no memorial Word.
                   </p>
+                  <div className="space-y-2">
+                    <Label>Modelo de demanda (atalho)</Label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Select
+                        value={technicalData.demanda_modelo_id || ''}
+                        onValueChange={(id) => {
+                          setTechnicalData({ ...technicalData, demanda_modelo_id: id })
+                          applyDemandModel(id)
+                        }}
+                      >
+                        <SelectTrigger className="sm:flex-1">
+                          <SelectValue placeholder="Selecione um dos 6 modelos padrão…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {demandModels.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>
+                              {m.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {technicalData.demanda_modelo_id && (
+                      <p className="text-xs text-gray-500">
+                        {demandModels.find((m) => m.id === technicalData.demanda_modelo_id)?.descricao}
+                      </p>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Demanda-alvo (kW)</Label>
@@ -1811,6 +2215,17 @@ Potência dos painéis: 680 W
                     {generatedFiles && (
                       <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                         <p className="font-semibold text-green-800 mb-3">✅ Documentos Gerados com Sucesso!</p>
+                        {outputDirectory && (
+                          <div className="mb-3 p-2 bg-white rounded border border-green-200 text-xs text-gray-700 break-all">
+                            <span className="font-medium">Pasta no Google Drive / disco:</span>
+                            <br />
+                            {outputDirectory}
+                            <p className="mt-1 text-gray-500">Dados pessoais (LGPD) — não compartilhe nem suba ao GitHub.</p>
+                          </div>
+                        )}
+                        {outputWarning && (
+                          <p className="mb-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">{outputWarning}</p>
+                        )}
                         <div className="space-y-2">
                           {generatedFiles.excel && (
                             <div className="flex items-center justify-between p-2 bg-white rounded border border-green-300">
@@ -1848,6 +2263,30 @@ Potência dos painéis: 680 W
                               </a>
                             </div>
                           )}
+                          {generatedFiles.contrato && (
+                            <div className="flex items-center justify-between p-2 bg-white rounded border border-green-300">
+                              <span className="text-sm text-gray-700">📋 Contrato: {generatedFiles.contrato.name}</span>
+                              <a
+                                href={generatedFiles.contrato.download_url}
+                                download
+                                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                              >
+                                Baixar
+                              </a>
+                            </div>
+                          )}
+                          {generatedFiles.planta && (
+                            <div className="flex items-center justify-between p-2 bg-white rounded border border-green-300">
+                              <span className="text-sm text-gray-700">📐 Planta CAD: {generatedFiles.planta.name} (dados já preenchidos)</span>
+                              <a
+                                href={generatedFiles.planta.download_url}
+                                download
+                                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                              >
+                                Baixar
+                              </a>
+                            </div>
+                          )}
                           {generatedFiles.outros && generatedFiles.outros.length > 0 && generatedFiles.outros.map((file, idx) => (
                             <div key={idx} className="flex items-center justify-between p-2 bg-white rounded border border-green-300">
                               <span className="text-sm text-gray-700">📎 {file.name}</span>
@@ -1878,6 +2317,12 @@ Potência dos painéis: 680 W
           <TabsContent value="catalogo">
             <CatalogPanel />
           </TabsContent>
+
+          {authUser.role === 'master' && (
+            <TabsContent value="usuarios">
+              <UserManagement />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 

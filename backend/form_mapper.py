@@ -4,6 +4,17 @@ aninhada esperada por create_txt_data() e gerar_documentos.py.
 """
 
 
+def pick_field(item: dict | None, *keys, default=None):
+    """Lê campo com aliases (frontend EN vs backend PT)."""
+    if not isinstance(item, dict):
+        return default
+    for key in keys:
+        val = item.get(key)
+        if val not in (None, ''):
+            return val
+    return default
+
+
 def _first(data, *keys, default=None):
     for key in keys:
         val = data.get(key)
@@ -24,7 +35,7 @@ def _normalize_module(module):
         'isc': _first(module, 'isc'),
         'vmpp': _first(module, 'vmpp'),
         'impp': _first(module, 'impp'),
-        'eficiencia': _first(module, 'eficiencia'),
+        'eficiencia': _first(module, 'eficiencia', 'efficiency'),
     }
 
 
@@ -40,8 +51,23 @@ def _normalize_inverter(inverter):
         'corrente_nominal': _first(inverter, 'corrente_nominal'),
         'mppt_min': _first(inverter, 'mppt_min'),
         'mppt_max': _first(inverter, 'mppt_max'),
-        'eficiencia': _first(inverter, 'eficiencia'),
+        'eficiencia': _first(inverter, 'eficiencia', 'efficiency'),
+        'thd_pct': _first(inverter, 'thd_pct', 'thd', 'dht'),
     }
+
+
+def _flatten_web_payload(data: dict) -> dict:
+    """App.jsx envia { client, technical, contract, modules, inverters } — achata para o mapper."""
+    flat = dict(data)
+    for section_key in ('client', 'technical', 'contract'):
+        section = data.get(section_key)
+        if isinstance(section, dict):
+            for key, val in section.items():
+                if flat.get(key) in (None, '') and val not in (None, ''):
+                    flat[key] = val
+    if flat.get('client_name') and not flat.get('nome'):
+        flat['nome'] = flat['client_name']
+    return flat
 
 
 def normalize_form_payload(data):
@@ -56,11 +82,15 @@ def normalize_form_payload(data):
             'modulos': [],
             'inversores': [],
             'dados_tecnicos': {},
+            'contrato': {},
         }
+
+    data = _flatten_web_payload(data)
 
     cliente = dict(data.get('cliente') or {})
     uc = dict(data.get('unidade_consumidora') or {})
     tecnicos = dict(data.get('dados_tecnicos') or {})
+    contrato = dict(data.get('contrato') or {})
 
     cliente_map = {
         'nome': ('client_name',),
@@ -104,6 +134,7 @@ def normalize_form_payload(data):
         'coordenada_utm_x': ('coordenada_utm_x',),
         'coordenada_utm_y': ('coordenada_utm_y',),
         'fuso_utm': ('fuso_utm',),
+        'coordenadas_raw': ('coordenadas', 'coordenadas_raw'),
     }
     for target, sources in uc_extra.items():
         if not uc.get(target):
@@ -115,7 +146,6 @@ def normalize_form_payload(data):
         'area_arranjo': ('area_arranjo',),
         'tipo_fonte': ('tipo_fonte',),
         'data_operacao': ('data_operacao',),
-        'data_documento': ('data_documento',),
         'bitola_cabo_cc': ('bitola_cabo_cc',),
         'bitola_cabo_ca': ('bitola_cabo_ca',),
         'bitola_cabo_padrao': ('bitola_cabo_padrao',),
@@ -130,12 +160,21 @@ def normalize_form_payload(data):
         'longitude': ('longitude',),
         'demanda_alvo_kw': ('demanda_alvo_kw',),
         'demanda_notas': ('demanda_notas',),
+        'demanda_modelo_id': ('demanda_modelo_id',),
         'tabela_demanda_text': ('tabela_demanda_text',),
+        'tabela_demanda_json': ('tabela_demanda_json',),
+        'coordenadas_raw': ('coordenadas', 'coordenadas_raw'),
+        'coordenada_utm_x': ('coordenada_utm_x',),
+        'coordenada_utm_y': ('coordenada_utm_y',),
+        'fuso_utm': ('fuso_utm',),
         'dr_sensibilidade_ma': ('dr_sensibilidade_ma',),
         'dr_tipo': ('dr_tipo',),
         'modulos_por_string': ('modulos_por_string',),
+        'strings_por_mppt': ('strings_por_mppt',),
+        'micros_por_grupo_ca': ('micros_por_grupo_ca',),
         'num_mppt': ('num_mppt',),
         'tipo_inversor': ('tipo_inversor',),
+        'figura_map_zoom': ('figura_map_zoom',),
     }
     for target, sources in tech_map.items():
         if not tecnicos.get(target):
@@ -149,6 +188,18 @@ def normalize_form_payload(data):
             f"{tecnicos['tipo_aterramento']} — {tecnicos['resistencia_aterramento']} Ω",
         )
 
+    contrato_map = {
+        'numero_contrato': ('numero_contrato',),
+        'texto_valor_pagamento_contrato': ('texto_valor_pagamento_contrato',),
+        'data_documento': ('data_documento',),
+        'cidade_documento': ('cidade_documento',),
+    }
+    for target, sources in contrato_map.items():
+        if not contrato.get(target):
+            val = _first(data, *sources)
+            if val is not None:
+                contrato[target] = val
+
     raw_modulos = data.get('modulos') or data.get('modules') or []
     raw_inversores = data.get('inversores') or data.get('inverters') or []
 
@@ -158,4 +209,5 @@ def normalize_form_payload(data):
         'modulos': [_normalize_module(m) for m in raw_modulos if m],
         'inversores': [_normalize_inverter(i) for i in raw_inversores if i],
         'dados_tecnicos': tecnicos,
+        'contrato': contrato,
     }

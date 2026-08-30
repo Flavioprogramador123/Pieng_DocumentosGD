@@ -1,6 +1,8 @@
 // Parser De/Para de TXT — extrai dados de faturas, CNH e anotações livres.
 // As chaves do mapa são normalizadas (sem acento, sem pontuação) na carga.
 
+import { resolveCoordinates } from './coordinateUtils.js'
+
 const FIELD_MAPPING_RAW = {
   'nome': 'client_name',
   'nome completo': 'client_name',
@@ -111,6 +113,9 @@ const FIELD_MAPPING_RAW = {
   'coordenada utm x': 'coordenada_utm_x',
   'coordenada x': 'coordenada_utm_x',
   'utm x': 'coordenada_utm_x',
+  'coordenadas': 'coordenadas_raw',
+  'coordenadas georreferenciadas': 'coordenadas_raw',
+  'coordenada georreferenciada': 'coordenadas_raw',
   'latitude': 'latitude',
   'lat': 'latitude',
   'coordenada utm y': 'coordenada_utm_y',
@@ -135,6 +140,28 @@ const FIELD_MAPPING_RAW = {
 
   'data prevista de operacao': 'data_operacao',
   'data de operacao': 'data_operacao',
+  'data do documento': 'data_documento',
+  'data de assinatura': 'data_documento',
+
+  'cidade do documento': 'cidade_documento',
+  'cidade da assinatura': 'cidade_documento',
+
+  'texto valor pagamento contrato': 'texto_valor_pagamento_contrato',
+  'valor e forma de pagamento contrato': 'texto_valor_pagamento_contrato',
+  'clausula valor pagamento contrato': 'texto_valor_pagamento_contrato',
+  'texto pagamento': 'texto_valor_pagamento_contrato',
+  'texto de pagamento': 'texto_valor_pagamento_contrato',
+  'valor pagamento': 'texto_valor_pagamento_contrato',
+  'pagamento contrato': 'texto_valor_pagamento_contrato',
+  'clausula pagamento': 'texto_valor_pagamento_contrato',
+  'clausula sexta': 'texto_valor_pagamento_contrato',
+
+  'contrato': 'numero_contrato',
+  'numero do contrato': 'numero_contrato',
+  'número do contrato': 'numero_contrato',
+  'n do contrato': 'numero_contrato',
+  'no do contrato': 'numero_contrato',
+  'contrato n': 'numero_contrato',
 
   'quantidade de modulos': 'qtd_modulos',
   'quantidade de paineis': 'qtd_modulos',
@@ -359,30 +386,46 @@ function lookupField(normalizedKey) {
   return null
 }
 
-function parseLine(line) {
+function parseLineLabel(line) {
   const cleaned = stripLineJunk(line)
-  if (!cleaned) return null
+  if (!cleaned || !cleaned.includes(':')) return null
 
-  if (cleaned.includes(':')) {
-    const [rawKey, ...valueParts] = cleaned.split(':')
-    const value = valueParts.join(':').trim()
-    if (!value) return null
-    const normalizedKey = normalizeKey(rawKey)
-    if (!normalizedKey) return null
-    return {
-      key: rawKey.trim(),
-      normalizedKey,
-      mappedField: lookupField(normalizedKey),
-      value,
-    }
+  const [rawKey, ...valueParts] = cleaned.split(':')
+  const value = valueParts.join(':').trim()
+  const normalizedKey = normalizeKey(rawKey)
+  if (!normalizedKey) return null
+  const mappedField = lookupField(normalizedKey)
+  if (!mappedField) return null
+
+  return {
+    key: rawKey.trim(),
+    normalizedKey,
+    mappedField,
+    value,
   }
+}
 
-  const cepLoose = cleaned.match(/^cep\s+(\d{5}-?\d{3})$/i)
-  if (cepLoose) {
-    return { key: 'CEP', normalizedKey: 'cep', mappedField: 'cep', value: cepLoose[1] }
+function parseLine(line) {
+  const parsed = parseLineLabel(line)
+  if (!parsed || !parsed.value) return null
+  return parsed
+}
+
+function isMultilineContractField(mappedField) {
+  return mappedField === 'texto_valor_pagamento_contrato'
+}
+
+function readMultilineValue(lines, startIndex) {
+  const parts = []
+  let i = startIndex
+  while (i < lines.length) {
+    const next = parseLineLabel(lines[i])
+    if (next?.mappedField) break
+    const chunk = String(lines[i] || '').trim()
+    if (chunk) parts.push(chunk)
+    i += 1
   }
-
-  return null
+  return { value: parts.join('\n'), lastIndex: i - 1 }
 }
 
 function applyPadraoConexao(value, client) {
@@ -392,6 +435,72 @@ function applyPadraoConexao(value, client) {
   }
   const tensao = mapTensao(value)
   if (tensao) client.tensao_atendimento = tensao
+}
+
+function parseGoogleEarthCoordinates(text) {
+  if (!text) return null
+  const raw = String(text).trim()
+
+  const geo = raw.match(
+    /(\d{1,2})\s*([A-HJ-NP-Z])\s+([\d.,]+)\s*m\s*E\s*,?\s+([\d.,]+)\s*m\s*([NS])(?:\s*\/\s*(-?\d+[.,]\d+)\s*°?\s+(-?\d+[.,]\d+)\s*°?)?/i,
+  )
+  if (geo) {
+    const zone = geo[1]
+    const southern = geo[5].toUpperCase() === 'S'
+    const out = {
+      coordenada_utm_x: geo[3].replace(',', '.'),
+      coordenada_utm_y: geo[4].replace(',', '.'),
+      fuso_utm: `${zone}${southern ? 'S' : 'N'}`,
+      coordenadas_raw: raw,
+    }
+    if (geo[6] && geo[7]) {
+      out.latitude = geo[6].replace(',', '.')
+      out.longitude = geo[7].replace(',', '.')
+    }
+    return out
+  }
+
+  const latlon = raw.match(/(-?\d{1,2}[.,]\d+)\s*°?\s*[,/\s]\s*(-?\d{1,3}[.,]\d+)\s*°?/)
+  if (latlon) {
+    return {
+      latitude: latlon[1].replace(',', '.'),
+      longitude: latlon[2].replace(',', '.'),
+      coordenadas_raw: raw,
+    }
+  }
+
+  const utmPair = raw.match(/([\d.,]+)\s*m\s*E.*?([\d.,]+)\s*m\s*([NS])/i)
+  if (utmPair) {
+    const zoneMatch = raw.match(/(\d{1,2})\s*[A-HJ-NP-Z]/i)
+    const southern = utmPair[3].toUpperCase() === 'S'
+    const out = {
+      coordenada_utm_x: utmPair[1].replace(',', '.'),
+      coordenada_utm_y: utmPair[2].replace(',', '.'),
+      coordenadas_raw: raw,
+    }
+    if (zoneMatch) out.fuso_utm = `${zoneMatch[1]}${southern ? 'S' : 'N'}`
+    return out
+  }
+
+  return null
+}
+
+function applyCoordinates(parsed, technical) {
+  if (!parsed) return
+  for (const [key, val] of Object.entries(parsed)) {
+    if (val != null && String(val).trim() !== '') {
+      technical[key] = val
+    }
+  }
+  const resolved = resolveCoordinates({
+    utm_x: technical.coordenada_utm_x,
+    utm_y: technical.coordenada_utm_y,
+    fuso_utm: technical.fuso_utm,
+    latitude: technical.latitude,
+    longitude: technical.longitude,
+    raw_text: technical.coordenadas_raw,
+  })
+  Object.assign(technical, resolved)
 }
 
 function harvestFromRawText(text, client, technical) {
@@ -408,16 +517,35 @@ function harvestFromRawText(text, client, technical) {
   }
 
   if (!technical.latitude || !technical.longitude) {
-    const geo = text.match(/(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})/)
+    const geo = text.match(/(-?\d{1,2}\.\d{3,})\s*°?\s*[,/\s]\s*(-?\d{1,3}\.\d{3,})\s*°?/)
+      || text.match(/(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})/)
     if (geo) {
       technical.latitude = geo[1]
       technical.longitude = geo[2]
     }
   }
 
+  if (!technical.coordenada_utm_x || !technical.coordenada_utm_y) {
+    applyCoordinates(parseGoogleEarthCoordinates(text), technical)
+  }
+
   if (!client.email) {
     const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
     if (email) client.email = email[0]
+  }
+}
+
+function harvestContractFromRawText(text, contract) {
+  if (!contract.numero_contrato) {
+    const numero = text.match(/(?:^|\n)\s*contrato\s*:\s*(\d+\s*\/\s*\d{4})/im)
+    if (numero) contract.numero_contrato = numero[1].replace(/\s+/g, '')
+  }
+
+  if (!contract.texto_valor_pagamento_contrato) {
+    const bloco = text.match(
+      /(?:^|\n)\s*(?:texto\s+(?:de\s+)?pagamento\s*:\s*)?(O investimento objeto deste contrato[\s\S]*?)(?=\n\s*[\wÀ-ú][^:\n]{0,40}:\s|\n\s*#\s|\n\s*\*\*|$)/im,
+    )
+    if (bloco) contract.texto_valor_pagamento_contrato = bloco[1].trim()
   }
 }
 
@@ -458,15 +586,30 @@ export function parseTxtData(txtContent) {
 
   const client = {}
   const technical = {}
+  const contract = {}
   const currentModuleData = {}
   const currentInverterData = {}
 
-  for (const line of lines) {
-    const parsed = parseLine(line)
-    if (!parsed) continue
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    let parsed = parseLineLabel(line)
+    if (!parsed) {
+      const cleaned = stripLineJunk(line)
+      const cepLoose = cleaned?.match(/^cep\s+(\d{5}-?\d{3})$/i)
+      if (cepLoose) {
+        parsed = { key: 'CEP', normalizedKey: 'cep', mappedField: 'cep', value: cepLoose[1] }
+      } else {
+        continue
+      }
+    }
 
-    const { mappedField, value } = parsed
-    if (!mappedField) continue
+    let { mappedField, value } = parsed
+    if (isMultilineContractField(mappedField) && !value) {
+      const block = readMultilineValue(lines, i + 1)
+      value = block.value
+      i = block.lastIndex
+    }
+    if (!value && !isMultilineContractField(mappedField)) continue
 
     if (mappedField === 'cidade_uf') {
       const match = value.match(/^(.+?)[\s/,-]+([A-Za-z]{2})$/)
@@ -521,6 +664,11 @@ export function parseTxtData(txtContent) {
       continue
     }
 
+    if (mappedField === 'coordenadas_raw') {
+      applyCoordinates(parseGoogleEarthCoordinates(value), technical)
+      continue
+    }
+
     if (mappedField === 'cpf') {
       client.cpf = formatCpf(value)
       continue
@@ -531,10 +679,26 @@ export function parseTxtData(txtContent) {
       continue
     }
 
-    if (mappedField === 'validade_cnh' || mappedField === 'data_nascimento' || mappedField === 'data_operacao') {
+    if (mappedField === 'validade_cnh' || mappedField === 'data_nascimento') {
       const iso = toIsoDate(value)
-      if (mappedField === 'data_operacao') technical.data_operacao = iso
-      else client[mappedField] = iso
+      if (iso) client[mappedField] = iso
+      continue
+    }
+
+    if (mappedField === 'data_operacao') {
+      const iso = toIsoDate(value)
+      if (iso) technical.data_operacao = iso
+      continue
+    }
+
+    if (mappedField === 'data_documento') {
+      const iso = toIsoDate(value)
+      if (iso) contract.data_documento = iso
+      continue
+    }
+
+    if (mappedField === 'cidade_documento') {
+      contract.cidade_documento = value.trim()
       continue
     }
 
@@ -586,10 +750,20 @@ export function parseTxtData(txtContent) {
       continue
     }
 
+    if (mappedField === 'texto_valor_pagamento_contrato') {
+      contract.texto_valor_pagamento_contrato = value.replace(/ \{\{NL\}\} /g, '\n')
+      continue
+    }
+
+    if (mappedField === 'numero_contrato') {
+      contract.numero_contrato = value.trim()
+      continue
+    }
+
     const technicalFields = [
       'curva_disjuntor', 'dps_tipo', 'dps_classe',
       'coordenada_utm_x', 'coordenada_utm_y', 'fuso_utm',
-      'latitude', 'longitude',
+      'latitude', 'longitude', 'coordenadas_raw',
       'num_poste', 'tipo_arranjo', 'area_arranjo',
     ]
     if (technicalFields.includes(mappedField)) {
@@ -632,6 +806,7 @@ export function parseTxtData(txtContent) {
   }
 
   harvestFromRawText(raw, client, technical)
+  harvestContractFromRawText(raw, contract)
 
   if (client.uf) client.uf = String(client.uf).toUpperCase().slice(0, 2)
 
@@ -643,7 +818,7 @@ export function parseTxtData(txtContent) {
     ? [{ ...blanks.inverters[0], ...finalizeEquipment(currentInverterData) }]
     : blanks.inverters
 
-  return { client, technical, modules, inverters }
+  return { client, technical, contract, modules, inverters }
 }
 
 export function fillGaps(base, incoming) {

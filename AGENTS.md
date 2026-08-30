@@ -13,9 +13,9 @@ Sistema local para preencher documentos de microgeração distribuída da Equato
 1. Procuração (DOCX)
 2. Memorial técnico descritivo (DOCX)
 3. Formulário NT.00020-05 (XLSX)
-4. Quarto documento oficial — **ainda não existe no repositório**
+4. Quarto documento oficial — **planta CAD** (`planta.dxf` + ajuste manual no AutoCAD); ART/diagrama formal ainda fora se necessário
 
-Entrada: formulário web e/ou arquivo TXT `Campo: valor`. Saída: DOCX/XLSX preenchidos preservando logo, cabeçalho, tabelas e assinaturas.
+Entrada: formulário web e/ou arquivo TXT `Campo: valor`. Saída: DOCX/XLSX/DXF na pasta do cliente (Drive ou `saida/`).
 
 ---
 
@@ -26,7 +26,7 @@ Estas peças já estão corretas. Melhore por volta delas; não recrie do zero.
 | Peça | Onde | Por quê |
 |------|------|---------|
 | Gerador XML | `backend/gerar_documentos.py` | Preenche DOCX/XLSX no XML (`{{TOKEN}}`), aliases De/Para, normaliza CPF/CEP/RG, gera `relatorio_preenchimento.txt` |
-| Templates com marcadores | `templates/modelo_procuracao_marcadores.docx`, `MEMORIAL_DESCRITIVO_marcadores.docx`, `NT.00020-05-...templates.xltx` | Documentos oficiais parametrizados sem reconstruir layout |
+| Templates com marcadores | `templates/modelo_procuracao_marcadores.docx`, `MEMORIAL_DESCRITIVO_marcadores.docx`, `NT.00020-05-...templates.xlsx`, `ModeloContrato.docx` | Documentos oficiais parametrizados; NT usa `.xlsx` com listas suspensas fixas no modelo |
 | Parser De/Para (JS) | `equatorial_automation_frontend/src/utils/txtParser.js` | Dezenas de rótulos mapeados; caminho confiável sem IA |
 | Formulário web (campos) | `equatorial_automation_frontend/src/App.jsx` | Já coleta Voc, Isc, coordenadas, DPS, cabos, aterramento — o buraco é não enviar isso ao gerador |
 

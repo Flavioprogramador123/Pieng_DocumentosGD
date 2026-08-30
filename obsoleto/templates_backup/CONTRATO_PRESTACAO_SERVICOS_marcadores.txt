@@ -1,0 +1,148 @@
+================================================================================
+CONTRATO DE PRESTAÇÃO DE SERVIÇOS — INTEGRAÇÃO DE GERAÇÃO DISTRIBUÍDA
+Template com tokens {{...}} — copie para Word e salve como .docx em templates/
+Arquivo: CONTRATO_PRESTACAO_SERVICOS_marcadores.docx
+================================================================================
+
+CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE INTEGRAÇÃO DE GERAÇÃO DISTRIBUÍDA
+
+CONTRATO N° {{NUMERO_CONTRATO}}
+
+Pelo presente instrumento particular, as partes abaixo qualificadas:
+
+I. CONTRATANTE
+
+O Sr(a). {{NOME_CONTRATANTE}}, doravante designado(a) CONTRATANTE, portador(a) do CPF nº {{CPF}}, RG nº {{RG_COMPLETO}}, residente e domiciliado(a) em {{ENDERECO}}, Nº {{NUMERO}}, {{COMPLEMENTO}}, Bairro: {{BAIRRO}}, Cidade/UF: {{CIDADE}}/{{UF}}, titular da Unidade Consumidora nº {{CONTA_CONTRATO}}.
+
+II. CONTRATADA
+
+{{NOME_INTEGRADOR}}, pessoa jurídica de direito privado, inscrita no CNPJ sob nº {{CNPJ_INTEGRADOR}}, com sede em {{ENDERECO_INTEGRADOR}}, doravante designada CONTRATADA, neste ato representada na forma de seus atos constitutivos.
+
+As partes acima identificadas têm entre si, justo e contratado, o presente Contrato de Prestação de Serviços, que se regerá pelas cláusulas e condições seguintes:
+
+CLÁUSULA 1ª — DO OBJETO
+
+1.1. Este Contrato tem por objeto a contratação de prestação de serviços de Integração de Geração Distribuída, com instalação de um Sistema Fotovoltaico de {{POTENCIA_TOTAL_INSTALADA}} kWp ({{QTD_MODULOS}} módulos + {{QTD_INVERSORES}} microinversor(es) de {{POTENCIA_INVERSOR}} kW), incluindo elaboração do projeto, Anotação de Responsabilidade Técnica (ART), montagem, intermediação junto à concessionária local ({{CONCESSIONARIA}}), comissionamento e suporte técnico de 12 (doze) meses, a contar da assinatura deste instrumento.
+
+1.2. O sistema será instalado no imóvel do CONTRATANTE, localizado no endereço indicado no preâmbulo deste Contrato.
+
+1.3. Equipamentos principais (referência):
+     • Módulos: {{FABRICANTE_MODULO}} {{MODELO_MODULO}}, {{POTENCIA_MODULO}} Wp — quantidade: {{QTD_MODULOS}};
+     • Inversor(es): {{FABRICANTE_INVERSOR}} {{MODELO_INVERSOR}}, {{POTENCIA_INVERSOR}} kW — quantidade: {{QTD_INVERSORES}};
+     • Potência total CC (módulos): {{POTENCIA_TOTAL_INSTALADA}} kWp; potência total CA (inversores): {{POTENCIA_INVERSOR_TOTAL}} kW.
+
+CLÁUSULA 2ª — DO PRAZO
+
+2.1. O prazo para conclusão dos serviços de instalação e entrega do sistema operacional será de até 90 (noventa) dias corridos, contados da assinatura deste Contrato e do recebimento da entrada/sinal acordado, ressalvados atrasos imputáveis ao CONTRATANTE, à concessionária ou a caso fortuito ou força maior.
+
+2.2. O prazo para protocolo dos documentos junto à {{CONCESSIONARIA}} dependerá dos prazos regulamentares da distribuidora e da completez da documentação fornecida pelo CONTRATANTE.
+
+CLÁUSULA 3ª — DO PREÇO E DA FORMA DE PAGAMENTO
+
+{{TEXTO_VALOR_PAGAMENTO_CONTRATO}}
+
+3.2. Dados para pagamento à CONTRATADA:
+     • Banco: {{BANCO}}
+     • Agência: {{AGENCIA}}
+     • Conta: {{CONTA}}
+     • PIX (CNPJ): {{PIX_INTEGRADOR}}
+
+CLÁUSULA 4ª — DAS OBRIGAÇÕES DA CONTRATADA
+
+4.1. Executar o projeto, fornecimento, instalação e comissionamento do sistema fotovoltaico descrito na Cláusula 1ª, em conformidade com as normas técnicas aplicáveis (NBR 5410, NBR 16274, PRODIST e regulamentação da ANEEL).
+
+4.2. Emitir e registrar a ART perante o conselho de classe competente, em nome do responsável técnico {{NOME_RESP_TECNICO}}, registro nº {{REGISTRO_PROFISSIONAL}}/{{UF_REGISTRO}}.
+
+4.3. Elaborar e entregar ao CONTRATANTE a documentação necessária ao processo de conexão junto à {{CONCESSIONARIA}}, incluindo memorial descritivo, formulários oficiais e demais exigências do PRODIST Módulo 3.
+
+4.4. Orientar e acompanhar o CONTRATANTE no processo de solicitação de acesso e vistoria da concessionária, na medida prevista no escopo contratado.
+
+4.5. Prestar suporte técnico remoto ou presencial (conforme disponibilidade) pelo prazo de 12 (doze) meses, contados da assinatura deste Contrato, para esclarecimentos sobre operação do sistema.
+
+CLÁUSULA 5ª — DAS OBRIGAÇÕES DO CONTRATANTE
+
+5.1. Fornecer informações verídicas e documentos necessários (conta de energia, dados cadastrais, acesso ao imóvel, laudos ou exigências locais).
+
+5.2. Disponibilizar acesso ao local de instalação e ao padrão de entrada de energia, bem como garantir condições seguras para execução dos serviços.
+
+5.3. Efetuar os pagamentos nas datas e condições acordadas na Cláusula 3ª.
+
+5.4. Obter, quando exigido, aprovações de condomínio, prefeitura ou órgãos competentes, salvo se expressamente incluído no escopo da CONTRATADA.
+
+5.5. Comunicar à CONTRATADA qualquer irregularidade observada no sistema após a entrega.
+
+CLÁUSULA 6ª — DA GARANTIA
+
+6.1. A CONTRATADA garante a execução dos serviços de instalação pelo prazo de 12 (doze) meses, contados da data de assinatura deste Contrato, contra defeitos de mão de obra e montagem.
+
+6.2. Garantias de fabricante dos equipamentos (módulos e inversores) seguem as condições dos respectivos fabricantes e notas fiscais.
+
+6.3. A garantia não cobre danos por mau uso, alterações não autorizadas, sobrecarga, eventos climáticos extremos além das especificações ou intervenções de terceiros.
+
+CLÁUSULA 7ª — DA DOCUMENTAÇÃO E PROPRIEDADE INTELECTUAL
+
+7.1. O projeto executivo e memorial entregues são destinados exclusivamente ao processo de conexão e operação do sistema do CONTRATANTE, não podendo ser reproduzidos para terceiros sem anuência da CONTRATADA.
+
+7.2. Após a quitação integral do Contrato, o CONTRATANTE receberá cópia dos documentos técnicos e do relatório de comissionamento.
+
+CLÁUSULA 8ª — DA RESCISÃO
+
+8.1. O presente Contrato poderá ser rescindido por acordo entre as partes, por escrito.
+
+8.2. Em caso de rescisão por iniciativa do CONTRATANTE sem justa causa após o início dos serviços, será devido à CONTRATADA o pagamento proporcional aos serviços já executados e materiais adquiridos ou encomendados.
+
+8.3. Constitui justa causa para rescisão pela CONTRATADA: inadimplemento superior a 15 (quinze) dias, impossibilidade de acesso ao local ou fornecimento de informações falsas que impeçam a execução.
+
+CLÁUSULA 9ª — DAS DISPOSIÇÕES GERAIS
+
+9.1. Eventuais tolerâncias quanto ao cumprimento de obrigações não implicam novação ou renúncia de direitos.
+
+9.2. Alterações deste Contrato somente terão validade se formalizadas por escrito e assinadas por ambas as partes.
+
+9.3. O CONTRATANTE autoriza o uso de imagens do sistema instalado para fins de portfólio da CONTRATADA, salvo manifestação expressa em contrário por escrito.
+
+CLÁUSULA 10ª — DO FORO
+
+10.1. Fica eleito o foro da comarca de {{CIDADE_DOCUMENTO}}/{{UF}}, com renúncia a qualquer outro, por mais privilegiado que seja, para dirimir questões oriundas deste Contrato.
+
+E, por estarem justas e contratadas, assinam o presente instrumento em 2 (duas) vias de igual teor e forma, na presença das testemunhas abaixo.
+
+{{CIDADE_DOCUMENTO}}/{{UF}}, {{DATA_DOCUMENTO_EXTENSO}}.
+
+
+_____________________________________________
+{{NOME_CONTRATANTE}}
+CONTRATANTE
+CPF: {{CPF}}
+
+
+_____________________________________________
+{{NOME_INTEGRADOR}}
+CONTRATADA
+CNPJ: {{CNPJ_INTEGRADOR}}
+
+
+_____________________________________________
+{{NOME_TESTEMUNHA_1}}
+CPF: {{CPF_TESTEMUNHA_1}}
+
+
+_____________________________________________
+{{NOME_TESTEMUNHA_2}}
+CPF: {{CPF_TESTEMUNHA_2}}
+
+================================================================================
+LEGENDA RÁPIDA DE TOKENS (gerar_documentos.py / formulário web)
+================================================================================
+NOME_CONTRATANTE (= NOME_CLIENTE) | CPF | RG_COMPLETO | ENDERECO | NUMERO | COMPLEMENTO
+BAIRRO | CIDADE | UF | CONTA_CONTRATO (UC)
+NOME_INTEGRADOR | CNPJ_INTEGRADOR | ENDERECO_INTEGRADOR | CONCESSIONARIA
+POTENCIA_TOTAL_INSTALADA | QTD_MODULOS | QTD_INVERSORES | POTENCIA_INVERSOR | POTENCIA_INVERSOR_TOTAL
+FABRICANTE_MODULO | MODELO_MODULO | POTENCIA_MODULO | FABRICANTE_INVERSOR | MODELO_INVERSOR
+VALOR_INVESTIMENTO (opcional — NT não usa) | FORMA_PAGAMENTO (fallback se texto vazio)
+TEXTO_VALOR_PAGAMENTO_CONTRATO — valor e condições de pagamento (texto livre, multilinha)
+NUMERO_CONTRATO — ex.: 122/2026 (cabeçalho: CONTRATO N° {{NUMERO_CONTRATO}})
+NOME_RESP_TECNICO | REGISTRO_PROFISSIONAL | UF_REGISTRO
+DATA_DOCUMENTO | DATA_DOCUMENTO_EXTENSO (ex.: 15 de agosto de 2026) | CIDADE_DOCUMENTO | UF
+
+Variante Cláusula 1.1 (inversor string): substituir "microinversor(es)" por "{{DESCRICAO_TIPO_INVERSOR}} de {{POTENCIA_INVERSOR}} kW cada".

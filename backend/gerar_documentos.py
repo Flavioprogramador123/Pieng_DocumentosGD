@@ -4,6 +4,7 @@ import argparse
 import json
 import re
 import shutil
+import unicodedata
 from datetime import date, datetime
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -14,7 +15,36 @@ W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 S_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
 NS_W = {'w': W_NS}
 NS_S = {'s': S_NS}
-TOKEN_RE = re.compile(r'\{\{([A-Z0-9_]+)\}\}')
+TOKEN_RE = re.compile(r'\{\{([A-Za-z0-9_]+)\}\}')
+
+
+def normalize_token(key: str) -> str:
+    return str(key or '').upper()
+
+SKIP_TEMPLATE_FILENAMES = frozenset({
+    'ModeloContrato_marcadores.docx',
+    'NT.00020-05-Anexo-I-Formulario-de-Solicitacao-Grupo-B-templates.xltx',
+    'NT.00020-05-Anexo-I-Formulario-de-Solicitacao-Grupo-B-templates00.xltx',
+})
+
+
+def iter_document_templates(templates_dir: Path):
+    """Templates ativos para preenchimento (exclui rascunhos duplicados)."""
+    xlsx_stems = {
+        p.stem for p in templates_dir.iterdir()
+        if p.suffix.lower() == '.xlsx' and not p.name.startswith('~$')
+    }
+    for template in sorted(templates_dir.iterdir()):
+        if template.name in SKIP_TEMPLATE_FILENAMES:
+            continue
+        if template.name.startswith('~$'):
+            continue
+        if template.suffix.lower() not in {'.docx', '.xlsx', '.xltx'}:
+            continue
+        # Preferir .xlsx editado (listas suspensas pré-selecionadas) em vez do .xltx legado
+        if template.suffix.lower() == '.xltx' and template.stem in xlsx_stems:
+            continue
+        yield template
 
 MONTHS_PT = {
     1: 'janeiro', 2: 'fevereiro', 3: 'março', 4: 'abril',
@@ -31,6 +61,10 @@ LABEL_ALIASES = {
     'rg': 'RG_RAW',
     'data de nascimento': 'DATA_NASCIMENTO',
     'validade cnh': 'VALIDADE_CNH',
+    'data expedição': 'DT_EXP',
+    'data expedição rg': 'DT_EXP',
+    'data expedição cnh': 'DT_EXP',
+    'dt exp': 'DT_EXP',
     'endereco': 'ENDERECO',
     'endereço': 'ENDERECO',
     'bairro': 'BAIRRO',
@@ -65,6 +99,13 @@ LABEL_ALIASES = {
     'n° poste/transformador': 'NUM_POSTE',
     'coordenada utm x': 'COORDENADA_UTM_X',
     'coordenada utm y': 'COORDENADA_UTM_Y',
+    'coordenadas': 'COORDENADAS',
+    'coordenadas georreferenciadas': 'COORDENADAS_GEORREFERENCIADAS',
+    'latitude': 'LATITUDE',
+    'longitude': 'LONGITUDE',
+    'zoom figura localização': 'FIGURA_MAP_ZOOM',
+    'zoom figura localizacao': 'FIGURA_MAP_ZOOM',
+    'figura map zoom': 'FIGURA_MAP_ZOOM',
     'tipo de fonte': 'TIPO_FONTE',
     'modalidade de compensacao': 'MODALIDADE_COMPENSACAO',
     'modalidade de compensação': 'MODALIDADE_COMPENSACAO',
@@ -75,6 +116,7 @@ LABEL_ALIASES = {
     'demanda alvo da unidade (kw)': 'DEMANDA_ALVO_KW',
     'demanda alvo (kw)': 'DEMANDA_ALVO_KW',
     'tabela de demanda': 'TABELA_DEMANDA',
+    'tabela de demanda json': 'TABELA_DEMANDA_JSON',
     'quantidade de modulos': 'QTD_MODULOS',
     'quantidade de módulos': 'QTD_MODULOS',
     'fabricante dos modulos': 'FABRICANTE_MODULO',
@@ -85,6 +127,12 @@ LABEL_ALIASES = {
     'potência unitária dos módulos (wp)': 'POTENCIA_MODULO',
     'potencia do modulo (w)': 'POTENCIA_MODULO',
     'potência do módulo (w)': 'POTENCIA_MODULO',
+    'potencia dos modulos': 'POTENCIA_MODULO',
+    'potência dos módulos': 'POTENCIA_MODULO',
+    'potencia dos modulos (wp)': 'POTENCIA_MODULO',
+    'potencia dos modulos wp': 'POTENCIA_MODULO',
+    'potencia do modulo': 'POTENCIA_MODULO',
+    'potência do módulo': 'POTENCIA_MODULO',
     'area dos arranjos (m²)': 'AREA_ARRANJO',
     'área dos arranjos (m²)': 'AREA_ARRANJO',
     'tensão de circuito aberto (voc) [v]': 'TENSAO_CIRCUITO_ABERTO',
@@ -92,6 +140,9 @@ LABEL_ALIASES = {
     'tensão de máxima potência (vpmp) [v]': 'TENSAO_MAX_POTENCIA',
     'corrente de máxima potência (ipmp) [a]': 'CORRENTE_MAX_POTENCIA',
     'eficiência do módulo (%)': 'EFICIENCIA_MODULO',
+    'eficiencia do modulo (%)': 'EFICIENCIA_MODULO',
+    'eficiencia do modulo': 'EFICIENCIA_MODULO',
+    'eficiência do modulo': 'EFICIENCIA_MODULO',
     'comprimento do módulo (m)': 'COMPRIMENTO_MODULO',
     'largura do módulo (m)': 'LARGURA_MODULO',
     'área do módulo (m²)': 'AREA_MODULO',
@@ -100,6 +151,9 @@ LABEL_ALIASES = {
     'fabricante dos inversores': 'FABRICANTE_INVERSOR',
     'modelo dos inversores': 'MODELO_INVERSOR',
     'potência nominal dos inversores (kw)': 'POTENCIA_INVERSOR',
+    'potencia nominal dos inversores (kw)': 'POTENCIA_INVERSOR',
+    'potencia dos inversores (kw)': 'POTENCIA_INVERSOR',
+    'potência dos inversores (kw)': 'POTENCIA_INVERSOR',
     'corrente nominal dos inversores (a)': 'CORRENTE_INVERSOR',
     'faixa de tensão dos inversores (v)': 'FAIXA_TENSAO_INVERSOR',
     'fator de potência': 'FATOR_POTENCIA',
@@ -113,6 +167,13 @@ LABEL_ALIASES = {
     'tensão cc de partida (v)': 'TENSAO_PARTIDA_CC_INVERSOR',
     'quantidade de strings': 'QTD_STRINGS_INVERSOR',
     'quantidade de entradas mppt': 'QTD_ENTRADAS_MPPT_INVERSOR',
+    'módulos por string': 'MODULOS_POR_STRING',
+    'modulos por string': 'MODULOS_POR_STRING',
+    'strings em paralelo por mppt': 'STRINGS_POR_MPPT',
+    'strings por mppt': 'STRINGS_POR_MPPT',
+    'tipo de inversor (topologia)': 'TIPO_INVERSOR',
+    'tipo de inversor': 'TIPO_INVERSOR',
+    'microinversores por grupo ca': 'MICROS_POR_GRUPO_CA',
     'potência nominal ca (kw)': 'POTENCIA_NOMINAL_CA_INVERSOR',
     'máxima potência na saída ca (kw)': 'POTENCIA_MAX_SAIDA_CA_INVERSOR',
     'máxima corrente na saída ca (a)': 'CORRENTE_MAX_SAIDA_CA_INVERSOR',
@@ -128,7 +189,10 @@ LABEL_ALIASES = {
     'armazenamento (se houver)': 'ARMAZENAMENTO',
     'potência máxima injetável (kw)': 'POTENCIA_MAX_INJETAVEL',
     'potência disponibilizada (kw)': 'POTENCIA_DISPONIBILIZADA',
+    'endereço uc': 'ENDERECO_UC',
+    'endereco uc': 'ENDERECO_UC',
     'endereço completo': 'ENDERECO_COMPLETO',
+    'rg completo': 'RG_COMPLETO',
     'tipo de rede': 'TIPO_REDE',
     'quantidade de condutores fase': 'QTD_CONDUTORES_FASE',
     'quantidade de condutores neutro': 'QTD_CONDUTORES_NEUTRO',
@@ -166,15 +230,41 @@ LABEL_ALIASES = {
     'corrente máxima dps (ka)': 'CORRENTE_MAXIMA_DPS',
     'valor do investimento (r$)': 'VALOR_INVESTIMENTO',
     'forma de pagamento': 'FORMA_PAGAMENTO',
+    'texto valor pagamento contrato': 'TEXTO_VALOR_PAGAMENTO_CONTRATO',
+    'valor e forma de pagamento (contrato)': 'TEXTO_VALOR_PAGAMENTO_CONTRATO',
+    'cláusula valor pagamento contrato': 'TEXTO_VALOR_PAGAMENTO_CONTRATO',
+    'clausula valor pagamento contrato': 'TEXTO_VALOR_PAGAMENTO_CONTRATO',
+    'texto pagamento': 'TEXTO_VALOR_PAGAMENTO_CONTRATO',
+    'texto de pagamento': 'TEXTO_VALOR_PAGAMENTO_CONTRATO',
+    'valor pagamento': 'TEXTO_VALOR_PAGAMENTO_CONTRATO',
+    'pagamento contrato': 'TEXTO_VALOR_PAGAMENTO_CONTRATO',
+    'clausula pagamento': 'TEXTO_VALOR_PAGAMENTO_CONTRATO',
+    'cláusula pagamento': 'TEXTO_VALOR_PAGAMENTO_CONTRATO',
+    'clausula sexta': 'TEXTO_VALOR_PAGAMENTO_CONTRATO',
+    'contrato': 'NUMERO_CONTRATO',
+    'número do contrato': 'NUMERO_CONTRATO',
+    'numero do contrato': 'NUMERO_CONTRATO',
+    'nº do contrato': 'NUMERO_CONTRATO',
+    'no do contrato': 'NUMERO_CONTRATO',
+    'contrato n': 'NUMERO_CONTRATO',
     'banco': 'BANCO',
     'agência': 'AGENCIA',
     'conta': 'CONTA',
     'cnpj integrador': 'CNPJ_INTEGRADOR',
     'pix integrador': 'PIX_INTEGRADOR',
+    'nome integrador': 'NOME_INTEGRADOR',
+    'nome da integradora': 'NOME_INTEGRADOR',
+    'razão social integrador': 'NOME_INTEGRADOR',
+    'endereço integrador': 'ENDERECO_INTEGRADOR',
+    'endereco integrador': 'ENDERECO_INTEGRADOR',
+    'contratante': 'NOME_CONTRATANTE',
+    'nome contratante': 'NOME_CONTRATANTE',
     'nome testemunha 1': 'NOME_TESTEMUNHA_1',
     'cpf testemunha 1': 'CPF_TESTEMUNHA_1',
     'nome testemunha 2': 'NOME_TESTEMUNHA_2',
     'cpf testemunha 2': 'CPF_TESTEMUNHA_2',
+    'corrente de entrada': 'CORRENTE_ENTRADA',
+    'corrente de entrada (a)': 'CORRENTE_ENTRADA',
 } 
 
 
@@ -182,15 +272,27 @@ OPTIONAL_KEYS = {
     'COMPLEMENTO', 'TELEFONE_FIXO', 'ARMAZENAMENTO',
     'NOME_TESTEMUNHA_1', 'CPF_TESTEMUNHA_1',
     'NOME_TESTEMUNHA_2', 'CPF_TESTEMUNHA_2',
-    'VALOR_INVESTIMENTO', 'FORMA_PAGAMENTO', 'BANCO', 'AGENCIA', 'CONTA',
+    'VALOR_INVESTIMENTO', 'FORMA_PAGAMENTO', 'TEXTO_VALOR_PAGAMENTO_CONTRATO', 'NUMERO_CONTRATO',
+    'BANCO', 'AGENCIA', 'CONTA',
     'CNPJ_INTEGRADOR', 'PIX_INTEGRADOR',
+    'NOME_INTEGRADOR', 'ENDERECO_INTEGRADOR', 'TELEFONE_INTEGRADOR', 'EMAIL_INTEGRADOR',
+    'NOME_CONTRATANTE',
+    'FIGURA_LOCALIZACAO', 'FIGURA_CAIXA', 'TEXTO_CAIXA', 'BIFACIALIDADE_MODULO',
+    'CALCULO_CORRENTE_SISTEMA', 'CALCULO_CORRENTE_INVERSOR',
+    'CALCULO_CORRENTE_INVERSORES_TOTAL', 'CALCULO_IMAX_CA', 'CALCULO_CORRENTE_CA',
+    'DISJUNTOR_RECOMENDADO_QDCA', 'COMPARATIVO_CORRENTE_DISJUNTOR',
+    'MARGEM_SEGURANCA_DISJUNTOR', 'DESCRICAO_TIPO_INVERSOR', 'DESCRICAO_CIRCUITO_PADRAO',
+    'DESCRICAO_CONEXAO_INVERSORES', 'DESCRICAO_DISJUNTOR_PADRAO',
+    'CONFIGURACAO_STRINGS_CC', 'PROTECAO_CC_DESCRICAO', 'PROTECAO_CA_DESCRICAO',
+    'POTENCIA_DISP_KW_W', 'CORRENTE_PROTECAO_CA', 'TENSAO_DPS',
+    'POTENCIA_MAX_INJETAVEL', 'DT_EXP',
 }
 
 NUMERIC_KEYS = {
-    'QTD_MODULOS', 'POTENCIA_MODULO', 'AREA_ARRANJO', 'QTD_INVERSORES',
+    'QTD_MODULOS', 'POTENCIA_MODULO', 'AREA_ARRANJO', 'DEMANDA_ALVO_KW', 'QTD_INVERSORES',
     'POTENCIA_INVERSOR', 'CORRENTE_INVERSOR', 'FATOR_POTENCIA', 'RENDIMENTO',
-    'DHT', 'POTENCIA_GERACAO', 'POTENCIA_TOTAL_INSTALADA',
-    'POTENCIA_MAX_INJETAVEL', 'POTENCIA_DISPONIBILIZADA', 'TENSAO_ATENDIMENTO',
+    'POTENCIA_GERACAO', 'POTENCIA_TOTAL_INSTALADA',
+    'POTENCIA_DISPONIBILIZADA', 'TENSAO_ATENDIMENTO',
     'DISJUNTOR_ENTRADA', 'COORDENADA_UTM_X', 'COORDENADA_UTM_Y',
     'POTENCIA_MAX_CC_INVERSOR', 'TENSAO_MAX_CC_INVERSOR',
     'CORRENTE_MAX_CC_INVERSOR', 'TENSAO_MPPT_MAX_INVERSOR',
@@ -199,7 +301,7 @@ NUMERIC_KEYS = {
     'POTENCIA_NOMINAL_CA_INVERSOR', 'POTENCIA_MAX_SAIDA_CA_INVERSOR',
     'CORRENTE_MAX_SAIDA_CA_INVERSOR', 'TENSAO_NOMINAL_CA_INVERSOR',
     'FREQUENCIA_NOMINAL_INVERSOR', 'TENSAO_MAX_CA_INVERSOR',
-    'TENSAO_MIN_CA_INVERSOR', 'THD_CORRENTE_INVERSOR',
+    'TENSAO_MIN_CA_INVERSOR',
     'FATOR_POTENCIA_INVERSOR', 'EFICIENCIA_MAX_INVERSOR',
     'TENSAO_CIRCUITO_ABERTO', 'CORRENTE_CURTO_CIRCUITO',
     'TENSAO_MAX_POTENCIA', 'CORRENTE_MAX_POTENCIA', 'EFICIENCIA_MODULO',
@@ -216,7 +318,23 @@ NUMERIC_KEYS = {
 def normalize_label(value: str) -> str:
     value = value.strip().strip('*').strip()
     value = re.sub(r'\s+', ' ', value)
+    value = unicodedata.normalize('NFD', value)
+    value = ''.join(ch for ch in value if unicodedata.category(ch) != 'Mn')
     return value.casefold()
+
+
+def lookup_label_alias(label: str) -> str | None:
+    return _LABEL_ALIAS_INDEX.get(normalize_label(label))
+
+
+def _build_label_alias_index() -> dict[str, str]:
+    index: dict[str, str] = {}
+    for raw_key, target in LABEL_ALIASES.items():
+        index[normalize_label(raw_key)] = target
+    return index
+
+
+_LABEL_ALIAS_INDEX = _build_label_alias_index()
 
 
 def clean_value(value: str) -> str:
@@ -229,21 +347,62 @@ def parse_txt(path: Path) -> dict[str, str]:
     return parse_txt_content(path.read_text(encoding='utf-8-sig'))
 
 
+MULTILINE_LABEL_KEYS = {
+    'texto valor pagamento contrato',
+    'texto pagamento',
+    'texto de pagamento',
+    'valor pagamento',
+    'pagamento contrato',
+    'clausula pagamento',
+    'cláusula pagamento',
+    'clausula valor pagamento contrato',
+    'cláusula valor pagamento contrato',
+    'clausula sexta',
+    'valor e forma de pagamento (contrato)',
+}
+
+
+def _parse_label_line(raw_line: str) -> tuple[str, str, str] | None:
+    line = raw_line.strip()
+    if not line or ':' not in line:
+        return None
+    line = re.sub(r'^[-*#]\s*', '', line)
+    label, value = line.split(':', 1)
+    label_key = normalize_label(label)
+    target = lookup_label_alias(label)
+    if not target:
+        return None
+    return label_key, clean_value(value), target
+
+
 def parse_txt_content(content: str) -> dict[str, str]:
     values: dict[str, str] = {}
-    for raw_line in content.splitlines():
-        line = raw_line.strip()
-        if not line or ':' not in line:
+    lines = content.splitlines()
+    i = 0
+    while i < len(lines):
+        parsed = _parse_label_line(lines[i])
+        if not parsed:
+            i += 1
             continue
-        line = re.sub(r'^[-*#]\s*', '', line)
-        label, value = line.split(':', 1)
-        label_key = normalize_label(label)
-        value = clean_value(value)
-        if not value:
-            continue
-        target = LABEL_ALIASES.get(label_key)
-        if target:
+        label_key, value, target = parsed
+        if not value and label_key in MULTILINE_LABEL_KEYS:
+            parts: list[str] = []
+            j = i + 1
+            while j < len(lines):
+                nxt = _parse_label_line(lines[j])
+                if nxt:
+                    break
+                chunk = lines[j].strip()
+                if chunk:
+                    parts.append(chunk)
+                j += 1
+            value = '\n'.join(parts)
+            i = j - 1
+        if value:
             values[target] = value
+        i += 1
+    from coordinate_utils import enrich_coordinate_tokens
+    enrich_coordinate_tokens(values)
     return values
 
 
@@ -271,7 +430,7 @@ def preview_token_mapping(
         line = re.sub(r'^[-*]\s*', '', line)
         label, _ = line.split(':', 1)
         label_key = normalize_label(label)
-        target = LABEL_ALIASES.get(label_key)
+        target = lookup_label_alias(label)
         if not target or target in seen_tokens:
             continue
         seen_tokens.add(target)
@@ -300,9 +459,7 @@ def preview_token_mapping(
 
     unresolved_by_template: dict[str, list[str]] = {}
     all_template_tokens: set[str] = set()
-    for template in sorted(templates_dir.iterdir()):
-        if template.suffix.lower() not in {'.docx', '.xlsx', '.xltx'}:
-            continue
+    for template in iter_document_templates(templates_dir):
         if template.suffix.lower() == '.docx':
             tokens = discover_tokens_docx(template)
         else:
@@ -314,9 +471,7 @@ def preview_token_mapping(
 
     filled_count = sum(1 for t in all_template_tokens if _token_is_filled(values, t))
     token_to_files: dict[str, list[str]] = {}
-    for template in sorted(templates_dir.iterdir()):
-        if template.suffix.lower() not in {'.docx', '.xlsx', '.xltx'}:
-            continue
+    for template in iter_document_templates(templates_dir):
         if template.suffix.lower() == '.docx':
             tokens = discover_tokens_docx(template)
         else:
@@ -354,6 +509,35 @@ def preview_token_mapping(
 
 def only_digits(value: str) -> str:
     return re.sub(r'\D', '', value or '')
+
+
+def normalize_conta_contrato(value: str) -> str:
+    """
+    UC / conta contrato — apenas dígitos.
+    Se vier duplicada (com e sem separadores), fica a sequência numérica mais longa.
+    Ex.: '688.899.012-35 / 000068889901235' → '000068889901235'
+    """
+    if not value:
+        return ''
+    raw = str(value).strip()
+    parts = [p.strip() for p in re.split(r'[/|;]', raw) if p.strip()]
+    if not parts:
+        parts = [raw]
+    best = ''
+    for part in parts:
+        digits = only_digits(part)
+        if len(digits) > len(best):
+            best = digits
+    return best
+
+
+def format_conta_contrato(value: str) -> str:
+    """Formato Equatorial com pontos e traço (últimos 12 dígitos significativos)."""
+    digits = normalize_conta_contrato(value)
+    if len(digits) < 12:
+        return digits
+    d = digits[-12:]
+    return f'{d[0]}.{d[1:4]}.{d[4:7]}.{d[7:10]}-{d[10:12]}'
 
 
 def format_cpf(value: str) -> str:
@@ -425,19 +609,149 @@ def numeric_value(value: object) -> str | None:
     return text
 
 
+def _apply_dc_string_analysis(values: dict) -> None:
+    """Deriva tokens de strings CC e textos de proteção para o memorial."""
+    qtd_mod = numeric_value(values.get('QTD_MODULOS'))
+    qtd_inv = numeric_value(values.get('QTD_INVERSORES'))
+    if not qtd_mod or not qtd_inv:
+        return
+
+    modules = [{
+        'quantidade': int(float(qtd_mod)),
+        'voc': values.get('TENSAO_CIRCUITO_ABERTO'),
+        'isc': values.get('CORRENTE_CURTO_CIRCUITO'),
+        'vmpp': values.get('TENSAO_MAX_POTENCIA'),
+        'impp': values.get('CORRENTE_MAX_POTENCIA'),
+    }]
+    inverters = [{
+        'quantidade': int(float(qtd_inv)),
+        'num_mppt': values.get('QTD_ENTRADAS_MPPT_INVERSOR') or values.get('NUM_MPPT'),
+        'mppt_min': values.get('TENSAO_MPPT_MIN_INVERSOR'),
+        'mppt_max': values.get('TENSAO_MPPT_MAX_INVERSOR'),
+        'corrente_max_saida_ca': values.get('CORRENTE_MAX_SAIDA_CA_INVERSOR'),
+        'tipo_inversor': values.get('TIPO_INVERSOR'),
+    }]
+    technical = {
+        'tipo_inversor': values.get('TIPO_INVERSOR'),
+        'num_mppt': values.get('NUM_MPPT') or values.get('QTD_ENTRADAS_MPPT_INVERSOR'),
+        'modulos_por_string': values.get('MODULOS_POR_STRING'),
+        'strings_por_mppt': values.get('STRINGS_POR_MPPT'),
+        'micros_por_grupo_ca': values.get('MICROS_POR_GRUPO_CA'),
+    }
+
+    from string_calculations import analyze_dc_strings
+
+    dc = analyze_dc_strings(modules, inverters, technical)
+    values.setdefault('CONFIGURACAO_STRINGS_CC', dc.get('configuracao_strings_text', ''))
+    values.setdefault('PROTECAO_CC_DESCRICAO', dc.get('protecao_cc_text', ''))
+    values.setdefault('PROTECAO_CA_DESCRICAO', dc.get('protecao_ca_text', ''))
+    if dc.get('strings_count'):
+        values.setdefault('QTD_STRINGS_INVERSOR', str(dc['strings_count']))
+    if dc.get('isc_design_a'):
+        values.setdefault(
+            'CORRENTE_DEMANDADA_CABO_CC',
+            f"{int(round(dc['isc_design_a']))} A",
+        )
+    topo = dc.get('topology', '')
+    if topo == 'micro':
+        values.setdefault('DESCRICAO_TIPO_INVERSOR', 'microinversores monofásicos')
+    elif topo == 'string':
+        values.setdefault('DESCRICAO_TIPO_INVERSOR', 'inversores string')
+
+
 def load_defaults(path: Path) -> dict:
     return json.loads(path.read_text(encoding='utf-8'))
+
+
+def format_thd_dht(value) -> str:
+    """Formata THD/DHT do inversor para o memorial (ex.: <3%)."""
+    if value in (None, ''):
+        return '<3%'
+    text = str(value).strip()
+    if text.startswith('<'):
+        return text if '%' in text else f'{text}%'
+    try:
+        cleaned = re.sub(r'[^\d.,]', '', text).replace(',', '.')
+        n = float(cleaned)
+        if n <= 3:
+            return '<3%'
+        return f'≤{n:g}%'
+    except (ValueError, TypeError):
+        return text if '%' in text else f'{text}%'
+
+
+def format_tensao_atendimento(value) -> str:
+    """Normaliza tensão para memorial — ex.: 220V → 220 V (evita 220VV)."""
+    if value in (None, ''):
+        return ''
+    text = re.sub(r'(?i)\s*V+\s*$', '', str(value).strip()).strip()
+    return f'{text} V' if text else ''
+
+
+def tensao_nominal_numero(value) -> str:
+    """Parte numérica da tensão (sem V) — para {{TENSAO_NOMINAL}} V no template."""
+    if value in (None, ''):
+        return ''
+    return re.sub(r'(?i)\s*V+\s*$', '', str(value).strip()).strip()
+
+
+def vn_fase_neutro(value, default: float = 220.0) -> float:
+    """VN fase-neutro (220 V em GO) — PD e corrente de microinversores trifásicos."""
+    if value in (None, ''):
+        return default
+    nums = [float(n) for n in re.findall(r'\d{2,3}', str(value))]
+    return min(nums) if nums else default
+
+
+# Área unitária típica de módulo FV (m²) — memorial + NT.00020-05 quando não informada
+DEFAULT_AREA_MODULO_M2 = 2.5
+_AMPACITY_MM2_A: dict[str, int] = {
+    '4': 35, '6': 45, '10': 55, '16': 70, '25': 95, '35': 120,
+}
+
+
+def capacidade_conducao_a(bitola: str) -> str:
+    match = re.search(r'(\d+)', str(bitola or '4'))
+    key = match.group(1) if match else '4'
+    return f"{_AMPACITY_MM2_A.get(key, 35)} A"
+
+
+def capacidade_conducao_tabela_cc(bitola: str) -> str:
+    match = re.search(r'(\d+)', str(bitola or '4'))
+    key = match.group(1) if match else '4'
+    amps = _AMPACITY_MM2_A.get(key, 35)
+    return f'~{amps} A (em condição padrão: 30°C, livre no ar)'
+
+
+def capacidade_conducao_tabela_ca(bitola: str) -> str:
+    match = re.search(r'(\d+)', str(bitola or '4'))
+    key = match.group(1) if match else '4'
+    amps = _AMPACITY_MM2_A.get(key, 35)
+    return f'~{amps} A (30°C, livre no ar)'
 
 
 def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
     values: dict[str, str] = dict(raw)
     if values.get('TABELA_DEMANDA'):
         values['TABELA_DEMANDA'] = values['TABELA_DEMANDA'].replace(' {{NL}} ', '\n')
+    if values.get('TEXTO_VALOR_PAGAMENTO_CONTRATO'):
+        values['TEXTO_VALOR_PAGAMENTO_CONTRATO'] = values[
+            'TEXTO_VALOR_PAGAMENTO_CONTRATO'
+        ].replace(' {{NL}} ', '\n')
+    if values.get('TABELA_DEMANDA_JSON'):
+        values['__DEMAND_TABLE_JSON__'] = values.pop('TABELA_DEMANDA_JSON')
 
     if 'CPF' in values:
         values['CPF'] = format_cpf(values['CPF'])
     if 'CEP' in values:
         values['CEP'] = format_cep(values['CEP'])
+    if values.get('CONTA_CONTRATO'):
+        uc_raw = values['CONTA_CONTRATO']
+        digits = normalize_conta_contrato(uc_raw)
+        values['CONTA_CONTRATO_DIGITOS'] = digits
+        values['CONTA_CONTRATO'] = digits
+        if digits:
+            values.setdefault('CONTA_CONTRATO_FORMATADA', format_conta_contrato(uc_raw))
     if 'RG_RAW' in values:
         rg, issuer, uf = parse_rg(values['RG_RAW'])
         values['RG'] = rg
@@ -457,6 +771,11 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
     procurador = defaults.get('procurador', {})
     tecnico = defaults.get('responsavel_tecnico', {})
     procuracao = defaults.get('procuracao', {})
+    cabos = defaults.get('cabos', {})
+    modulos_cfg = defaults.get('modulos', {})
+    area_modulo_default = float(modulos_cfg.get('area_modulo_m2', DEFAULT_AREA_MODULO_M2))
+    testemunhas = defaults.get('testemunhas', {})
+    pagamento = defaults.get('pagamento_integrador', {})
 
     values.setdefault('NOME_PROCURADOR', procurador.get('nome', ''))
     values.setdefault('CPF_PROCURADOR', procurador.get('cpf', ''))
@@ -482,7 +801,35 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
     values.setdefault('CONCESSIONARIA', procuracao.get('concessionaria', 'Equatorial Energia Goiás'))
     values.setdefault('OBJETO_PROCURACAO', procuracao.get('objeto', 'Energia Fotovoltaica'))
     values.setdefault('CIDADE_DOCUMENTO', values.get('CIDADE', procuracao.get('cidade_documento', '')))
+    if values.get('CIDADE_DOCUMENTO') and not values.get('UF'):
+        values.setdefault('UF', procuracao.get('uf_documento', 'GO'))
     values.setdefault('DATA_DOCUMENTO', procuracao.get('data_documento', ''))
+    values.setdefault('NUMERO_CONTRATO', procuracao.get('numero_contrato', ''))
+
+    values.setdefault('NOME_TESTEMUNHA_1', testemunhas.get('nome_1', 'TESTEMUNHA 01'))
+    values.setdefault('NOME_TESTEMUNHA_2', testemunhas.get('nome_2', 'TESTEMUNHA 02'))
+
+    values.setdefault('FORMA_PAGAMENTO', pagamento.get('forma_pagamento', ''))
+    values.setdefault('BANCO', pagamento.get('banco', ''))
+    values.setdefault('AGENCIA', pagamento.get('agencia', ''))
+    values.setdefault('CONTA', pagamento.get('conta', ''))
+    values.setdefault('CNPJ_INTEGRADOR', pagamento.get('cnpj_integrador', ''))
+    values.setdefault('PIX_INTEGRADOR', pagamento.get('pix_integrador', ''))
+    values.setdefault('NOME_INTEGRADOR', pagamento.get('nome_integrador', ''))
+    values.setdefault('NOME_CONTRATANTE', values.get('NOME_CLIENTE', ''))
+    _integ_addr: list[str] = []
+    for part in (
+        procurador.get('endereco'),
+        procurador.get('bairro'),
+        f"{procurador.get('cidade', '')}/{procurador.get('uf', '')}".strip('/'),
+        procurador.get('cep'),
+    ):
+        if part and str(part).strip():
+            _integ_addr.append(str(part).strip())
+    if _integ_addr:
+        values.setdefault('ENDERECO_INTEGRADOR', ', '.join(_integ_addr))
+    values.setdefault('TELEFONE_INTEGRADOR', procurador.get('telefone', ''))
+    values.setdefault('EMAIL_INTEGRADOR', procurador.get('email', ''))
     if not values.get('DATA_DOCUMENTO'):
         values['DATA_DOCUMENTO'] = datetime.now().strftime('%d/%m/%Y')
     if values.get('DATA_DOCUMENTO'):
@@ -492,14 +839,90 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
 
     # Campos derivados para Memorial Descritivo
     values.setdefault('ESTADO_CONCESSAO', values.get('UF', 'GO'))
-    values.setdefault('ENDERECO_COMPLETO', values.get('ENDERECO', ''))
+    if values.get('ENDERECO') or values.get('LOGRADOURO'):
+        endereco = values.get('ENDERECO') or values.get('LOGRADOURO', '')
+        numero = values.get('NUMERO', '')
+        if numero and numero not in endereco:
+            endereco = f'{endereco}, Nº {numero}'
+        values.setdefault('ENDERECO_COMPLETO', endereco)
+    else:
+        values.setdefault('ENDERECO_COMPLETO', values.get('ENDERECO', ''))
+
+    # NT.00020-05 — endereço UC (logradouro + nº + complemento + bairro)
+    addr_uc: list[str] = []
+    base = values.get('ENDERECO') or values.get('LOGRADOURO') or ''
+    if base:
+        addr_uc.append(base)
+    num = str(values.get('NUMERO') or '').strip()
+    if num and num not in base:
+        addr_uc.append(num if num.upper().startswith('N') else f'Nº {num}')
+    comp = str(values.get('COMPLEMENTO') or '').strip()
+    if comp:
+        addr_uc.append(comp)
+    bairro = str(values.get('BAIRRO') or '').strip()
+    if bairro:
+        addr_uc.append(bairro)
+    if addr_uc:
+        values.setdefault('ENDERECO_UC', ', '.join(addr_uc))
+
+    # NT.00020-05 — RG + órgão emissor (+ UF se houver)
+    rg_parts = [str(values.get('RG') or '').strip()]
+    org = str(values.get('ORGAO_EMISSOR_RG') or '').strip()
+    uf_rg = str(values.get('UF_RG') or '').strip()
+    if org:
+        rg_parts.append(org)
+    if uf_rg and uf_rg not in org:
+        rg_parts.append(uf_rg)
+    rg_full = ' '.join(p for p in rg_parts if p)
+    if rg_full:
+        values.setdefault('RG_COMPLETO', rg_full)
     values.setdefault('POTENCIA_INVERSOR_UNITARIO', values.get('POTENCIA_INVERSOR', ''))
-    values.setdefault('FUSO_UTM', '22S')  # Fuso UTM padrão para Goiás
+
+    # Eficiência módulo — garantir token mesmo com rótulo alternativo ou valor só no form
+    if not values.get('EFICIENCIA_MODULO'):
+        for alt in ('EFICIENCIA_MODULO', 'EFICIENCIA', 'RENDIMENTO_MODULO'):
+            if values.get(alt):
+                values['EFICIENCIA_MODULO'] = values[alt]
+                break
+    if values.get('EFICIENCIA_MODULO'):
+        ef = numeric_value(values['EFICIENCIA_MODULO']) or str(values['EFICIENCIA_MODULO']).replace('%', '').strip()
+        values['EFICIENCIA_MODULO'] = ef
+
+    values.setdefault('NUM_POSTE', 'ilégível')
+
+    thd_src = values.get('THD_CORRENTE_INVERSOR') or values.get('DHT')
+    thd_fmt = format_thd_dht(thd_src or '3')
+    values['THD_CORRENTE_INVERSOR'] = thd_fmt
+    values['DHT'] = thd_fmt
+
+    from coordinate_utils import enrich_coordinate_tokens
+    enrich_coordinate_tokens(values)
+    values.setdefault('FUSO_UTM', values.get('FUSO_UTM', '22S'))
+
+    if values.get('DISJUNTOR_ENTRADA') and not values.get('CORRENTE_ENTRADA'):
+        values['CORRENTE_ENTRADA'] = values['DISJUNTOR_ENTRADA']
+    if values.get('DISJUNTOR_ENTRADA') and not values.get('CORRENTE_NOMINAL_DISJUNTOR'):
+        values.setdefault('CORRENTE_NOMINAL_DISJUNTOR', values['DISJUNTOR_ENTRADA'])
+    if values.get('NUM_POLOS_DISJUNTOR') and not values.get('DESCRICAO_POLOS_DISJUNTOR'):
+        num_polos = str(values['NUM_POLOS_DISJUNTOR'])
+        desc_map = {'1': 'Unipolar', '2': 'Bipolar', '3': 'Tripolar', '4': 'Tetrapolar'}
+        values.setdefault('DESCRICAO_POLOS_DISJUNTOR', desc_map.get(num_polos, f'{num_polos} polos'))
+    if values.get('TENSAO_MPPT_MIN_INVERSOR') and values.get('TENSAO_MPPT_MAX_INVERSOR'):
+        values.setdefault(
+            'FAIXA_TENSAO_MPPT_INVERSOR',
+            f"{values['TENSAO_MPPT_MIN_INVERSOR']}V - {values['TENSAO_MPPT_MAX_INVERSOR']}V",
+        )
+        values.setdefault('FAIXA_TENSAO_INVERSOR', values['FAIXA_TENSAO_MPPT_INVERSOR'])
+    if values.get('QTD_ENTRADAS_MPPT_INVERSOR') and not values.get('QTD_STRINGS_INVERSOR'):
+        values.setdefault('QTD_STRINGS_INVERSOR', values['QTD_ENTRADAS_MPPT_INVERSOR'])
+    if values.get('EFICIENCIA_MAX_INVERSOR') and not values.get('RENDIMENTO'):
+        values.setdefault('RENDIMENTO', values['EFICIENCIA_MAX_INVERSOR'])
 
     # Formatações específicas do Memorial
     if values.get('TENSAO_ATENDIMENTO'):
-        values.setdefault('TENSAO_ATENDIMENTO_FORMATADA', f"{values['TENSAO_ATENDIMENTO']}V")
-        values.setdefault('TENSAO_NOMINAL', values['TENSAO_ATENDIMENTO'])
+        ta_raw = values['TENSAO_ATENDIMENTO']
+        values.setdefault('TENSAO_ATENDIMENTO_FORMATADA', format_tensao_atendimento(ta_raw))
+        values.setdefault('TENSAO_NOMINAL', tensao_nominal_numero(ta_raw))
 
     if values.get('POTENCIA_DISPONIBILIZADA'):
         values.setdefault('POTENCIA_DISPONIBILIZADA_FORMATADA', f"{values['POTENCIA_DISPONIBILIZADA']} kW")
@@ -511,24 +934,63 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
             values.setdefault('MES_DOCUMENTO', MONTHS_PT[parsed_document_date.month])
             values.setdefault('ANO_DOCUMENTO', str(parsed_document_date.year))
 
-    # Tipo de Ligação -> Número de Fases e Tipo de Rede
-    tipo_ligacao = values.get('TIPO_LIGACAO', '').upper()
-    if 'MONOFAS' in tipo_ligacao or 'MONOF' in tipo_ligacao:
-        values.setdefault('NUM_FASES', '2')
-        values.setdefault('TIPO_REDE', 'Monofásico')
-    elif 'BIFAS' in tipo_ligacao or 'BIF' in tipo_ligacao:
-        values.setdefault('NUM_FASES', '2')
-        values.setdefault('TIPO_REDE', 'Bifásico')
-    elif 'TRIFAS' in tipo_ligacao or 'TRIF' in tipo_ligacao:
-        values.setdefault('NUM_FASES', '3')
-        values.setdefault('TIPO_REDE', 'Trifásico')
+    # Tipo de Ligação → NF (PD), condutores e disjuntor de entrada
+    from grid_voltage import resolve_ac_voltage, resolve_ligacao_config
 
-    # Campos de cabos (padrão para sistemas fotovoltaicos)
-    values.setdefault('BITOLA_CABO_CC', '6mm²')
-    values.setdefault('BITOLA_CABO_CA', '10mm²')
-    values.setdefault('BITOLA_CABO_PADRAO', '10mm²')
-    values.setdefault('QTD_CONDUTORES_FASE', values.get('NUM_FASES', '3'))
-    values.setdefault('QTD_CONDUTORES_NEUTRO', '1')
+    ligacao = resolve_ligacao_config(values.get('TIPO_LIGACAO'))
+    values.setdefault('NUM_FASES', str(ligacao['num_fases']))
+    values.setdefault('TIPO_REDE', ligacao['tipo_rede'])
+    values.setdefault('QTD_CONDUTORES_FASE', ligacao['qtd_condutores_fase'])
+    values.setdefault('QTD_CONDUTORES_NEUTRO', ligacao['qtd_condutores_neutro'])
+    values.setdefault('NUM_POLOS_DISJUNTOR', ligacao['num_polos_disjuntor'])
+    values.setdefault('DESCRICAO_POLOS_DISJUNTOR', ligacao['descricao_polos'])
+    values.setdefault('DESCRICAO_CONEXAO_INVERSORES', ligacao['descricao_conexao_inversores'])
+    values.setdefault('DESCRICAO_DISJUNTOR_PADRAO', ligacao['descricao_disjuntor_padrao'])
+
+    volt = resolve_ac_voltage(
+        values.get('UF'),
+        values.get('TIPO_LIGACAO'),
+        values.get('TENSAO_ATENDIMENTO'),
+    )
+    v_ln = int(volt['voltage_ln_v'])
+    v_ll = int(volt['voltage_ll_v'])
+    values.setdefault('TENSAO_FASE_NEUTRO', str(v_ln))
+    values.setdefault('TENSAO_ENTRE_FASES', str(v_ll))
+    ta_fmt = format_tensao_atendimento(
+        values.get('TENSAO_ATENDIMENTO_FORMATADA') or values.get('TENSAO_ATENDIMENTO')
+    )
+    if not ta_fmt:
+        ta_fmt = f'{v_ln}/{v_ll} V' if volt['system_type'] == 'trifasico' else f'{v_ln} V'
+    values['TENSAO_ATENDIMENTO_FORMATADA'] = ta_fmt
+    values.setdefault('TENSAO_NOMINAL_DISJUNTOR', ta_fmt)
+    values['TENSAO_NOMINAL'] = str(v_ln)
+    if volt['system_type'] == 'trifasico':
+        base = re.sub(r'\s*V\s*$', '', ta_fmt, flags=re.I).strip()
+        if '/' not in base:
+            base = f'{v_ln}/{v_ll}'
+        values.setdefault(
+            'DESCRICAO_TENSAO_ATENDIMENTO',
+            f'{base} V ({v_ln} V fase-neutro, {v_ll} V entre fases)',
+        )
+    else:
+        values.setdefault('DESCRICAO_TENSAO_ATENDIMENTO', f'{v_ln} V')
+
+    _apply_dc_string_analysis(values)
+
+    # Cabos — CC inversor 4 mm², CA inversor 6 mm², CA padrão entrada 10 mm²
+    values.setdefault('BITOLA_CABO_CC', cabos.get('bitola_cc', '4 mm²'))
+    values.setdefault('BITOLA_CABO_CA', cabos.get('bitola_ca_inversor', '6 mm²'))
+    values.setdefault('BITOLA_CABO_PADRAO', cabos.get('bitola_ca_padrao', '10 mm²'))
+    values.setdefault('CAPACIDADE_CABO_CC', capacidade_conducao_a(values['BITOLA_CABO_CC']))
+    values.setdefault('CAPACIDADE_CABO_CA', capacidade_conducao_a(values['BITOLA_CABO_CA']))
+    values.setdefault('CAPACIDADE_CABO_PADRAO', capacidade_conducao_a(values['BITOLA_CABO_PADRAO']))
+    values.setdefault('CAPACIDADE_TABELA_CABO_CC', capacidade_conducao_tabela_cc(values['BITOLA_CABO_CC']))
+    values.setdefault('CAPACIDADE_TABELA_CABO_CA', capacidade_conducao_tabela_ca(values['BITOLA_CABO_CA']))
+    cc_dem = numeric_value(values.get('CORRENTE_MAX_CC_INVERSOR') or values.get('CORRENTE_DEMANDADA_CABO_CC'))
+    if cc_dem:
+        values.setdefault('CORRENTE_DEMANDADA_CABO_CC', f"{int(float(cc_dem))} A")
+    else:
+        values.setdefault('CORRENTE_DEMANDADA_CABO_CC', '15 A')
 
     # Campos de inversor já existentes no sistema
     values.setdefault('FAIXA_TENSAO_INVERSOR', values.get('FAIXA_TENSAO_INVERSOR', ''))
@@ -558,13 +1020,25 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
     # Derived values used by the main Equatorial workbook. They are only
     # calculated when the necessary equipment data is present; otherwise the
     # field remains pending for technical confirmation.
+    if not values.get('AREA_MODULO'):
+        if values.get('COMPRIMENTO_MODULO') and values.get('LARGURA_MODULO'):
+            try:
+                values['AREA_MODULO'] = (
+                    f"{float(values['COMPRIMENTO_MODULO']) * float(values['LARGURA_MODULO']):g}"
+                )
+            except (TypeError, ValueError):
+                values['AREA_MODULO'] = f'{area_modulo_default:g}'
+        else:
+            values['AREA_MODULO'] = f'{area_modulo_default:g}'
+
     try:
         qtd_modulos = float(values.get('QTD_MODULOS', ''))
         potencia_modulo = float(values.get('POTENCIA_MODULO', ''))
         potencia_modulos = qtd_modulos * potencia_modulo / 1000
         values.setdefault('POTENCIA_TOTAL_INSTALADA', f'{potencia_modulos:g}')
-        if not values.get('AREA_ARRANJO') and values.get('AREA_MODULO'):
-            values['AREA_ARRANJO'] = f'{qtd_modulos * float(values["AREA_MODULO"]):g}'
+        if not values.get('AREA_ARRANJO'):
+            area_u = float(values.get('AREA_MODULO') or area_modulo_default)
+            values['AREA_ARRANJO'] = f'{qtd_modulos * area_u:g}'
     except (TypeError, ValueError):
         pass
     try:
@@ -584,16 +1058,22 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
 
     # Calculate the available power only when all source values are provided.
     try:
-        vn = float(values.get('TENSAO_NOMINAL') or values.get('TENSAO_ATENDIMENTO') or '')
-        corrente = float(values.get('CORRENTE_ENTRADA') or values.get('DISJUNTOR_ENTRADA') or '')
-        fases = float(values.get('NUM_FASES') or '')
-        fp = float(values.get('FATOR_POTENCIA') or '0.92')
-        kva = vn * corrente * fases / 1000
-        kw = kva * fp
-        values.setdefault('POTENCIA_DISP_KVA', f'{kva:g}')
-        values.setdefault('POTENCIA_DISP_KW', f'{kw:g}')
-        values.setdefault('POTENCIA_DISPONIBILIZADA', f'{kw:g}')
-        values.setdefault('POTENCIA_DISPONIBILIZADA_FORMATADA', f'{kw:g} kW')
+        vn = float(v_ln)
+        corrente_text = numeric_value(
+            values.get('CORRENTE_ENTRADA') or values.get('DISJUNTOR_ENTRADA') or ''
+        )
+        fases_text = numeric_value(values.get('NUM_FASES') or '')
+        fp_text = numeric_value(values.get('FATOR_POTENCIA') or '0.92')
+        if corrente_text and fases_text and fp_text:
+            corrente = float(corrente_text)
+            fases = float(fases_text)
+            fp = float(fp_text)
+            kva = vn * corrente * fases / 1000
+            kw = kva * fp
+            values.setdefault('POTENCIA_DISP_KVA', f'{kva:.2f}'.rstrip('0').rstrip('.'))
+            values.setdefault('POTENCIA_DISP_KW', f'{kw:.2f}'.rstrip('0').rstrip('.'))
+            values.setdefault('POTENCIA_DISPONIBILIZADA', f'{kw:.2f}'.rstrip('0').rstrip('.'))
+            values.setdefault('POTENCIA_DISPONIBILIZADA_FORMATADA', f'{kw:.2f}'.rstrip("0").rstrip(".") + ' kW')
     except (TypeError, ValueError):
         pass
 
@@ -602,12 +1082,185 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
     values.setdefault('MODALIDADE_COMPENSACAO', 'AUTOCONSUMO LOCAL')
     values.setdefault('ARMAZENAMENTO', 'NÃO')
 
+    # Memorial — tokens derivados (campos +...+ convertidos)
+    if values.get('POTENCIA_DISP_KW'):
+        try:
+            kw_disp = float(str(values['POTENCIA_DISP_KW']).replace(',', '.'))
+            values.setdefault('POTENCIA_DISP_KW_W', f'{kw_disp * 1000:g}'.replace('.', ','))
+        except (TypeError, ValueError):
+            pass
+
+    values.setdefault('CLASSE', values.get('CLASSE', 'Residencial'))
+
+    try:
+        import math
+
+        pot_kw = float(str(
+            values.get('POTENCIA_GERACAO') or values.get('POTENCIA_INVERSOR_TOTAL') or 0
+        ).replace(',', '.'))
+        v_ln_calc = float(v_ln)
+        v_ll_calc = float(v_ll)
+        system_type = ligacao['system_type']
+        qtd_inv = max(1, int(float(numeric_value(values.get('QTD_INVERSORES') or '1') or 1)))
+        tipo_inv = (values.get('TIPO_INVERSOR') or '').upper()
+        is_micro = 'MICRO' in tipo_inv
+        curva = values.get('CURVA_ATUACAO_DISJUNTOR') or values.get('disjuntor_curva') or 'C'
+        pot_w = pot_kw * 1000
+        pot_inv_w = pot_w / qtd_inv
+
+        if pot_kw > 0 and v_ln_calc > 0:
+            if system_type == 'trifasico' and is_micro:
+                i_sys = pot_w / v_ln_calc
+                i_inv = pot_inv_w / v_ln_calc
+                formula = f'I = {pot_w:g} W ÷ {v_ln_calc:g} V = {i_sys:.2f} A'
+                inv_note = f'I = {pot_inv_w:g} W ÷ {v_ln_calc:g} V = {i_inv:.2f} A por inversor'
+                tensao_saida_txt = f'{v_ln_calc:g} V (microinversores monofásicos, {ligacao["descricao_conexao_inversores"]})'
+            elif system_type == 'trifasico':
+                fp_inv = float(numeric_value(values.get('FATOR_POTENCIA_INVERSOR') or '0.99') or 0.99)
+                i_sys = pot_w / (v_ll_calc * math.sqrt(3) * fp_inv)
+                formula = (
+                    f'I = {pot_kw:g} kW / ({v_ll_calc:g} V × √3 × {fp_inv:g}) = {i_sys:.2f} A'
+                )
+                inv_note = (
+                    f'I_inversor = {i_sys:.2f} A / {qtd_inv} = {i_sys / qtd_inv:.2f} A '
+                    f'(inversor string trifásico balanceado)'
+                )
+                tensao_saida_txt = f'{v_ln_calc:g}/{v_ll_calc:g} V'
+            elif system_type == 'bifasico':
+                fp_inv = float(numeric_value(values.get('FATOR_POTENCIA_INVERSOR') or '0.99') or 0.99)
+                i_sys = pot_w / (v_ln_calc * fp_inv)
+                formula = f'I = {pot_kw:g} kW / ({v_ln_calc:g} V × {fp_inv:g}) = {i_sys:.2f} A'
+                inv_note = (
+                    f'I_inversor = {i_sys:.2f} A / {qtd_inv} = {i_sys / qtd_inv:.2f} A '
+                    f'(fases distintas — balanceamento bifásico)'
+                )
+                tensao_saida_txt = f'{v_ln_calc:g} V'
+            else:
+                fp_inv = float(numeric_value(values.get('FATOR_POTENCIA_INVERSOR') or '0.99') or 0.99)
+                i_sys = pot_w / (v_ln_calc * fp_inv)
+                formula = f'I = {pot_kw:g} kW / ({v_ln_calc:g} V × {fp_inv:g}) = {i_sys:.2f} A'
+                inv_note = (
+                    f'I_inversor = {i_sys:.2f} A / {qtd_inv} = {i_sys / qtd_inv:.2f} A '
+                    f'(inversores em paralelo na mesma fase)'
+                )
+                tensao_saida_txt = f'{v_ln_calc:g} V'
+            i_inv = i_sys / qtd_inv if not (system_type == 'trifasico' and is_micro) else pot_inv_w / v_ln_calc
+            i_max_ca = float(numeric_value(values.get('CORRENTE_MAX_SAIDA_CA_INVERSOR') or '0') or 0)
+            i_max_total = i_max_ca * qtd_inv if i_max_ca else i_sys
+
+            values.setdefault('TENSAO_SAIDA_INVERSOR', tensao_saida_txt)
+            values.setdefault('CALCULO_CORRENTE_SISTEMA', formula)
+            values.setdefault('CALCULO_CORRENTE_INVERSOR', inv_note)
+            values.setdefault(
+                'CALCULO_CORRENTE_INVERSORES_TOTAL',
+                f'Corrente total dos {qtd_inv} inversores: {i_max_total:.2f} A',
+            )
+            if i_max_ca:
+                bitola_ca = values.get('BITOLA_CABO_CA', '—')
+                values.setdefault(
+                    'CALCULO_IMAX_CA',
+                    f'Imáx-ca (inversor) = {i_max_ca:g} A × {qtd_inv} = {i_max_total:.1f} A → Cabo {{BITOLA_CABO_CA}}',
+                )
+                values['CALCULO_IMAX_CA'] = values['CALCULO_IMAX_CA'].replace(
+                    '{{BITOLA_CABO_CA}}', str(bitola_ca)
+                )
+            values.setdefault(
+                'CALCULO_CORRENTE_CA',
+                f'{i_max_ca:g} A × {qtd_inv} = {i_max_total:.1f} A' if i_max_ca else f'{i_sys:.2f} A',
+            )
+
+            from nbr5410_calculations import standard_breaker_rating
+
+            i_design = i_sys * 1.25
+            disj_rec = standard_breaker_rating(i_design)
+            values.setdefault(
+                'DISJUNTOR_RECOMENDADO_QDCA',
+                f'Disjuntor recomendado: {disj_rec} A (Curva {curva}) — dimensionado com '
+                f'fator de segurança de 125% sobre a corrente contínua '
+                f'({i_sys:.2f} A × 1,25 = {i_design:.2f} A → padronizado para {disj_rec} A, '
+                f'disjuntor comercial)',
+            )
+            values.setdefault(
+                'COMPARATIVO_CORRENTE_DISJUNTOR',
+                f'Corrente total: {i_sys:.2f} A vs. disjuntor de {disj_rec} A',
+            )
+            margem = (1 - i_sys / disj_rec) * 100 if disj_rec else 0
+            values.setdefault(
+                'MARGEM_SEGURANCA_DISJUNTOR',
+                f'{margem:.1f}% ({i_sys:.2f} A vs. {disj_rec} A)',
+            )
+            values.setdefault('CORRENTE_DEMANDADA_CABO_CA', f"{int(round(i_sys))} A")
+    except (TypeError, ValueError):
+        pass
+
+    if not values.get('CORRENTE_DEMANDADA_CABO_CA'):
+        ca_dem = numeric_value(values.get('CORRENTE_INVERSOR') or values.get('CORRENTE_MAX_SAIDA_CA_INVERSOR'))
+        if ca_dem:
+            values['CORRENTE_DEMANDADA_CABO_CA'] = f"{int(float(ca_dem))} A"
+        else:
+            values.setdefault('CORRENTE_DEMANDADA_CABO_CA', '20 A')
+
+    tipo_inv = (values.get('TIPO_INVERSOR') or '').lower()
+    if 'micro' in tipo_inv:
+        values.setdefault('DESCRICAO_TIPO_INVERSOR', 'microinversores monofásicos')
+    else:
+        values.setdefault('DESCRICAO_TIPO_INVERSOR', 'inversores')
+
+    tipo_rede = values.get('TIPO_REDE', '')
+    q_fase = values.get('QTD_CONDUTORES_FASE', values.get('NUM_FASES', ''))
+    q_neutro = values.get('QTD_CONDUTORES_NEUTRO', '1')
+    if tipo_rede and q_fase:
+        try:
+            total_cond = int(q_fase) + int(q_neutro or 0)
+            values.setdefault(
+                'DESCRICAO_CIRCUITO_PADRAO',
+                f'Configuração: Circuito {tipo_rede.lower()} a {total_cond} condutores '
+                f'({q_fase} fases + {q_neutro} neutro).',
+            )
+        except (TypeError, ValueError):
+            pass
+
+    values.setdefault('FIGURA_LOCALIZACAO', '[Inserir figura / print do mapa da localização]')
+
+    from caixa_medicao import enrich_caixa_medicao_values
+    enrich_caixa_medicao_values(values)
+
+    # Formulário NT.00020-05 e memorial — tokens com default explícito
+    values.setdefault('DT_EXP', values.get('VALIDADE_CNH') or '05/06/2023')
+    if not values.get('VALIDADE_CNH'):
+        values['VALIDADE_CNH'] = values['DT_EXP']
+
+    # Campos opcionais — default vazio (memorial + NT.00020-05)
+    values['BIFACIALIDADE_MODULO'] = ''
+    values['CPF_TESTEMUNHA_1'] = ''
+    values['CPF_TESTEMUNHA_2'] = ''
+    values['POTENCIA_MAX_INJETAVEL'] = ''
+    values['TELEFONE_FIXO'] = ''
+    _valor_inv = str(values.get('VALOR_INVESTIMENTO') or '').strip()
+    _forma_pag = str(values.get('FORMA_PAGAMENTO') or '').strip()
+    values['VALOR_INVESTIMENTO'] = ''
+    if not str(values.get('TEXTO_VALOR_PAGAMENTO_CONTRATO') or '').strip():
+        _pag_lines: list[str] = []
+        if _valor_inv:
+            _pag_lines.append(
+                f"O investimento objeto deste contrato é de R$ {_valor_inv}."
+            )
+        if _forma_pag:
+            _pag_lines.append(_forma_pag)
+        if _pag_lines:
+            values['TEXTO_VALOR_PAGAMENTO_CONTRATO'] = '\n'.join(_pag_lines)
+
+    # Memorial L~409 — tabela DPS, linha "Corrente Nominal [A]" (In do DPS, tip. 32 A)
+    if not values.get('CORRENTE_PROTECAO_CA'):
+        idg = numeric_value(values.get('DISJUNTOR_ENTRADA') or values.get('CORRENTE_ENTRADA') or '40')
+        values['CORRENTE_PROTECAO_CA'] = str(int(min(float(idg or 40), 32)))
+
     return values
 
 
 def token_replacer(text: str, values: dict[str, str]) -> str:
     def replace(match: re.Match[str]) -> str:
-        key = match.group(1)
+        key = normalize_token(match.group(1))
         if key not in values:
             return match.group(0)
         value = values.get(key)
@@ -638,7 +1291,7 @@ def replace_tokens_in_text_nodes(nodes, values: dict[str, str]) -> None:
         return
 
     for match in reversed(matches):
-        key = match.group(1)
+        key = normalize_token(match.group(1))
         if key not in values:
             continue
         value = values.get(key)
@@ -675,16 +1328,48 @@ def replace_tokens_in_text_nodes(nodes, values: dict[str, str]) -> None:
         set_text_node(node, text)
 
 
+def _paragraph_text(paragraph) -> str:
+    return ''.join(paragraph.xpath('.//w:t/text()', namespaces=NS_W))
+
+
+def _insert_demand_table_at_token(root, values: dict[str, str]) -> bool:
+    """Substitui parágrafo {{TABELA_DEMANDA}} por tabela Word real quando há JSON estruturado."""
+    from demand_table_docx import build_demand_table_elements, parse_demand_table_payload
+
+    payload = values.pop('__DEMAND_TABLE_JSON__', None)
+    demand_data = parse_demand_table_payload(payload)
+    if not demand_data:
+        return False
+
+    token = '{{TABELA_DEMANDA}}'
+    for paragraph in root.xpath('.//w:p', namespaces=NS_W):
+        if token not in _paragraph_text(paragraph):
+            continue
+        parent = paragraph.getparent()
+        if parent is None:
+            continue
+        idx = parent.index(paragraph)
+        parent.remove(paragraph)
+        for offset, element in enumerate(build_demand_table_elements(demand_data)):
+            parent.insert(idx + offset, element)
+        values['TABELA_DEMANDA'] = ''
+        return True
+    return False
+
+
 def fill_docx(source: Path, destination: Path, values: dict[str, str]) -> set[str]:
     unresolved: set[str] = set()
+    doc_values = dict(values)
     with ZipFile(source, 'r') as source_zip, ZipFile(destination, 'w', ZIP_DEFLATED) as target_zip:
         for item in source_zip.infolist():
             data = source_zip.read(item.filename)
             if item.filename.startswith('word/') and item.filename.endswith('.xml'):
                 try:
                     root = etree.fromstring(data)
+                    if item.filename == 'word/document.xml':
+                        _insert_demand_table_at_token(root, doc_values)
                     for paragraph in root.xpath('.//w:p', namespaces=NS_W):
-                        replace_tokens_in_text_nodes(paragraph.xpath('.//w:t', namespaces=NS_W), values)
+                        replace_tokens_in_text_nodes(paragraph.xpath('.//w:t', namespaces=NS_W), doc_values)
                     data = etree.tostring(root, xml_declaration=True, encoding='UTF-8', standalone=True)
                 except etree.XMLSyntaxError:
                     pass
@@ -697,10 +1382,15 @@ def fill_docx(source: Path, destination: Path, values: dict[str, str]) -> set[st
 
 def discover_tokens_docx(path: Path) -> set[str]:
     tokens: set[str] = set()
-    with ZipFile(path, 'r') as archive:
-        for name in archive.namelist():
-            if name.startswith('word/') and name.endswith('.xml'):
-                tokens.update(TOKEN_RE.findall(archive.read(name).decode('utf-8', errors='ignore')))
+    if path.name.startswith('~$'):
+        return tokens
+    try:
+        with ZipFile(path, 'r') as archive:
+            for name in archive.namelist():
+                if name.startswith('word/') and name.endswith('.xml'):
+                    tokens.update(TOKEN_RE.findall(archive.read(name).decode('utf-8', errors='ignore')))
+    except Exception:
+        return set()
     return tokens
 
 
@@ -741,92 +1431,325 @@ def set_numeric_cell(cell, value: str | None) -> None:
     value_node.text = value or ''
 
 
+def _find_worksheet_cell(root, ref: str):
+    for cell in root.findall(f'.//{{{S_NS}}}c'):
+        if cell.get('r') == ref:
+            return cell
+    return None
+
+
+def _worksheet_cell_text(cell) -> str:
+    if cell is None:
+        return ''
+    if cell.get('t') == 'inlineStr':
+        return ''.join(cell.xpath('.//s:t/text()', namespaces=NS_S)).strip()
+    value_node = cell.find(f'{{{S_NS}}}v')
+    if value_node is not None and value_node.text is not None:
+        return str(value_node.text).strip()
+    return ''
+
+
+def _worksheet_cell_float(root, ref: str) -> float | None:
+    cell = _find_worksheet_cell(root, ref)
+    if cell is None:
+        return None
+    text = _worksheet_cell_text(cell)
+    if not text or text.startswith('{{'):
+        return None
+    parsed = numeric_value(text)
+    if parsed is None:
+        return None
+    try:
+        return float(parsed)
+    except (TypeError, ValueError):
+        return None
+
+
+def _set_formula_cached_value(cell, value: float | None) -> None:
+    if cell is None or cell.find(f'{{{S_NS}}}f') is None:
+        return
+    cache = cell.find(f'{{{S_NS}}}v')
+    if cache is None:
+        cache = etree.SubElement(cell, f'{{{S_NS}}}v')
+    cache.text = '' if value is None else f'{value:g}'
+
+
+def _sum_range(root, col_start: str, col_end: str, row_start: int, row_end: int) -> float:
+    cols = [chr(c) for c in range(ord(col_start), ord(col_end) + 1)]
+    total = 0.0
+    found = False
+    for row in range(row_start, row_end + 1):
+        for col in cols:
+            val = _worksheet_cell_float(root, f'{col}{row}')
+            if val is not None:
+                total += val
+                found = True
+    return total if found else 0.0
+
+
+def _recalc_guia0_formulas(root) -> dict[str, float]:
+    """Atualiza cache (<v>) das fórmulas da GUIA 0 (módulos/inversores)."""
+    derived: dict[str, float] = {}
+    k_total = 0.0
+    k_any = False
+    for row in range(7, 17):
+        pot_w = _worksheet_cell_float(root, f'D{row}')
+        qtd = _worksheet_cell_float(root, f'H{row}')
+        k_cell = _find_worksheet_cell(root, f'K{row}')
+        if pot_w is not None and qtd is not None:
+            kwp = pot_w * qtd / 1000.0
+            _set_formula_cached_value(k_cell, kwp)
+            k_total += kwp
+            k_any = True
+        else:
+            _set_formula_cached_value(k_cell, None)
+
+    if k_any:
+        derived['K17'] = k_total
+        _set_formula_cached_value(_find_worksheet_cell(root, 'K17'), k_total)
+    else:
+        _set_formula_cached_value(_find_worksheet_cell(root, 'K17'), None)
+
+    h_total = _sum_range(root, 'H', 'J', 7, 16)
+    _set_formula_cached_value(_find_worksheet_cell(root, 'H17'), h_total or None)
+    if h_total:
+        derived['H17'] = h_total
+
+    p_total = _sum_range(root, 'P', 'S', 7, 16)
+    _set_formula_cached_value(_find_worksheet_cell(root, 'P17'), p_total or None)
+    if p_total:
+        derived['P17'] = p_total
+
+    l_total = _sum_range(root, 'L', 'O', 22, 51)
+    _set_formula_cached_value(_find_worksheet_cell(root, 'L52'), l_total or None)
+    if l_total:
+        derived['L52'] = l_total
+
+    return derived
+
+
+def _worksheet_cell_resolved(cell, shared_strings: list[str]) -> str:
+    if cell is None:
+        return ''
+    shared = cell_value_from_shared(cell, shared_strings)
+    if shared is not None:
+        return shared.strip()
+    if cell.get('t') == 'inlineStr':
+        return ''.join(cell.xpath('.//s:t/text()', namespaces=NS_S)).strip()
+    value_node = cell.find(f'{{{S_NS}}}v')
+    if value_node is not None and value_node.text is not None:
+        return str(value_node.text).strip()
+    return ''
+
+
+def _worksheet_cell_resolved_float(root, ref: str, shared_strings: list[str]) -> float | None:
+    text = _worksheet_cell_resolved(_find_worksheet_cell(root, ref), shared_strings)
+    if not text or text.startswith('{{'):
+        return None
+    parsed = numeric_value(text)
+    if parsed is None:
+        return None
+    try:
+        return float(parsed)
+    except (TypeError, ValueError):
+        return None
+
+
+def _recalc_pd_uc_guia1(root, shared_strings: list[str], values: dict[str, str]) -> None:
+    """
+    Atualiza cache de AB29 — Potência Disponibilizada (PD) para a UC.
+    Fórmula nativa do Excel depende de Q15 (UF), T27, AC27 e P29; após tokens,
+    recalculamos via normas GO para o valor aparecer sem F9 manual.
+    """
+    uf = _worksheet_cell_resolved(_find_worksheet_cell(root, 'Q15'), shared_strings)
+    if not uf or uf.startswith('{{'):
+        uf = str(values.get('UF') or '').strip()
+    tipo = _worksheet_cell_resolved(_find_worksheet_cell(root, 'T27'), shared_strings)
+    if not tipo or tipo.startswith('{{'):
+        tipo = str(values.get('TIPO_LIGACAO') or '').strip()
+    disj = _worksheet_cell_resolved_float(root, 'P29', shared_strings)
+    if disj is None:
+        parsed = numeric_value(values.get('DISJUNTOR_ENTRADA') or '')
+        disj = float(parsed) if parsed else None
+    if not uf or not tipo or disj is None:
+        return
+    try:
+        import math
+
+        from normas_loader import calc_pd_max_kw
+
+        pd = calc_pd_max_kw(uf, tipo, disj)
+        if pd is None:
+            return
+        pd_out = float(math.floor(pd + 1e-9))
+        _set_formula_cached_value(_find_worksheet_cell(root, 'AB29'), pd_out)
+    except Exception:
+        pass
+
+
+def _recalc_guia1_formulas(root, guia0: dict[str, float]) -> None:
+    """Atualiza Potência Geração do Orçamento / PGT (GUIA 1)."""
+    fonte = _worksheet_cell_text(_find_worksheet_cell(root, 'G49')).upper()
+    k17 = guia0.get('K17', 0.0)
+    l52 = guia0.get('L52', 0.0)
+
+    ac53 = None
+    if fonte == 'SOLAR FOTOVOLTAICA' and (k17 or l52):
+        if k17 and l52:
+            ac53 = min(k17, l52)
+        else:
+            ac53 = k17 or l52
+    _set_formula_cached_value(_find_worksheet_cell(root, 'AC53'), ac53)
+
+    ac21 = _worksheet_cell_float(root, 'AC21')
+    if ac53 is not None:
+        ac55 = (ac21 or 0.0) + ac53
+        _set_formula_cached_value(_find_worksheet_cell(root, 'AC55'), ac55)
+
+
+def _patch_workbook_calc_pr(data: bytes) -> bytes:
+    text = data.decode('utf-8')
+    if 'fullCalcOnLoad' in text:
+        return data
+    if re.search(r'<calcPr\b', text):
+        text = re.sub(
+            r'(<calcPr\b[^>]*)(/?>)',
+            lambda m: (
+                f'{m.group(1)} fullCalcOnLoad="1" calcMode="auto"{m.group(2)}'
+                if 'fullCalcOnLoad' not in m.group(1)
+                else m.group(0)
+            ),
+            text,
+            count=1,
+        )
+    elif '</workbookPr>' in text:
+        text = text.replace(
+            '</workbookPr>',
+            '</workbookPr><calcPr calcMode="auto" fullCalcOnLoad="1"/>',
+            1,
+        )
+    else:
+        text = text.replace(
+            '<sheets>',
+            '<calcPr calcMode="auto" fullCalcOnLoad="1"/><sheets>',
+            1,
+        )
+    return text.encode('utf-8')
+
+
+def _workbook_needs_xlsx_package(source: Path, destination: Path) -> bool:
+    """XLT(X) salvo como .xlsx exige ContentType de planilha, não de template."""
+    return source.suffix.lower() == '.xltx' or destination.suffix.lower() == '.xlsx'
+
+
+def _patch_workbook_package_bytes(filename: str, data: bytes, *, as_xlsx: bool) -> bytes:
+    if not as_xlsx or filename != '[Content_Types].xml':
+        return data
+    text = data.decode('utf-8')
+    text = text.replace(
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml',
+    )
+    return text.encode('utf-8')
+
+
 def fill_workbook(source: Path, destination: Path, values: dict[str, str]) -> set[str]:
     unresolved: set[str] = set()
+    as_xlsx = _workbook_needs_xlsx_package(source, destination)
+    guia0_derived: dict[str, float] = {}
     with ZipFile(source, 'r') as source_zip, ZipFile(destination, 'w', ZIP_DEFLATED) as target_zip:
-        shared_root = None
+        has_shared_strings = 'xl/sharedStrings.xml' in source_zip.namelist()
         shared_strings: list[str] = []
-        if 'xl/sharedStrings.xml' in source_zip.namelist():
+        if has_shared_strings:
             shared_root = etree.fromstring(source_zip.read('xl/sharedStrings.xml'))
             shared_strings = [shared_string_text(si) for si in shared_root.findall(f'{{{S_NS}}}si')]
+        else:
+            shared_root = etree.Element(
+                f'{{{S_NS}}}sst',
+                count='0',
+                uniqueCount='0',
+            )
 
         for item in source_zip.infolist():
             data = source_zip.read(item.filename)
-            if item.filename == 'xl/sharedStrings.xml' and shared_root is not None:
-                data = etree.tostring(shared_root, xml_declaration=True, encoding='UTF-8', standalone=True)
+            if item.filename == 'xl/sharedStrings.xml':
+                if has_shared_strings:
+                    data = etree.tostring(shared_root, xml_declaration=True, encoding='UTF-8', standalone=True)
+                else:
+                    continue
             elif item.filename.startswith('xl/worksheets/') and item.filename.endswith('.xml'):
                 try:
-                    root = etree.fromstring(data)
-                    for cell in root.findall(f'.//{{{S_NS}}}c'):
-                        current = cell_value_from_shared(cell, shared_strings)
-                        if current is not None:
-                            token_match = re.fullmatch(r'\{\{([A-Z0-9_]+)\}\}', current.strip())
-                            if token_match:
-                                key = token_match.group(1)
-                                if key in values:
-                                    raw = values[key]
-                                    if key in NUMERIC_KEYS:
-                                        set_numeric_cell(cell, numeric_value(raw))
-                                    elif shared_root is not None:
-                                        value_node = cell.find(f'{{{S_NS}}}v')
-                                        if value_node is not None:
-                                            idx = int(value_node.text)
-                                            set_shared_string(shared_root.findall(f'{{{S_NS}}}si')[idx], str(raw))
-                                else:
-                                    unresolved.add(key)
-                            else:
-                                replaced = token_replacer(current, values)
-                                if replaced != current and shared_root is not None:
-                                    value_node = cell.find(f'{{{S_NS}}}v')
-                                    if value_node is not None:
-                                        idx = int(value_node.text)
-                                        set_shared_string(shared_root.findall(f'{{{S_NS}}}si')[idx], replaced)
-                        elif cell.get('t') == 'inlineStr':
-                            for text_node in cell.xpath('.//s:t', namespaces=NS_S):
-                                if text_node.text:
-                                    text_node.text = token_replacer(text_node.text, values)
-                    data = etree.tostring(root, xml_declaration=True, encoding='UTF-8', standalone=True)
+                    data = transform_worksheet(
+                        data,
+                        shared_strings,
+                        shared_root,
+                        values,
+                        unresolved,
+                        sheet_path=item.filename,
+                        guia0_derived=guia0_derived,
+                    )
                 except etree.XMLSyntaxError:
                     pass
+            elif item.filename == 'xl/workbook.xml':
+                data = _patch_workbook_calc_pr(data)
+            data = _patch_workbook_package_bytes(item.filename, data, as_xlsx=as_xlsx)
             target_zip.writestr(item, data)
-
-        if shared_root is not None:
-            # Rewrite the shared strings part after all worksheet references were processed.
-            temp_items = []
-            for item in target_zip.infolist():
-                if item.filename != 'xl/sharedStrings.xml':
-                    temp_items.append(item)
-            # ZIP entries cannot be replaced in place; sharedStrings.xml was written before
-            # worksheets, so the second copy is intentionally avoided by rebuilding below.
-
-    # Rebuild once so the updated sharedStrings.xml is written exactly once.
-    if shared_root is not None:
-        with ZipFile(source, 'r') as source_zip, ZipFile(destination, 'w', ZIP_DEFLATED) as target_zip:
-            shared_bytes = etree.tostring(shared_root, xml_declaration=True, encoding='UTF-8', standalone=True)
-            for item in source_zip.infolist():
-                data = source_zip.read(item.filename)
-                if item.filename == 'xl/sharedStrings.xml':
-                    data = shared_bytes
-                elif item.filename.startswith('xl/worksheets/') and item.filename.endswith('.xml'):
-                    data = transform_worksheet(data, shared_strings, shared_root, values, unresolved)
-                target_zip.writestr(item, data)
 
     return unresolved
 
 
-def transform_worksheet(data: bytes, shared_strings: list[str], shared_root, values: dict[str, str], unresolved: set[str]) -> bytes:
+def _trim_guia0_inverter_rows(root, values: dict[str, str]) -> None:
+    """Mantém só QTD_INVERSORES linhas preenchidas na GUIA 0 (evita SUM inflado)."""
+    try:
+        qtd = int(float(numeric_value(values.get('QTD_INVERSORES') or '1') or 1))
+    except (TypeError, ValueError):
+        qtd = 1
+    first_row, last_row = 22, 31
+    qtd = max(1, min(qtd, last_row - first_row + 1))
+    inv_cols = {'D', 'H', 'L', 'P', 'T', 'W', 'Z', 'AC'}
+    for cell in root.findall(f'.//{{{S_NS}}}c'):
+        ref = cell.get('r') or ''
+        match = re.match(r'([A-Z]+)(\d+)', ref)
+        if not match:
+            continue
+        col, row = match.group(1), int(match.group(2))
+        if col in inv_cols and first_row + qtd <= row <= last_row:
+            formula = cell.find(f'{{{S_NS}}}f')
+            if formula is not None:
+                cell.remove(formula)
+            set_numeric_cell(cell, '')
+
+
+def transform_worksheet(
+    data: bytes,
+    shared_strings: list[str],
+    shared_root,
+    values: dict[str, str],
+    unresolved: set[str],
+    *,
+    sheet_path: str = '',
+    guia0_derived: dict[str, float] | None = None,
+) -> bytes:
     root = etree.fromstring(data)
     shared_items = shared_root.findall(f'{{{S_NS}}}si')
     for cell in root.findall(f'.//{{{S_NS}}}c'):
         current = cell_value_from_shared(cell, shared_strings)
         if current is not None:
-            token_match = re.fullmatch(r'\{\{([A-Z0-9_]+)\}\}', current.strip())
+            token_match = re.fullmatch(r'\{\{([A-Za-z0-9_]+)\}\}', current.strip())
             if token_match:
-                key = token_match.group(1)
+                key = normalize_token(token_match.group(1))
                 if key in values:
                     raw = values[key]
                     if key in NUMERIC_KEYS:
-                        set_numeric_cell(cell, numeric_value(raw))
+                        num = numeric_value(raw)
+                        if num is not None:
+                            set_numeric_cell(cell, num)
+                        elif key in OPTIONAL_KEYS or str(raw or '').strip() == '':
+                            set_numeric_cell(cell, '')
+                        else:
+                            value_node = cell.find(f'{{{S_NS}}}v')
+                            if value_node is not None:
+                                set_shared_string(shared_items[int(value_node.text)], str(raw))
                     else:
                         value_node = cell.find(f'{{{S_NS}}}v')
                         if value_node is not None:
@@ -840,9 +1763,41 @@ def transform_worksheet(data: bytes, shared_strings: list[str], shared_root, val
                     if value_node is not None:
                         set_shared_string(shared_items[int(value_node.text)], replaced)
         elif cell.get('t') == 'inlineStr':
-            for text_node in cell.xpath('.//s:t', namespaces=NS_S):
-                if text_node.text:
-                    text_node.text = token_replacer(text_node.text, values)
+            inline_text = ''.join(
+                (node.text or '') for node in cell.xpath('.//s:t', namespaces=NS_S)
+            )
+            token_match = re.fullmatch(r'\{\{([A-Za-z0-9_]+)\}\}', inline_text.strip())
+            if token_match:
+                key = normalize_token(token_match.group(1))
+                if key in values:
+                    raw = values[key]
+                    if key in NUMERIC_KEYS:
+                        num = numeric_value(raw)
+                        if num is not None:
+                            set_numeric_cell(cell, str(num))
+                        else:
+                            set_numeric_cell(cell, '')
+                    else:
+                        nodes = cell.xpath('.//s:t', namespaces=NS_S)
+                        if nodes:
+                            nodes[0].text = str(raw)
+                            for node in nodes[1:]:
+                                node.text = ''
+                else:
+                    unresolved.add(key)
+            else:
+                for text_node in cell.xpath('.//s:t', namespaces=NS_S):
+                    if text_node.text:
+                        text_node.text = token_replacer(text_node.text, values)
+    if sheet_path.endswith('sheet2.xml'):
+        _trim_guia0_inverter_rows(root, values)
+        derived = _recalc_guia0_formulas(root)
+        if guia0_derived is not None:
+            guia0_derived.update(derived)
+    elif sheet_path.endswith('sheet3.xml'):
+        if guia0_derived is not None:
+            _recalc_guia1_formulas(root, guia0_derived)
+        _recalc_pd_uc_guia1(root, shared_strings, values)
     return etree.tostring(root, xml_declaration=True, encoding='UTF-8', standalone=True)
 
 
@@ -878,14 +1833,23 @@ def main() -> None:
         report_lines.append(f'- {key}: {values[key]}')
 
     all_unresolved: dict[str, list[str]] = {}
-    for template in sorted(args.templates_dir.iterdir()):
-        if template.suffix.lower() not in {'.docx', '.xlsx', '.xltx'}:
-            continue
+    for template in iter_document_templates(args.templates_dir):
         destination = args.output_dir / template.name
         if template.suffix.lower() == '.xltx':
             destination = destination.with_suffix('.xlsx')
         if template.suffix.lower() == '.docx':
             unresolved = fill_docx(template, destination, values)
+            if 'memorial' in template.name.lower():
+                from figura_localizacao import try_embed_figura_localizacao
+                from caixa_medicao import try_embed_caixa_medicao
+
+                if try_embed_figura_localizacao(destination, values, args.output_dir):
+                    unresolved.discard('FIGURA_LOCALIZACAO')
+                if try_embed_caixa_medicao(destination, values):
+                    unresolved.discard('FIGURA_CAIXA')
+                    unresolved.discard('figura_caixa')
+                    unresolved.discard('TEXTO_CAIXA')
+                    unresolved.discard('Texto_caixa')
         else:
             unresolved = fill_workbook(template, destination, values)
         if unresolved:
@@ -900,6 +1864,24 @@ def main() -> None:
 
     report_path = args.output_dir / 'relatorio_preenchimento.txt'
     report_path.write_text('\n'.join(report_lines) + '\n', encoding='utf-8')
+
+    try:
+        from autocad_tokens import write_autocad_tokens_file
+        from autocad_fill import generate_planta_dxf
+
+        tok_path = write_autocad_tokens_file(args.output_dir, values)
+        if tok_path:
+            print(f'Tokens AutoCAD: {tok_path.resolve()}')
+
+        planta_path, planta_pending = generate_planta_dxf(args.output_dir, values)
+        if planta_path:
+            print(f'Planta CAD: {planta_path.resolve()}')
+            if planta_pending:
+                pend = ', '.join(sorted(planta_pending))
+                print(f'AVISO: tokens CAD sem valor: {pend}')
+    except Exception as exc:
+        print(f'AVISO: exportação AutoCAD não concluída: {exc}')
+
     print(f'Documentos gerados em: {args.output_dir.resolve()}')
     print(f'Relatório: {report_path.resolve()}')
     if all_unresolved:

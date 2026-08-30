@@ -4,6 +4,42 @@ import { Badge } from '@/components/ui/badge.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
 
+function _fmt(n) {
+  if (n == null || n === '') return '—'
+  return String(n).replace('.', ',')
+}
+
+function demandToTsv(demand) {
+  const lines = [demand.headers.join('\t')]
+  for (const row of demand.rows) {
+    lines.push([
+      row.item,
+      row.descricao,
+      row.pot_unit_w,
+      row.qtd,
+      _fmt(row.ci_kw),
+      _fmt(row.fp),
+      _fmt(row.ci_kva),
+      `${Math.round(row.fd * 100)}%`,
+      _fmt(row.d_kw),
+      _fmt(row.d_kva),
+    ].join('\t'))
+  }
+  lines.push([
+    'TOTAL',
+    'Demanda de projeto — conferir no local',
+    '—',
+    '—',
+    _fmt(demand.totals.ci_kw),
+    '—',
+    _fmt(demand.totals.ci_kva),
+    '—',
+    _fmt(demand.totals.d_kw),
+    _fmt(demand.totals.d_kva),
+  ].join('\t'))
+  return lines.join('\n')
+}
+
 function CopyButton({ text, label = 'Copiar' }) {
   const [copied, setCopied] = useState(false)
   const handleCopy = async () => {
@@ -87,6 +123,29 @@ export function CalculationsResults({ calculations, onApplyToForm }) {
         </section>
       )}
 
+      {/* Avisos de cabos (escolha manual do usuário) */}
+      {(calculations.cable_warnings || []).length > 0 && (
+        <section>
+          <h3 className="text-lg font-semibold mb-3">Cabos — conferência</h3>
+          <div className="p-4 rounded-lg border bg-amber-50 border-amber-200">
+            <p className="text-sm font-medium mb-2">
+              Valores do formulário mantidos. Recomendações do dimensionamento:
+            </p>
+            {(calculations.cable_warnings || []).map((w, i) => (
+              <p key={i} className="text-sm text-amber-900">• {w}</p>
+            ))}
+            {calculations.cables?.recommended_cc && (
+              <p className="text-xs mt-2 text-gray-600">
+                Sugerido: CC {calculations.cables.recommended_cc} · CA {calculations.cables.recommended_ca}
+                {calculations.cables.recommended_padrao
+                  ? ` · Padrão ${calculations.cables.recommended_padrao}`
+                  : ''}
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* Todos os cálculos */}
       <section>
         <h3 className="text-lg font-semibold mb-3">Todos os cálculos do sistema</h3>
@@ -122,6 +181,15 @@ export function CalculationsResults({ calculations, onApplyToForm }) {
             <p className="text-sm"><strong>Topologia:</strong> {calculations.dc_strings.topology}</p>
             <p className="text-sm">Voc string: {calculations.dc_strings.string_voc_v} V · Isc string: {calculations.dc_strings.string_isc_a} A (não soma em série)</p>
             <p className="text-sm">Isc projeto: {calculations.dc_strings.isc_design_a} A · {calculations.dc_strings.cable_cc_note}</p>
+            {calculations.dc_strings.configuracao_strings_text && (
+              <p className="text-sm mt-2"><strong>Config.:</strong> {calculations.dc_strings.configuracao_strings_text}</p>
+            )}
+            {calculations.dc_strings.protecao_cc_text && (
+              <p className="text-sm"><strong>Prot. CC:</strong> {calculations.dc_strings.protecao_cc_text}</p>
+            )}
+            {calculations.dc_strings.protecao_ca_text && (
+              <p className="text-sm"><strong>Prot. CA:</strong> {calculations.dc_strings.protecao_ca_text}</p>
+            )}
             {(calculations.dc_strings.messages || []).map((m, i) => (
               <p key={i} className="text-xs mt-1 text-gray-700">• {m}</p>
             ))}
@@ -134,11 +202,20 @@ export function CalculationsResults({ calculations, onApplyToForm }) {
         <section>
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <h3 className="text-lg font-semibold">
-              Tabela 1 – Levantamento de Carga ({_fmt(demand.target_kw)} kW)
+              Tabela 1 – Levantamento de Carga
+              {demand.calculated_d_kw != null ? (
+                <span className="text-base font-normal text-gray-700">
+                  {' '}— calculada {_fmt(demand.calculated_d_kw)} kW
+                  {demand.target_kw ? ` (alvo ${_fmt(demand.target_kw)} kW)` : ''}
+                </span>
+              ) : (
+                <span> ({_fmt(demand.target_kw)} kW)</span>
+              )}
             </h3>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Badge variant="outline">{demand.source}</Badge>
-              <CopyButton text={demand.memorial_text} label="Copiar para memorial" />
+              <CopyButton text={demandToTsv(demand)} label="Copiar TSV (Word)" />
+              <CopyButton text={demand.memorial_text} label="Copiar texto" />
               {onApplyToForm && (
                 <Button type="button" variant="secondary" size="sm" onClick={() => onApplyToForm(demand)}>
                   Aplicar ao formulário
@@ -146,7 +223,14 @@ export function CalculationsResults({ calculations, onApplyToForm }) {
               )}
             </div>
           </div>
-          <p className="text-xs text-gray-600 mb-2">{demand.disclaimer}</p>
+          <p className="text-xs text-gray-600 mb-2">
+            {demand.disclaimer}
+            {demand.fit_note && (
+              <span className="block mt-1 text-green-800 font-medium">{demand.fit_note}</span>
+            )}
+            {' '}Ao gerar o memorial, a tabela entra formatada no Word. Para colar manualmente:
+            use &quot;Copiar TSV&quot; → colar no Word → Inserir → Tabela → Converter texto em tabela (separador: tabulação).
+          </p>
           <div className="overflow-x-auto border rounded-lg">
             <table className="w-full text-xs border-collapse min-w-[720px]">
               <thead className="bg-gray-100">
@@ -196,9 +280,4 @@ export function CalculationsResults({ calculations, onApplyToForm }) {
       )}
     </div>
   )
-}
-
-function _fmt(n) {
-  if (n == null || n === '') return '—'
-  return String(n).replace('.', ',')
 }

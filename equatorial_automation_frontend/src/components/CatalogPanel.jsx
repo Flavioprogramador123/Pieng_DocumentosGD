@@ -1,31 +1,41 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Plus, RefreshCw, Save, Trash2 } from 'lucide-react'
+import { FileUp, Plus, RefreshCw, Save, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
 
-const API_BASE = '/api'
+import { apiFetch } from '@/utils/api.js'
 
 const TABLES = {
   modules: {
     label: 'Módulos',
     fields: [
-      'fabricante', 'modelo', 'potencia_wp', 'voc', 'isc', 'vmpp', 'impp', 'eficiencia', 'notas',
+      'fabricante', 'modelo', 'potencia_wp', 'voc', 'isc', 'vmpp', 'impp',
+      'eficiencia', 'comprimento_m', 'largura_m', 'peso_kg', 'notas',
     ],
     empty: {
-      fabricante: '', modelo: '', potencia_wp: '', voc: '', isc: '', vmpp: '', impp: '', eficiencia: '', notas: '',
+      fabricante: '', modelo: '', potencia_wp: '', voc: '', isc: '', vmpp: '', impp: '',
+      eficiencia: '', comprimento_m: '', largura_m: '', peso_kg: '', notas: '',
     },
   },
   inverters: {
     label: 'Inversores',
     fields: [
       'fabricante', 'modelo', 'potencia_kw', 'tipo_inversor', 'num_mppt',
-      'mppt_min', 'mppt_max', 'tensao_nominal', 'corrente_nominal', 'eficiencia', 'notas',
+      'mppt_min', 'mppt_max', 'tensao_nominal', 'corrente_nominal', 'eficiencia',
+      'corrente_max_cc', 'tensao_max_cc', 'potencia_max_cc_kw',
+      'potencia_max_saida_ca_kw', 'corrente_max_saida_ca',
+      'tensao_min_ca', 'tensao_max_ca', 'thd_pct', 'fator_potencia',
+      'frequencia_hz', 'tensao_partida_cc', 'qtd_strings_max', 'notas',
     ],
     empty: {
       fabricante: '', modelo: '', potencia_kw: '', tipo_inversor: 'STRING', num_mppt: '2',
-      mppt_min: '', mppt_max: '', tensao_nominal: '220', corrente_nominal: '', eficiencia: '', notas: '',
+      mppt_min: '', mppt_max: '', tensao_nominal: '220', corrente_nominal: '', eficiencia: '',
+      corrente_max_cc: '', tensao_max_cc: '', potencia_max_cc_kw: '',
+      potencia_max_saida_ca_kw: '', corrente_max_saida_ca: '',
+      tensao_min_ca: '', tensao_max_ca: '', thd_pct: '', fator_potencia: '0.99',
+      frequencia_hz: '60', tensao_partida_cc: '', qtd_strings_max: '', notas: '',
     },
   },
   padrao: {
@@ -41,7 +51,7 @@ const TABLES = {
   },
 }
 
-function CatalogTable({ tableKey }) {
+function CatalogTable({ tableKey, reloadKey = 0 }) {
   const config = TABLES[tableKey]
   const [rows, setRows] = useState([])
   const [draft, setDraft] = useState({ ...config.empty })
@@ -52,7 +62,7 @@ function CatalogTable({ tableKey }) {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`${API_BASE}/catalog/${tableKey}`)
+      const res = await apiFetch(`/catalog/${tableKey}`)
       const data = await res.json()
       if (data.success) setRows(data.rows || [])
       else setError(data.error || 'Erro ao carregar')
@@ -63,13 +73,12 @@ function CatalogTable({ tableKey }) {
     }
   }, [tableKey])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load() }, [load, reloadKey])
 
   const saveDraft = async () => {
     try {
-      const res = await fetch(`${API_BASE}/catalog/${tableKey}`, {
+      const res = await apiFetch(`/catalog/${tableKey}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(draft),
       })
       const data = await res.json()
@@ -86,9 +95,8 @@ function CatalogTable({ tableKey }) {
 
   const saveRow = async (row) => {
     const { id, updated_at, ...payload } = row
-    const res = await fetch(`${API_BASE}/catalog/${tableKey}`, {
+    const res = await apiFetch(`/catalog/${tableKey}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
     const data = await res.json()
@@ -98,7 +106,7 @@ function CatalogTable({ tableKey }) {
 
   const removeRow = async (id) => {
     if (!confirm('Excluir este registro do catálogo?')) return
-    await fetch(`${API_BASE}/catalog/${tableKey}/${id}`, { method: 'DELETE' })
+    await apiFetch(`/catalog/${tableKey}/${id}`, { method: 'DELETE' })
     load()
   }
 
@@ -175,14 +183,104 @@ function CatalogTable({ tableKey }) {
 }
 
 export function CatalogPanel() {
+  const [yamlInfo, setYamlInfo] = useState(null)
+  const [invYamlInfo, setInvYamlInfo] = useState(null)
+  const [yamlImporting, setYamlImporting] = useState(false)
+  const [invYamlImporting, setInvYamlImporting] = useState(false)
+  const [modulesReloadKey, setModulesReloadKey] = useState(0)
+  const [invertersReloadKey, setInvertersReloadKey] = useState(0)
+
+  const fetchYamlInfo = useCallback(async () => {
+    try {
+      const [modRes, invRes] = await Promise.all([
+        apiFetch('/catalog/modulos-yaml-info'),
+        apiFetch('/catalog/inversores-yaml-info'),
+      ])
+      const modData = await modRes.json()
+      const invData = await invRes.json()
+      if (modData.success) setYamlInfo(modData)
+      if (invData.success) setInvYamlInfo(invData)
+    } catch {
+      setYamlInfo(null)
+      setInvYamlInfo(null)
+    }
+  }, [])
+
+  useEffect(() => { fetchYamlInfo() }, [fetchYamlInfo])
+
+  const importModulosYaml = async () => {
+    setYamlImporting(true)
+    try {
+      const res = await apiFetch('/catalog/import-modulos-yaml', { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        alert(`Importados ${data.imported} módulos de:\n${data.source || data.yaml_path}`)
+        setModulesReloadKey((k) => k + 1)
+        fetchYamlInfo()
+      } else {
+        alert(data.error || 'Erro ao importar YAML')
+      }
+    } catch {
+      alert('Backend offline — reinicie start_backend.bat')
+    } finally {
+      setYamlImporting(false)
+    }
+  }
+
+  const importInversoresYaml = async () => {
+    setInvYamlImporting(true)
+    try {
+      const res = await apiFetch('/catalog/import-inversores-yaml', { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        alert(`Importados ${data.imported} inversores de:\n${data.source || data.yaml_path}`)
+        setInvertersReloadKey((k) => k + 1)
+        fetchYamlInfo()
+      } else {
+        alert(data.error || 'Erro ao importar YAML')
+      }
+    } catch {
+      alert('Backend offline — reinicie start_backend.bat')
+    } finally {
+      setInvYamlImporting(false)
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Catálogo técnico (SQLite)</CardTitle>
         <CardDescription>
           Edite como planilha: módulos, inversores e padrões de entrada por UF/ligação.
-          Dados da IA podem ser salvos aqui para reutilizar sem custo de API.
+          Módulos (RENE PV / TSUN) e inversores (DEYE / SAJ) vêm dos YAML em <code className="text-xs">dados/</code>.
         </CardDescription>
+        <div className="flex gap-2 flex-wrap pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={importModulosYaml}
+            disabled={yamlImporting}
+          >
+            <FileUp className="h-4 w-4 mr-1" />
+            {yamlImporting ? 'Importando...' : 'YAML módulos'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={importInversoresYaml}
+            disabled={invYamlImporting}
+          >
+            <FileUp className="h-4 w-4 mr-1" />
+            {invYamlImporting ? 'Importando...' : 'YAML inversores'}
+          </Button>
+          {yamlInfo && (
+            <span className="text-xs text-muted-foreground self-center">
+              {yamlInfo.count} módulos · {invYamlInfo?.count ?? '?'} inversores
+            </span>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="modules">
@@ -191,8 +289,12 @@ export function CatalogPanel() {
             <TabsTrigger value="inverters">Inversores</TabsTrigger>
             <TabsTrigger value="padrao">Padrão entrada</TabsTrigger>
           </TabsList>
-          <TabsContent value="modules" className="mt-4"><CatalogTable tableKey="modules" /></TabsContent>
-          <TabsContent value="inverters" className="mt-4"><CatalogTable tableKey="inverters" /></TabsContent>
+          <TabsContent value="modules" className="mt-4">
+            <CatalogTable tableKey="modules" reloadKey={modulesReloadKey} />
+          </TabsContent>
+          <TabsContent value="inverters" className="mt-4">
+            <CatalogTable tableKey="inverters" reloadKey={invertersReloadKey} />
+          </TabsContent>
           <TabsContent value="padrao" className="mt-4"><CatalogTable tableKey="padrao" /></TabsContent>
         </Tabs>
       </CardContent>

@@ -21,7 +21,7 @@ import subprocess
 import sys
 import re
 
-from form_mapper import normalize_form_payload
+from form_mapper import normalize_form_payload, pick_field
 from equipment_enrichment import (
     enrich_equipment_lists,
     gemini_available,
@@ -31,9 +31,10 @@ from equipment_enrichment import (
     ai_available,
     gemini_last_error,
 )
-from gerar_documentos import preview_token_mapping
+from gerar_documentos import format_thd_dht, preview_token_mapping
 from system_calculations import calculate_technical_parameters
 from residential_defaults import apply_residential_defaults, iso_to_br, today_br
+from token_enrichment import enrich_normalized_payload
 from cep_lookup import lookup_address_by_cep, lookup_cep_by_address, enrich_client_address
 from catalog_db import (
     delete_row,
@@ -47,6 +48,7 @@ from catalog_db import (
 from patch_memorial_demand import patch_memorial_template
 from grid_voltage import suggest_tensao_atendimento
 from yaml_loader import export_form_to_yaml, import_yaml_project, read_template
+from output_paths import get_output_base_dir, output_config_status, folder_name_from_contract
 
 app = Flask(__name__)
 
@@ -54,20 +56,32 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
 
-# CORS: Apenas origem do frontend local
-CORS(app, origins=['http://localhost:5173', 'http://127.0.0.1:5173'])
+# CORS: Apenas origem do frontend local (cookies de sessão)
+CORS(app, origins=[
+    'http://localhost:5173', 'http://127.0.0.1:5173',
+    'http://localhost:5174', 'http://127.0.0.1:5174',
+], supports_credentials=True)
+
+from auth_routes import register_auth
+register_auth(app)
 
 # Diretórios
 BASE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BASE_DIR.parent
 TEMPLATES_DIR = ROOT_DIR / 'templates'
 CONFIG_FILE = BASE_DIR / 'config_padrao.json'
-OUTPUT_BASE_DIR = ROOT_DIR / 'saida' / 'web_generated'
-
-# Garantir que diretório de saída existe
-OUTPUT_BASE_DIR.mkdir(parents=True, exist_ok=True)
 
 init_db()
+try:
+    from import_modulos_yaml import import_modulos_yaml
+    import_modulos_yaml()
+except Exception:
+    pass
+try:
+    from import_inversores_yaml import import_inversores_yaml
+    import_inversores_yaml()
+except Exception:
+    pass
 patch_memorial_template(TEMPLATES_DIR / 'MEMORIAL_DESCRITIVO_marcadores.docx')
 
 
@@ -83,6 +97,7 @@ def create_txt_data(data):
     """
     data = normalize_form_payload(data)
     data = apply_residential_defaults(data)
+    data = enrich_normalized_payload(data)
     lines = []
 
     # === DADOS DO CLIENTE ===
@@ -96,6 +111,9 @@ def create_txt_data(data):
         lines.append(f"RG: {cliente['rg']}")
     if cliente.get('data_nascimento'):
         lines.append(f"Data de Nascimento: {cliente['data_nascimento']}")
+    validade_cnh = cliente.get('validade_cnh') or '05/06/2023'
+    lines.append(f"Validade CNH: {validade_cnh}")
+    lines.append(f"Data Expedição: {validade_cnh}")
     if cliente.get('telefone'):
         lines.append(f"Telefone Celular: {cliente['telefone']}")
     if cliente.get('email'):
@@ -134,8 +152,8 @@ def create_txt_data(data):
         lines.append(f"Tensão de Atendimento (V): {uc['tensao_atendimento']}")
     if uc.get('disjuntor_entrada'):
         lines.append(f"Disjuntor de Entrada (A): {uc['disjuntor_entrada']}")
-    if uc.get('num_poste'):
-        lines.append(f"Nº Poste/Transformador: {uc['num_poste']}")
+    num_poste = pick_field(uc, 'num_poste') or 'ilégível'
+    lines.append(f"Nº Poste/Transformador: {num_poste}")
     if uc.get('modalidade_compensacao'):
         lines.append(f"Modalidade de Compensação: {uc['modalidade_compensacao']}")
 
@@ -147,32 +165,78 @@ def create_txt_data(data):
     if uc.get('fuso_utm'):
         lines.append(f"Fuso UTM: {uc['fuso_utm']}")
 
+    tec = data.get('dados_tecnicos', {})
+    if tec.get('latitude'):
+        lines.append(f"Latitude: {tec['latitude']}")
+    if tec.get('longitude'):
+        lines.append(f"Longitude: {tec['longitude']}")
+    coord_raw = tec.get('coordenadas_raw') or uc.get('coordenadas_raw')
+    if coord_raw:
+        lines.append(f"Coordenadas: {coord_raw}")
+
+    figura_zoom = tec.get('figura_map_zoom') or data.get('figura_map_zoom')
+    if figura_zoom not in (None, '', 'auto'):
+        lines.append(f"Zoom Figura Localização: {figura_zoom}")
+
     # === MÓDULOS FOTOVOLTAICOS ===
     modulos = data.get('modulos', [])
     if modulos:
         lines.append("\n# MÓDULOS FOTOVOLTAICOS")
 
-        total_modulos = sum(int(m.get('quantidade', 0)) for m in modulos if m.get('quantidade'))
+        total_modulos = sum(
+            int(pick_field(m, 'quantidade', 'quantity') or 0)
+            for m in modulos
+            if pick_field(m, 'quantidade', 'quantity')
+        )
         lines.append(f"Quantidade de Módulos: {total_modulos}")
 
-        # Pegar dados do primeiro módulo como referência
         primeiro = modulos[0]
-        if primeiro.get('fabricante'):
-            lines.append(f"Fabricante dos Módulos: {primeiro['fabricante']}")
-        if primeiro.get('modelo'):
-            lines.append(f"Modelo dos Módulos: {primeiro['modelo']}")
-        if primeiro.get('potencia'):
-            lines.append(f"Potência Unitária dos Módulos (Wp): {primeiro['potencia']}")
-        if primeiro.get('voc'):
-            lines.append(f"Tensão de Circuito Aberto (Voc) [V]: {primeiro['voc']}")
-        if primeiro.get('isc'):
-            lines.append(f"Corrente de Curto Circuito (Isc) [A]: {primeiro['isc']}")
-        if primeiro.get('vmpp'):
-            lines.append(f"Tensão de Máxima Potência (Vpmp) [V]: {primeiro['vmpp']}")
-        if primeiro.get('impp'):
-            lines.append(f"Corrente de Máxima Potência (Ipmp) [A]: {primeiro['impp']}")
-        if primeiro.get('eficiencia'):
-            lines.append(f"Eficiência do Módulo (%): {primeiro['eficiencia']}")
+        if pick_field(primeiro, 'fabricante'):
+            lines.append(f"Fabricante dos Módulos: {pick_field(primeiro, 'fabricante')}")
+        if pick_field(primeiro, 'modelo', 'model'):
+            lines.append(f"Modelo dos Módulos: {pick_field(primeiro, 'modelo', 'model')}")
+        if pick_field(primeiro, 'potencia', 'power'):
+            lines.append(f"Potência Unitária dos Módulos (Wp): {pick_field(primeiro, 'potencia', 'power')}")
+        if pick_field(primeiro, 'voc'):
+            lines.append(f"Tensão de Circuito Aberto (Voc) [V]: {pick_field(primeiro, 'voc')}")
+        if pick_field(primeiro, 'isc'):
+            lines.append(f"Corrente de Curto Circuito (Isc) [A]: {pick_field(primeiro, 'isc')}")
+        if pick_field(primeiro, 'vmpp'):
+            lines.append(f"Tensão de Máxima Potência (Vpmp) [V]: {pick_field(primeiro, 'vmpp')}")
+        if pick_field(primeiro, 'impp'):
+            lines.append(f"Corrente de Máxima Potência (Ipmp) [A]: {pick_field(primeiro, 'impp')}")
+        ef_mod = pick_field(primeiro, 'eficiencia', 'efficiency')
+        if ef_mod is not None:
+            lines.append(f"Eficiência do Módulo (%): {ef_mod}")
+        if pick_field(primeiro, 'comprimento_m'):
+            lines.append(f"Comprimento do Módulo (m): {pick_field(primeiro, 'comprimento_m')}")
+        if pick_field(primeiro, 'largura_m'):
+            lines.append(f"Largura do Módulo (m): {pick_field(primeiro, 'largura_m')}")
+        area_mod = pick_field(primeiro, 'area_modulo')
+        comp_m = pick_field(primeiro, 'comprimento_m')
+        larg_m = pick_field(primeiro, 'largura_m')
+        if not area_mod and comp_m and larg_m:
+            try:
+                area_mod = float(comp_m) * float(larg_m)
+            except (TypeError, ValueError):
+                area_mod = None
+        if not area_mod:
+            area_mod = 2.5
+        lines.append(f"Área do Módulo (m²): {area_mod}")
+        if total_modulos:
+            try:
+                lines.append(f"Área dos Arranjos (m²): {total_modulos * float(area_mod):g}")
+            except (TypeError, ValueError):
+                pass
+        if pick_field(primeiro, 'peso_kg'):
+            lines.append(f"Peso do Módulo (kg): {pick_field(primeiro, 'peso_kg')}")
+        pot_ref = pick_field(primeiro, 'potencia', 'power')
+        if total_modulos and pot_ref:
+            try:
+                pot_total = total_modulos * float(pot_ref) / 1000
+                lines.append(f"Potência Total Instalada (kW): {pot_total:g}")
+            except (TypeError, ValueError):
+                pass
 
     # === INVERSORES ===
     inversores = data.get('inversores', [])
@@ -201,9 +265,48 @@ def create_txt_data(data):
             lines.append(f"Máxima Tensão MPPT (V): {primeiro['mppt_max']}")
         if primeiro.get('eficiencia'):
             lines.append(f"Eficiência Máxima do Inversor (%): {primeiro['eficiencia']}")
+        if primeiro.get('potencia_max_cc_kw'):
+            lines.append(f"Máxima Potência na Entrada CC (kW): {primeiro['potencia_max_cc_kw']}")
+        if primeiro.get('tensao_max_cc'):
+            lines.append(f"Máxima Tensão CC (V): {primeiro['tensao_max_cc']}")
+        if primeiro.get('corrente_max_cc'):
+            lines.append(f"Máxima Corrente CC (A): {primeiro['corrente_max_cc']}")
+        if primeiro.get('tensao_partida_cc'):
+            lines.append(f"Tensão CC de Partida (V): {primeiro['tensao_partida_cc']}")
+        if primeiro.get('qtd_strings_max') or primeiro.get('qtd_entradas_mppt'):
+            lines.append(f"Quantidade de Strings: {primeiro.get('qtd_strings_max') or primeiro.get('qtd_entradas_mppt')}")
+        if primeiro.get('num_mppt') or primeiro.get('qtd_entradas_mppt'):
+            lines.append(f"Quantidade de Entradas MPPT: {primeiro.get('qtd_entradas_mppt') or primeiro.get('num_mppt')}")
+        if primeiro.get('potencia_nominal_ca_kw') or primeiro.get('potencia'):
+            lines.append(f"Potência Nominal CA (kW): {primeiro.get('potencia_nominal_ca_kw') or primeiro['potencia']}")
+        if primeiro.get('potencia_max_saida_ca_kw'):
+            lines.append(f"Máxima Potência na Saída CA (kW): {primeiro['potencia_max_saida_ca_kw']}")
+        if primeiro.get('corrente_max_saida_ca'):
+            lines.append(f"Máxima Corrente na Saída CA (A): {primeiro['corrente_max_saida_ca']}")
+        if primeiro.get('frequencia_hz'):
+            lines.append(f"Frequência Nominal (Hz): {primeiro['frequencia_hz']}")
+        if primeiro.get('tensao_max_ca') and primeiro.get('tensao_min_ca'):
+            lines.append(f"Máxima Tensão CA (V): {primeiro['tensao_max_ca']}")
+            lines.append(f"Mínima Tensão CA (V): {primeiro['tensao_min_ca']}")
+            lines.append(f"Faixa de Tensão dos Inversores (V): {primeiro['tensao_min_ca']}-{primeiro['tensao_max_ca']}")
+        thd_raw = pick_field(primeiro, 'thd_pct', 'thd', 'dht')
+        thd_fmt = format_thd_dht(thd_raw or '3')
+        lines.append(f"THD de Corrente (%): {thd_fmt}")
+        lines.append(f"DHT de Corrente (%): {thd_fmt}")
+        if primeiro.get('fator_potencia'):
+            lines.append(f"Fator de Potência do Inversor: {primeiro['fator_potencia']}")
+        if primeiro.get('tipo_inversor'):
+            lines.append(f"Tipo de Conexão do Inversor: {primeiro['tipo_inversor']}")
 
     # === DADOS TÉCNICOS ===
     tecnicos = data.get('dados_tecnicos', {})
+    contrato = data.get('contrato') or {}
+
+    def contrato_val(key):
+        val = contrato.get(key)
+        if val not in (None, ''):
+            return val
+        return tecnicos.get(key)
 
     if tecnicos.get('area_arranjo'):
         lines.append(f"Área dos Arranjos (m²): {tecnicos['area_arranjo']}")
@@ -216,6 +319,16 @@ def create_txt_data(data):
     if tecnicos.get('tabela_demanda_text'):
         escaped = str(tecnicos['tabela_demanda_text']).replace('\n', ' {{NL}} ')
         lines.append(f"Tabela de Demanda: {escaped}")
+    if tecnicos.get('tabela_demanda_json'):
+        lines.append(f"Tabela de Demanda JSON: {tecnicos['tabela_demanda_json']}")
+
+    # === CONTRATO (ModeloContrato.docx) ===
+    lines.append("\n# CONTRATO")
+    if contrato_val('numero_contrato'):
+        lines.append(f"Número do Contrato: {contrato_val('numero_contrato')}")
+    if contrato_val('texto_valor_pagamento_contrato'):
+        escaped = str(contrato_val('texto_valor_pagamento_contrato')).replace('\n', ' {{NL}} ')
+        lines.append(f"Texto Valor Pagamento Contrato: {escaped}")
 
     # Cabos e proteções
     if tecnicos.get('bitola_cabo_cc'):
@@ -233,20 +346,66 @@ def create_txt_data(data):
     if tecnicos.get('aterramento'):
         lines.append(f"Aterramento: {tecnicos['aterramento']}")
     if tecnicos.get('disjuntor_curva'):
-        lines.append(f"Curva do Disjuntor: {tecnicos['disjuntor_curva']}")
+        lines.append(f"Curva de Atuação: {tecnicos['disjuntor_curva']}")
+    if tecnicos.get('disjuntor_polos'):
+        lines.append(f"Número de Polos do Disjuntor: {tecnicos['disjuntor_polos']}")
+    if tecnicos.get('disjuntor_tensao_nominal'):
+        lines.append(f"Tensão Nominal do Disjuntor (V): {tecnicos['disjuntor_tensao_nominal']}")
+    if tecnicos.get('disjuntor_corrente_nominal') or uc.get('disjuntor_entrada'):
+        lines.append(f"Corrente Nominal do Disjuntor (A): {tecnicos.get('disjuntor_corrente_nominal') or uc.get('disjuntor_entrada')}")
+    if tecnicos.get('disjuntor_frequencia'):
+        lines.append(f"Frequência do Disjuntor (Hz): {tecnicos['disjuntor_frequencia']}")
+    if tecnicos.get('disjuntor_capacidade_ka'):
+        lines.append(f"Capacidade Máxima de Interrupção (kA): {tecnicos['disjuntor_capacidade_ka']}")
+    if tecnicos.get('disjuntor_elemento'):
+        lines.append(f"Elemento de Proteção do Disjuntor: {tecnicos['disjuntor_elemento']}")
+    if tecnicos.get('disjuntor_acionamento'):
+        lines.append(f"Acionamento do Disjuntor: {tecnicos['disjuntor_acionamento']}")
+    if tecnicos.get('dps_tipo'):
+        lines.append(f"Tipo DPS: {tecnicos['dps_tipo']}")
+    if tecnicos.get('dps_classe'):
+        lines.append(f"Classe DPS: {tecnicos['dps_classe']}")
+    if tecnicos.get('dps_tensao_v'):
+        lines.append(f"Tensão DPS (V): {tecnicos['dps_tensao_v']}")
+    if tecnicos.get('dps_corrente_nominal_ka'):
+        lines.append(f"Corrente Nominal DPS (kA): {tecnicos['dps_corrente_nominal_ka']}")
+    if tecnicos.get('dps_corrente_maxima_ka'):
+        lines.append(f"Corrente Máxima DPS (kA): {tecnicos['dps_corrente_maxima_ka']}")
+    if tecnicos.get('fator_potencia'):
+        lines.append(f"Fator de Potência: {tecnicos['fator_potencia']}")
+    if uc.get('disjuntor_entrada'):
+        lines.append(f"Corrente de Entrada: {uc['disjuntor_entrada']}")
+    if tecnicos.get('armazenamento'):
+        lines.append(f"Armazenamento (se houver): {tecnicos['armazenamento']}")
     if tecnicos.get('dr_tipo'):
         lines.append(f"DR: {tecnicos['dr_tipo']}")
     elif tecnicos.get('dr_sensibilidade_ma'):
         lines.append(f"Sensibilidade DR (mA): {tecnicos['dr_sensibilidade_ma']}")
 
+    if tecnicos.get('tipo_inversor'):
+        lines.append(f"Tipo de Inversor (topologia): {tecnicos['tipo_inversor']}")
+    if tecnicos.get('num_mppt'):
+        lines.append(f"Quantidade de Entradas MPPT: {tecnicos['num_mppt']}")
+    if tecnicos.get('modulos_por_string'):
+        lines.append(f"Módulos por String: {tecnicos['modulos_por_string']}")
+    if tecnicos.get('strings_por_mppt'):
+        lines.append(f"Strings em Paralelo por MPPT: {tecnicos['strings_por_mppt']}")
+    if tecnicos.get('micros_por_grupo_ca'):
+        lines.append(f"Microinversores por Grupo CA: {tecnicos['micros_por_grupo_ca']}")
+
     # Data do documento (assinatura) — padrão: dia da geração; usuário pode alterar no formulário
-    doc_date = tecnicos.get('data_documento') or cliente.get('data_documento')
+    doc_date = contrato_val('data_documento') or cliente.get('data_documento')
     if doc_date:
         lines.append(f"\nData do Documento: {iso_to_br(doc_date) or doc_date}")
     else:
         lines.append(f"\nData do Documento: {today_br()}")
-    cidade_doc = cliente.get('cidade') or 'Anápolis'
+    cidade_doc = contrato_val('cidade_documento') or cliente.get('cidade') or 'Anápolis'
     lines.append(f"Cidade do Documento: {cidade_doc}")
+
+    if not any('DHT de Corrente' in line for line in lines):
+        thd_fmt = format_thd_dht('3')
+        lines.append(f"THD de Corrente (%): {thd_fmt}")
+        lines.append(f"DHT de Corrente (%): {thd_fmt}")
 
     return '\n'.join(lines)
 
@@ -284,6 +443,19 @@ def _map_ai_json_to_nested(ai_data):
         parsed['unidade_consumidora']['classe'] = ai_data['classe']
     if ai_data.get('tipo_ligacao'):
         parsed['unidade_consumidora']['tipo_ligacao'] = ai_data['tipo_ligacao']
+    if ai_data.get('disjuntor_entrada') or ai_data.get('disjuntor'):
+        parsed['unidade_consumidora']['disjuntor_entrada'] = ai_data.get('disjuntor_entrada') or ai_data.get('disjuntor')
+    if ai_data.get('num_poste'):
+        parsed['unidade_consumidora']['num_poste'] = ai_data['num_poste']
+    if ai_data.get('demanda_alvo_kw') or ai_data.get('demanda_kw') or ai_data.get('demanda'):
+        val = ai_data.get('demanda_alvo_kw') or ai_data.get('demanda_kw') or ai_data.get('demanda')
+        parsed['dados_tecnicos']['demanda_alvo_kw'] = val
+    if ai_data.get('bitola_cabo_cc'):
+        parsed['dados_tecnicos']['bitola_cabo_cc'] = ai_data['bitola_cabo_cc']
+    if ai_data.get('bitola_cabo_ca'):
+        parsed['dados_tecnicos']['bitola_cabo_ca'] = ai_data['bitola_cabo_ca']
+    if ai_data.get('bitola_cabo_padrao'):
+        parsed['dados_tecnicos']['bitola_cabo_padrao'] = ai_data['bitola_cabo_padrao']
 
     for mod in ai_data.get('modulos', []) or []:
         parsed['modulos'].append({
@@ -311,8 +483,15 @@ def _map_ai_json_to_nested(ai_data):
 
 def _call_ai_for_text_extraction(text):
     """Tenta Ollama, depois Gemini, para extrair dados do TXT."""
-    prompt = f"""Extraia as informações do texto abaixo e retorne APENAS um JSON válido:
+    from normas_enrichment import ai_extraction_prompt_suffix
 
+    normas_ctx = ai_extraction_prompt_suffix()
+    prompt = f"""Extraia as informações do texto abaixo e retorne APENAS um JSON válido.
+
+CONTEXTO NORMATIVO (Equatorial Goiás):
+{normas_ctx}
+
+TEXTO:
 {text}
 
 Formato esperado:
@@ -329,13 +508,19 @@ Formato esperado:
   "numero": "...",
   "bairro": "...",
   "cidade": "...",
-  "uf": "...",
+  "uf": "GO",
   "cep": "...",
   "uc": "...",
-  "tensao": "...",
-  "classe": "...",
-  "tipo_ligacao": "...",
-  "modulos": [{{"quantidade": 0, "fabricante": "...", "modelo": "...", "potencia": 0}}],
+  "tensao": "220V",
+  "classe": "RESIDENCIAL",
+  "tipo_ligacao": "MONOFASICO",
+  "disjuntor_entrada": 40,
+  "demanda_alvo_kw": 6,
+  "num_poste": "ilégível",
+  "bitola_cabo_cc": "4 mm²",
+  "bitola_cabo_ca": "6 mm²",
+  "bitola_cabo_padrao": "10 mm²",
+  "modulos": [{{"quantidade": 0, "fabricante": "...", "modelo": "...", "potencia": 0, "voc": 0, "isc": 0}}],
   "inversores": [{{"quantidade": 0, "fabricante": "...", "modelo": "...", "potencia": 0}}]
 }}"""
 
@@ -473,6 +658,18 @@ def parse_text_with_ai(text):
             parsed_data['unidade_consumidora']['coordenada_utm_x'] = value
         elif 'coordenada utm y' in label:
             parsed_data['unidade_consumidora']['coordenada_utm_y'] = value
+        elif label.startswith('coordenada') and 'utm' not in label:
+            parsed_data.setdefault('dados_tecnicos', {})
+            parsed_data['dados_tecnicos']['coordenadas_raw'] = value
+            parsed_data['unidade_consumidora']['coordenadas_raw'] = value
+        elif label in ('latitude', 'lat'):
+            parsed_data.setdefault('dados_tecnicos', {})
+            parsed_data['dados_tecnicos']['latitude'] = value
+        elif label in ('longitude', 'lng', 'long'):
+            parsed_data.setdefault('dados_tecnicos', {})
+            parsed_data['dados_tecnicos']['longitude'] = value
+        elif 'fuso utm' in label:
+            parsed_data['unidade_consumidora']['fuso_utm'] = value
 
         # === MÓDULOS ===
         elif 'quantidade de m' in label and 'dulo' in label:
@@ -589,6 +786,76 @@ def catalog_delete(table_name, row_id):
         return jsonify({'success': False, 'error': _safe_error_message(e)}), 400
 
 
+@app.route('/api/catalog/import-modulos-yaml', methods=['POST'])
+def catalog_import_modulos_yaml():
+    """Importa dados/modulos_solares.yaml (ou obsoleto/Yamlmodulos.yaml) para o SQLite."""
+    try:
+        from import_modulos_yaml import import_modulos_yaml, resolve_yaml_path
+        payload = request.json or {}
+        path = payload.get('path')
+        yaml_path = Path(path) if path else None
+        result = import_modulos_yaml(yaml_path)
+        return jsonify({
+            **result,
+            'yaml_path': result.get('source') or (str(resolve_yaml_path()) if resolve_yaml_path() else None),
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': _safe_error_message(e)}), 400
+
+
+@app.route('/api/catalog/modulos-yaml-info', methods=['GET'])
+def catalog_modulos_yaml_info():
+    try:
+        from import_modulos_yaml import load_yaml_modulos, resolve_yaml_path
+        path = resolve_yaml_path()
+        if not path:
+            return jsonify({'success': False, 'error': 'YAML de módulos não encontrado'}), 404
+        rows = load_yaml_modulos(path)
+        return jsonify({
+            'success': True,
+            'path': str(path),
+            'count': len(rows),
+            'preview': rows[:5],
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': _safe_error_message(e)}), 400
+
+
+@app.route('/api/catalog/import-inversores-yaml', methods=['POST'])
+def catalog_import_inversores_yaml():
+    """Importa dados/inversores.yaml (ou obsoleto/Yamlinversores.yaml) para o SQLite."""
+    try:
+        from import_inversores_yaml import import_inversores_yaml, resolve_yaml_path
+        payload = request.json or {}
+        path = payload.get('path')
+        yaml_path = Path(path) if path else None
+        result = import_inversores_yaml(yaml_path)
+        return jsonify({
+            **result,
+            'yaml_path': result.get('source') or (str(resolve_yaml_path()) if resolve_yaml_path() else None),
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': _safe_error_message(e)}), 400
+
+
+@app.route('/api/catalog/inversores-yaml-info', methods=['GET'])
+def catalog_inversores_yaml_info():
+    try:
+        from import_inversores_yaml import load_yaml_inversores, resolve_yaml_path
+        path = resolve_yaml_path()
+        if not path:
+            return jsonify({'success': False, 'error': 'YAML de inversores não encontrado'}), 404
+        rows = load_yaml_inversores(path)
+        return jsonify({
+            'success': True,
+            'path': str(path),
+            'count': len(rows),
+            'preview': rows[:5],
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': _safe_error_message(e)}), 400
+
+
 @app.route('/api/catalog/lookup', methods=['POST'])
 def catalog_lookup():
     try:
@@ -597,11 +864,17 @@ def catalog_lookup():
         fab = data.get('fabricante', '')
         mod = data.get('modelo', data.get('model', ''))
         if kind == 'inverter':
-            row = lookup_inverter(fab, mod)
+            row = lookup_inverter(
+                fab, mod,
+                data.get('potencia_kw') or data.get('potencia') or data.get('power'),
+            )
         elif kind == 'padrao':
             row = lookup_padrao(data.get('uf', ''), data.get('tipo_ligacao', ''))
         else:
-            row = lookup_module(fab, mod)
+            row = lookup_module(
+                fab, mod,
+                data.get('potencia_wp') or data.get('potencia') or data.get('power'),
+            )
         return jsonify({'success': True, 'found': bool(row), 'row': row})
     except Exception as e:
         return jsonify({'success': False, 'error': _safe_error_message(e)}), 500
@@ -671,6 +944,37 @@ def ai_status():
     return jsonify(status)
 
 
+@app.route('/api/normas', methods=['GET'])
+def get_normas():
+    """Retorna normas Equatorial GO (padrão entrada, cabos, demanda) para UI/IA."""
+    try:
+        from normas_loader import (
+            calc_pd_max_kw,
+            get_padrao_entrada,
+            load_normas,
+            suggest_demanda_alvo_kw,
+        )
+
+        uf = request.args.get('uf', 'GO')
+        tipo = request.args.get('tipo_ligacao', 'MONOFASICO')
+        classe = request.args.get('classe', 'RESIDENCIAL')
+        padrao = get_padrao_entrada(uf, tipo, classe)
+        disj = padrao.get('disjuntor_a') if padrao else 40
+        return jsonify({
+            'success': True,
+            'meta': (load_normas() or {}).get('meta'),
+            'padrao_entrada': padrao,
+            'pd_max_kw': calc_pd_max_kw(uf, tipo, disj),
+            'demanda_alvo_sugerida_kw': suggest_demanda_alvo_kw(
+                uf=uf, tipo_ligacao=tipo, disjuntor_a=disj, classe=classe,
+            ),
+            'tabela_cabos': (load_normas() or {}).get('tabela_cabos'),
+            'tokens_guia': (load_normas() or {}).get('tokens_guia'),
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': _safe_error_message(e)}), 500
+
+
 def _module_to_frontend(module):
     return {
         'quantity': module.get('quantidade', ''),
@@ -698,6 +1002,7 @@ def _inverter_to_frontend(inverter):
         'num_mppt': inverter.get('num_mppt', ''),
         'tipo_inversor': inverter.get('tipo_inversor', ''),
         'eficiencia': inverter.get('eficiencia', ''),
+        'thd_pct': inverter.get('thd_pct', ''),
     }
 
 
@@ -728,6 +1033,106 @@ def lookup_address():
             'success': True,
             'address': found,
             'source': found.get('source'),
+        })
+    except Exception as exc:
+        return jsonify({'success': False, 'error': _safe_error_message(exc)}), 500
+
+
+@app.route('/api/coordinates/resolve', methods=['POST'])
+def resolve_coordinates_api():
+    """Converte UTM WGS84 ↔ graus decimais (mesma lógica do gerador de documentos)."""
+    try:
+        from coordinate_utils import resolve_coordinates
+
+        payload = request.json or {}
+        resolved = resolve_coordinates(
+            utm_x=payload.get('coordenada_utm_x') or payload.get('utm_x'),
+            utm_y=payload.get('coordenada_utm_y') or payload.get('utm_y'),
+            fuso_utm=payload.get('fuso_utm'),
+            latitude=payload.get('latitude'),
+            longitude=payload.get('longitude'),
+            raw_text=payload.get('coordenadas_raw') or payload.get('raw_text'),
+        )
+        if not resolved:
+            return jsonify({
+                'success': False,
+                'error': 'Informe coordenadas UTM, graus decimais ou texto do Google Earth.',
+            }), 400
+
+        coords = {
+            'coordenada_utm_x': resolved.get('coordenada_utm_x') or resolved.get('COORDENADA_UTM_X'),
+            'coordenada_utm_y': resolved.get('coordenada_utm_y') or resolved.get('COORDENADA_UTM_Y'),
+            'fuso_utm': resolved.get('fuso_utm') or resolved.get('FUSO_UTM'),
+            'latitude': resolved.get('latitude') or resolved.get('LATITUDE'),
+            'longitude': resolved.get('longitude') or resolved.get('LONGITUDE'),
+        }
+        return jsonify({'success': True, 'coordinates': coords})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': _safe_error_message(exc)}), 500
+
+
+@app.route('/api/figura-localizacao/preview', methods=['POST'])
+def figura_localizacao_preview():
+    """Pré-visualiza mapa de localização e sugere zoom (16 rural / 17 urbano)."""
+    try:
+        import base64
+        from io import BytesIO
+
+        from coordinate_utils import resolve_coordinates
+        from figura_localizacao import (
+            _nominatim_reverse,
+            _resolve_zoom_for_location,
+            _reverse_geocode_label_from_nominatim,
+            build_map_tiles,
+        )
+
+        payload = request.json or {}
+        data = normalize_form_payload(payload)
+        tec = data.get('dados_tecnicos') or {}
+        uc = data.get('unidade_consumidora') or {}
+
+        resolved = resolve_coordinates(
+            utm_x=uc.get('coordenada_utm_x') or tec.get('coordenada_utm_x'),
+            utm_y=uc.get('coordenada_utm_y') or tec.get('coordenada_utm_y'),
+            fuso_utm=uc.get('fuso_utm') or tec.get('fuso_utm'),
+            latitude=tec.get('latitude'),
+            longitude=tec.get('longitude'),
+            raw_text=tec.get('coordenadas_raw') or uc.get('coordenadas_raw'),
+        )
+        if not resolved:
+            return jsonify({
+                'success': False,
+                'error': 'Informe coordenadas para visualizar o mapa.',
+            }), 400
+
+        lat = float(str(resolved.get('latitude')).replace(',', '.'))
+        lon = float(str(resolved.get('longitude')).replace(',', '.'))
+
+        zoom_raw = payload.get('figura_map_zoom') or tec.get('figura_map_zoom')
+        zoom_fixed = None
+        if zoom_raw not in (None, '', 'auto'):
+            try:
+                zoom_fixed = int(str(zoom_raw).strip())
+                if not (10 <= zoom_fixed <= 20):
+                    zoom_fixed = None
+            except ValueError:
+                zoom_fixed = None
+
+        nominatim_data = _nominatim_reverse(lat, lon)
+        suggested = _resolve_zoom_for_location(lat, lon, nominatim_data=nominatim_data)
+        zoom_used = zoom_fixed if zoom_fixed is not None else suggested
+        place_label = _reverse_geocode_label_from_nominatim(nominatim_data)
+
+        img = build_map_tiles(lat, lon, zoom=zoom_used, place_label=place_label)
+        buf = BytesIO()
+        img.save(buf, format='PNG', optimize=True)
+
+        return jsonify({
+            'success': True,
+            'suggested_zoom': suggested,
+            'zoom_used': zoom_used,
+            'place_label': place_label,
+            'image_base64': base64.b64encode(buf.getvalue()).decode('ascii'),
         })
     except Exception as exc:
         return jsonify({'success': False, 'error': _safe_error_message(exc)}), 500
@@ -768,7 +1173,8 @@ def enrich_equipment():
 @app.route('/api/analyze-text', methods=['POST'])
 def analyze_text():
     """
-    Analisa texto TXT usando IA ou parser local
+    Analisa texto TXT usando IA ou parser local.
+    NOVO: Enriquece automaticamente com catálogo SQLite (busca inteligente).
     """
     try:
         data = request.json
@@ -780,13 +1186,21 @@ def analyze_text():
                 'error': 'Texto vazio'
             }), 400
 
-        # Analisar texto
+        # 1. Analisar texto (parser ou IA)
         parsed_data, source = parse_text_with_ai(text)
+
+        # 2. Normalizar payload
+        normalized = normalize_form_payload(parsed_data)
+
+        # 3. ENRIQUECER COM CATÁLOGO SQLITE (busca inteligente 3 camadas!)
+        enriched = enrich_normalized_payload(normalized)
 
         return jsonify({
             'success': True,
             'source': source,
-            'data': parsed_data
+            'data': enriched,
+            'catalog_enriched': True,
+            'normas_applied': bool((enriched.get('dados_tecnicos') or {}).get('normas_fonte')),
         })
 
     except Exception as e:
@@ -830,33 +1244,65 @@ def calculate_system():
                 'error': 'Informe quantidade e potência (Wp/kW) em pelo menos um módulo e um inversor.',
             }), 400
 
+        # Catálogo SQLite — sem IA e sem aproximar potência (ex.: 544 W ≠ 620 W)
+        modules, inverters, enrich_sources = enrich_equipment_lists(
+            modules, inverters, catalog_only=True,
+        )
+        normalized_pre = normalize_form_payload(data)
+        enriched_pre = enrich_normalized_payload({
+            'modulos': modules,
+            'inversores': inverters,
+            'cliente': normalized_pre.get('cliente') or {},
+            'unidade_consumidora': normalized_pre.get('unidade_consumidora') or {},
+            'dados_tecnicos': normalized_pre.get('dados_tecnicos') or {},
+        })
+        modules = enriched_pre.get('modulos') or modules
+        inverters = enriched_pre.get('inversores') or inverters
+
         context = {
             'client': {},
             'technical': data.get('technical') or {},
             'demand_table_ai': data.get('demand_table_ai', False),
             'hsp': data.get('hsp'),
         }
-        normalized = normalize_form_payload(data)
+        normalized = normalized_pre
         cliente = normalized.get('cliente') or {}
         uc = normalized.get('unidade_consumidora') or {}
         tecnicos = normalized.get('dados_tecnicos') or {}
+        web_client = data.get('client') or {}
         context['client'] = {
             **cliente,
-            'client_name': cliente.get('nome') or data.get('client_name'),
-            'consumer_unit': uc.get('numero') or data.get('consumer_unit'),
-            'classe': uc.get('classe') or data.get('classe'),
-            'tensao_atendimento': uc.get('tensao_atendimento') or data.get('tensao_atendimento'),
-            'tipo_ligacao': uc.get('tipo_ligacao') or data.get('tipo_ligacao'),
+            **web_client,
+            'client_name': cliente.get('nome') or web_client.get('client_name') or data.get('client_name'),
+            'consumer_unit': uc.get('numero') or web_client.get('consumer_unit') or data.get('consumer_unit'),
+            'classe': uc.get('classe') or web_client.get('classe') or data.get('classe') or 'RESIDENCIAL',
+            'tensao_atendimento': (
+                uc.get('tensao_atendimento')
+                or web_client.get('tensao_atendimento')
+                or data.get('tensao_atendimento')
+            ),
+            'tipo_ligacao': (
+                uc.get('tipo_ligacao')
+                or web_client.get('tipo_ligacao')
+                or data.get('tipo_ligacao')
+            ),
         }
         context['technical'] = {**tecnicos, **context['technical']}
         if data.get('demanda_alvo_kw') is not None:
             context['technical']['demanda_alvo_kw'] = data.get('demanda_alvo_kw')
+        if data.get('demanda_modelo_id'):
+            context['technical']['demanda_modelo_id'] = data.get('demanda_modelo_id')
+        elif context['technical'].get('demanda_modelo_id'):
+            pass
 
         calculations = calculate_technical_parameters(modules, inverters, context)
 
         return jsonify({
             'success': True,
             'calculations': calculations,
+            'modules': [_module_to_frontend(m) for m in modules],
+            'inverters': [_inverter_to_frontend(i) for i in inverters],
+            'enrichment_sources': enrich_sources,
         })
 
     except Exception as e:
@@ -866,6 +1312,67 @@ def calculate_system():
         }), 500
 
 
+@app.route('/api/demanda-modelos', methods=['GET'])
+def list_demanda_modelos():
+    """Lista modelos prontos de tabela de demanda (NTC-04)."""
+    try:
+        from demand_presets import list_models, load_catalog
+        return jsonify({
+            'success': True,
+            'meta': load_catalog().get('meta'),
+            'modelos': list_models(),
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': _safe_error_message(e)}), 500
+
+
+@app.route('/api/demanda-modelos/<modelo_id>/gerar', methods=['POST'])
+def gerar_demanda_modelo(modelo_id):
+    """Gera tabela de demanda a partir de um modelo JSON."""
+    try:
+        from demand_presets import apply_model_to_payload, generate_from_model
+
+        data = request.json or {}
+        client = data.get('client') or {}
+        target_raw = data.get('demanda_alvo_kw') or data.get('target_kw')
+        target = float(str(target_raw).replace(',', '.')) if target_raw not in (None, '') else None
+
+        table = generate_from_model(
+            modelo_id,
+            client_name=client.get('client_name') or data.get('client_name') or '',
+            uc=client.get('consumer_unit') or data.get('consumer_unit') or '',
+            target_kw=target,
+            notes=data.get('demanda_notas') or data.get('notes') or '',
+        )
+
+        payload_patch = {}
+        if data.get('apply_form'):
+            normalized = normalize_form_payload({
+                'client': client,
+                'technical': data.get('technical') or {},
+                'clientData': client,
+                'technicalData': data.get('technical') or {},
+            })
+            apply_model_to_payload(normalized, modelo_id)
+            payload_patch = {
+                'classe': normalized.get('unidade_consumidora', {}).get('classe'),
+                'tipo_ligacao': normalized.get('unidade_consumidora', {}).get('tipo_ligacao'),
+                'tensao_atendimento': normalized.get('unidade_consumidora', {}).get('tensao_atendimento'),
+                'disjuntor_entrada': normalized.get('unidade_consumidora', {}).get('disjuntor_entrada'),
+                'demanda_alvo_kw': normalized.get('dados_tecnicos', {}).get('demanda_alvo_kw'),
+            }
+
+        return jsonify({
+            'success': True,
+            'demand_table': table,
+            'form_patch': payload_patch,
+        })
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': _safe_error_message(e)}), 500
+
+
 @app.route('/api/generate-demand-table', methods=['POST'])
 def generate_demand_table_endpoint():
     """Gera apenas a tabela de demanda para memorial descritivo."""
@@ -873,6 +1380,22 @@ def generate_demand_table_endpoint():
         from demand_table import generate_demand_table
 
         data = request.json or {}
+        modelo_id = data.get('demanda_modelo_id') or data.get('modelo_id')
+
+        if modelo_id:
+            from demand_presets import generate_from_model
+            target_raw = data.get('demanda_alvo_kw') or data.get('target_kw')
+            target = float(str(target_raw).replace(',', '.')) if target_raw not in (None, '') else None
+            client = data.get('client') or {}
+            table = generate_from_model(
+                modelo_id,
+                client_name=client.get('client_name') or data.get('client_name') or '',
+                uc=client.get('consumer_unit') or data.get('consumer_unit') or '',
+                target_kw=target,
+                notes=data.get('demanda_notas') or data.get('notes') or '',
+            )
+            return jsonify({'success': True, 'demand_table': table})
+
         target = float(data.get('demanda_alvo_kw') or data.get('target_kw', 0))
         if target <= 0:
             return jsonify({'success': False, 'error': 'Informe demanda-alvo em kW'}), 400
@@ -880,13 +1403,60 @@ def generate_demand_table_endpoint():
         client = data.get('client') or {}
         table = generate_demand_table(
             target_kw=target,
-            classe=client.get('classe') or data.get('classe') or 'INDUSTRIAL',
+            classe=client.get('classe') or data.get('classe') or 'RESIDENCIAL',
             client_name=client.get('client_name') or data.get('client_name') or '',
             uc=client.get('consumer_unit') or data.get('consumer_unit') or '',
             notes=data.get('demanda_notas') or data.get('notes') or '',
             prefer_ai=bool(data.get('use_ai')),
         )
         return jsonify({'success': True, 'demand_table': table})
+    except Exception as e:
+        return jsonify({'success': False, 'error': _safe_error_message(e)}), 500
+
+
+@app.route('/api/export-calculations', methods=['POST'])
+def export_calculations_endpoint():
+    """
+    Exporta cálculos técnicos em JSON, CSV e TXT.
+    Retorna URLs para download dos arquivos gerados.
+    """
+    try:
+        from export_calculations import export_all_formats
+        from system_calculations import calculate_technical_parameters
+
+        data = request.json or {}
+        modules = data.get('modules') or data.get('modulos') or []
+        inverters = data.get('inverters') or data.get('inversores') or []
+        context = {
+            'client': data.get('client') or data.get('cliente') or {},
+            'technical': data.get('technical') or data.get('dados_tecnicos') or {},
+            'hsp': data.get('hsp') or 5.2,
+            'demand_table_ai': data.get('demand_table_ai', False),
+        }
+
+        calc_result = calculate_technical_parameters(modules, inverters, context)
+
+        # Gerar nome único baseado em timestamp
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        client_name = context['client'].get('nome') or context['client'].get('client_name') or 'cliente'
+        # Sanitizar nome do cliente para usar em arquivo
+        safe_name = ''.join(c if c.isalnum() or c in ' _-' else '' for c in client_name)[:30]
+        base_name = f'calculos_{safe_name}_{timestamp}'
+
+        output_base, _output_warn = get_output_base_dir()
+        output_dir = output_base / base_name
+        paths = export_all_formats(calc_result, output_dir, 'relatorio_calculos')
+
+        return jsonify({
+            'success': True,
+            'files': {
+                'json': f'/api/download/{base_name}/relatorio_calculos.json',
+                'csv': f'/api/download/{base_name}/relatorio_calculos.csv',
+                'txt': f'/api/download/{base_name}/relatorio_calculos.txt',
+            },
+            'calculations': calc_result,
+        })
     except Exception as e:
         return jsonify({'success': False, 'error': _safe_error_message(e)}), 500
 
@@ -914,43 +1484,65 @@ def preview_de_para():
         }), 500
 
 
+@app.route('/api/output-config', methods=['GET'])
+def output_config():
+    """Pasta de saída dos documentos (Google Drive / LGPD)."""
+    try:
+        return jsonify({'success': True, **output_config_status()})
+    except Exception as e:
+        return jsonify({'success': False, 'error': _safe_error_message(e)}), 500
+
+
 @app.route('/api/fill-documents', methods=['POST'])
 def fill_documents():
     """
     Endpoint para gerar documentos preenchidos
     """
     try:
-        data = request.json
+        data = request.json or {}
 
-        # Extrair nome do cliente de diferentes estruturas possíveis
-        client_name = None
-        if data.get('cliente', {}).get('nome'):
-            client_name = data['cliente']['nome']
-        elif data.get('client_name'):
-            client_name = data['client_name']
+        # Normalizar payload plano do frontend → estrutura aninhada
+        data = normalize_form_payload(data)
 
-        # Extrair UC de diferentes estruturas possíveis
-        consumer_unit = None
-        if data.get('unidade_consumidora', {}).get('numero'):
-            consumer_unit = data['unidade_consumidora']['numero']
-        elif data.get('consumer_unit'):
-            consumer_unit = data['consumer_unit']
+        # Extrair nome do cliente
+        client_name = (
+            data.get('cliente', {}).get('nome')
+            or data.get('client_name')
+        )
 
-        # Validar dados obrigatórios
+        # Número do contrato = nome da pasta (ex.: 80, 122-2026)
+        numero_contrato = (
+            data.get('contrato', {}).get('numero_contrato')
+            or data.get('contract', {}).get('numero_contrato')
+            or data.get('numero_contrato')
+        )
+
+        # Extrair UC (opcional)
+        consumer_unit = (
+            data.get('unidade_consumidora', {}).get('numero')
+            or data.get('consumer_unit')
+        )
+
         if not client_name:
             return jsonify({
                 'success': False,
                 'error': 'Nome do cliente é obrigatório'
             }), 400
 
-        # Criar diretório único para este cliente
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        client_slug = client_name.replace(' ', '_').lower()[:30]
-        output_dir = OUTPUT_BASE_DIR / f"{client_slug}_{timestamp}"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        if not (numero_contrato or '').strip():
+            return jsonify({
+                'success': False,
+                'error': 'Número do contrato é obrigatório — a pasta de saída usa esse número (ex.: 80, 122/2026).'
+            }), 400
 
-        # Normalizar payload plano do frontend → estrutura aninhada
-        data = normalize_form_payload(data)
+        try:
+            folder_name = folder_name_from_contract(numero_contrato, client_name)
+        except ValueError as exc:
+            return jsonify({'success': False, 'error': str(exc)}), 400
+
+        output_base, output_warning = get_output_base_dir()
+        output_dir = output_base / folder_name
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         cliente, cep_source = enrich_client_address(data.get('cliente', {}))
         data['cliente'] = cliente
@@ -1000,35 +1592,56 @@ def fill_documents():
         excel_file = None
         memorial_file = None
         procuracao_file = None
+        contrato_file = None
+        planta_file = None
         other_files = []
 
         for file in output_dir.iterdir():
-            if file.suffix in ['.docx', '.xlsx']:
-                file_info = {
-                    'name': file.name,
-                    'size': file.stat().st_size,
-                    'path': str(file),
-                    'download_url': f"http://localhost:5000/api/download/{client_slug}_{timestamp}/{file.name}"
-                }
+            if not file.is_file():
+                continue
+            suffix = file.suffix.lower()
+            if suffix not in ('.docx', '.xlsx', '.dxf', '.png', '.txt'):
+                continue
+            file_info = {
+                'name': file.name,
+                'size': file.stat().st_size,
+                'path': str(file),
+                'download_url': f"/api/download/{folder_name}/{file.name}"
+            }
 
-                # Categorizar por tipo
-                if file.suffix == '.xlsx':
-                    excel_file = file_info
-                elif 'memorial' in file.name.lower():
-                    memorial_file = file_info
-                elif 'procuracao' in file.name.lower() or 'procura' in file.name.lower():
-                    procuracao_file = file_info
-                else:
-                    other_files.append(file_info)
+            if suffix == '.xlsx':
+                excel_file = file_info
+            elif suffix == '.dxf' and file.name.lower() == 'planta.dxf':
+                planta_file = file_info
+            elif suffix == '.docx' and 'memorial' in file.name.lower():
+                memorial_file = file_info
+            elif suffix == '.docx' and ('procuracao' in file.name.lower() or 'procura' in file.name.lower()):
+                procuracao_file = file_info
+            elif suffix == '.docx' and file.name.lower() == 'modelocontrato.docx':
+                contrato_file = file_info
+            elif suffix == '.docx':
+                other_files.append(file_info)
+            elif file.name.lower() in (
+                'figura_localizacao.png',
+                'tokens_autocad.txt',
+                'relatorio_preenchimento.txt',
+            ):
+                other_files.append(file_info)
 
         return jsonify({
             'success': True,
             'message': 'Documentos gerados com sucesso!',
             'output_directory': str(output_dir),
+            'output_base': str(output_base),
+            'folder_name': folder_name,
+            'numero_contrato': numero_contrato.strip(),
+            'output_warning': output_warning,
             'files': {
                 'excel': excel_file,
                 'memorial': memorial_file,
                 'procuracao': procuracao_file,
+                'contrato': contrato_file,
+                'planta': planta_file,
                 'outros': other_files
             },
             'txt_content': txt_content,
@@ -1047,15 +1660,16 @@ def fill_documents():
 def download_file(filepath):
     """
     Endpoint para download de arquivos gerados
-    SEGURANÇA: Previne path traversal (../) e garante que arquivo está dentro de OUTPUT_BASE_DIR
+    SEGURANÇA: Previne path traversal (../) e garante que arquivo está dentro da pasta de saída configurada
     """
     try:
+        output_base, _ = get_output_base_dir()
         # Resolver path completo e normalizar
-        file_path = OUTPUT_BASE_DIR / filepath
+        file_path = output_base / filepath
         file_path = file_path.resolve()
 
         # SEGURANÇA: Verificar que o arquivo está dentro do diretório permitido
-        if not str(file_path).startswith(str(OUTPUT_BASE_DIR.resolve())):
+        if not str(file_path).startswith(str(output_base)):
             return jsonify({
                 'success': False,
                 'error': 'Acesso negado: path inválido'
@@ -1095,8 +1709,9 @@ def list_clients():
     """
     try:
         clients = []
+        output_base, _ = get_output_base_dir()
 
-        for client_dir in OUTPUT_BASE_DIR.iterdir():
+        for client_dir in output_base.iterdir():
             if client_dir.is_dir():
                 files = list(client_dir.glob('*.docx')) + list(client_dir.glob('*.xlsx'))
                 clients.append({
@@ -1117,8 +1732,214 @@ def list_clients():
         }), 500
 
 
+@app.route('/api/catalog/search-modules', methods=['POST'])
+def search_modules_endpoint():
+    """
+    Busca fuzzy de módulos fotovoltaicos no catálogo SQLite.
+    
+    POST body:
+    {
+        "query": "termo de busca",
+        "fabricante": "filtro por fabricante",
+        "potencia_min": 400,
+        "potencia_max": 600,
+        "limit": 10
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "results": [...],
+        "count": 5
+    }
+    """
+    try:
+        from catalog_db import search_modules_fuzzy
+        
+        data = request.json or {}
+        query = data.get('query', '')
+        fabricante = data.get('fabricante', '')
+        potencia_min = data.get('potencia_min', 0)
+        potencia_max = data.get('potencia_max', 999999)
+        limit = data.get('limit', 10)
+        
+        results = search_modules_fuzzy(
+            query=query,
+            fabricante=fabricante,
+            potencia_min=potencia_min,
+            potencia_max=potencia_max,
+            limit=limit,
+        )
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'count': len(results),
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': _safe_error_message(e)}), 500
+
+
+@app.route('/api/catalog/search-inverters', methods=['POST'])
+def search_inverters_endpoint():
+    """
+    Busca fuzzy de inversores no catálogo SQLite.
+    
+    POST body:
+    {
+        "query": "termo de busca",
+        "fabricante": "filtro por fabricante",
+        "potencia_min": 5,
+        "potencia_max": 15,
+        "tipo_inversor": "micro",
+        "limit": 10
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "results": [...],
+        "count": 5
+    }
+    """
+    try:
+        from catalog_db import search_inverters_fuzzy
+        
+        data = request.json or {}
+        query = data.get('query', '')
+        fabricante = data.get('fabricante', '')
+        potencia_min = data.get('potencia_min', 0)
+        potencia_max = data.get('potencia_max', 999999)
+        tipo_inversor = data.get('tipo_inversor', '')
+        limit = data.get('limit', 10)
+        
+        results = search_inverters_fuzzy(
+            query=query,
+            fabricante=fabricante,
+            potencia_min=potencia_min,
+            potencia_max=potencia_max,
+            tipo_inversor=tipo_inversor,
+            limit=limit,
+        )
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'count': len(results),
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': _safe_error_message(e)}), 500
+
+
+@app.route('/api/catalog/find-module', methods=['POST'])
+def find_module_endpoint():
+    """
+    Busca inteligente de módulo com estratégia de 3 camadas.
+    
+    POST body:
+    {
+        "fabricante": "Canadian Solar",
+        "modelo": "CS3W-400P",
+        "potencia_wp": 400
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "found": true,
+        "module": {...},
+        "match_type": "exact" | "power_exact" | "power_tolerance"
+    }
+    """
+    try:
+        from catalog_db import find_module_by_name_or_power
+        
+        data = request.json or {}
+        fabricante = data.get('fabricante', '')
+        modelo = data.get('modelo', '')
+        potencia_wp = data.get('potencia_wp', 0)
+        
+        module = find_module_by_name_or_power(
+            fabricante=fabricante,
+            modelo=modelo,
+            potencia_wp=potencia_wp,
+        )
+        
+        # Determinar tipo de match
+        match_type = None
+        if module:
+            if modelo and module.get('modelo', '').lower() in modelo.lower():
+                match_type = 'exact'
+            elif potencia_wp and module.get('potencia_wp') == potencia_wp:
+                match_type = 'power_exact'
+            else:
+                match_type = 'power_tolerance'
+        
+        return jsonify({
+            'success': True,
+            'found': bool(module),
+            'module': module,
+            'match_type': match_type,
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': _safe_error_message(e)}), 500
+
+
+@app.route('/api/catalog/find-inverter', methods=['POST'])
+def find_inverter_endpoint():
+    """
+    Busca inteligente de inversor com estratégia de 3 camadas.
+    
+    POST body:
+    {
+        "fabricante": "Deye",
+        "modelo": "SUN-6K-SG04LP3-EU",
+        "potencia_kw": 6
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "found": true,
+        "inverter": {...},
+        "match_type": "exact" | "power_exact" | "power_tolerance"
+    }
+    """
+    try:
+        from catalog_db import find_inverter_by_name_or_power
+        
+        data = request.json or {}
+        fabricante = data.get('fabricante', '')
+        modelo = data.get('modelo', '')
+        potencia_kw = data.get('potencia_kw', 0)
+        
+        inverter = find_inverter_by_name_or_power(
+            fabricante=fabricante,
+            modelo=modelo,
+            potencia_kw=potencia_kw,
+        )
+        
+        # Determinar tipo de match
+        match_type = None
+        if inverter:
+            if modelo and inverter.get('modelo', '').lower() in modelo.lower():
+                match_type = 'exact'
+            elif potencia_kw and inverter.get('potencia_kw') == potencia_kw:
+                match_type = 'power_exact'
+            else:
+                match_type = 'power_tolerance'
+        
+        return jsonify({
+            'success': True,
+            'found': bool(inverter),
+            'inverter': inverter,
+            'match_type': match_type,
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': _safe_error_message(e)}), 500
+
+
 if __name__ == '__main__':
-    # Verificar modo de desenvolvimento
     is_dev = os.environ.get('FLASK_ENV') == 'development' or os.environ.get('DEBUG') == '1'
 
     print("=" * 80)
@@ -1129,9 +1950,15 @@ if __name__ == '__main__':
     print(f"Frontend: http://localhost:5173")
     print(f"Diretório base: {BASE_DIR}")
     print(f"Templates: {TEMPLATES_DIR}")
-    print(f"Saída: {OUTPUT_BASE_DIR}")
+    out_base, out_warn = get_output_base_dir()
+    print(f"Saída: {out_base}")
+    if out_warn:
+        print(f"  AVISO: {out_warn}")
     print("\nEndpoints disponíveis:")
     print("  GET  /api/health          - Status do servidor")
+    print("  POST /api/auth/login       - Login (sessão)")
+    print("  GET  /api/auth/me          - Usuário logado")
+    print("  POST /api/auth/users       - Criar usuário (master)")
     print("  GET  /api/ai-status       - Status da IA (Ollama/Gemini)")
     print("  POST /api/analyze-text    - Análise de texto com IA")
     print("  POST /api/enrich-equipment - Buscar specs módulos/inversores")
@@ -1142,9 +1969,9 @@ if __name__ == '__main__':
     print("  GET  /api/list-clients    - Listar clientes")
     print("=" * 80)
 
-    # SEGURANÇA: Em produção, não usar debug e bind apenas localhost
     app.run(
         debug=is_dev,
+        use_reloader=False,
         host='0.0.0.0' if is_dev else '127.0.0.1',
-        port=5000
+        port=5000,
     )

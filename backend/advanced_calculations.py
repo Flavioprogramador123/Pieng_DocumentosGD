@@ -97,11 +97,11 @@ def calculate_protection_devices_advanced(power_w, voltage_v=220, system_type='m
     else:
         current_a = power_w / voltage_v
     
-    # Disjuntor DC (lado CC) - 125% da corrente nominal
-    dc_breaker_rating = math.ceil(current_a * 1.25)
-    
-    # Disjuntor AC (lado CA) - 125% da corrente nominal
-    ac_breaker_rating = math.ceil(current_a * 1.25)
+    from nbr5410_calculations import standard_breaker_rating
+
+    # Disjuntor DC/CA — 125% da corrente nominal, série comercial (10, 16, 20, 25, 32…)
+    dc_breaker_rating = standard_breaker_rating(current_a * 1.25)
+    ac_breaker_rating = standard_breaker_rating(current_a * 1.25)
     
     # Fusível de string (se aplicável) - 150% da corrente de curto-circuito do módulo
     # Assumindo Isc = 10A para módulos típicos

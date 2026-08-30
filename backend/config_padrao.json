@@ -33,5 +33,29 @@
     "objeto": "Energia Fotovoltaica",
     "cidade_documento": "",
     "data_documento": ""
+  },
+  "cabos": {
+    "bitola_cc": "4 mm²",
+    "bitola_ca_inversor": "6 mm²",
+    "bitola_ca_padrao": "10 mm²"
+  },
+  "modulos": {
+    "area_modulo_m2": 2.5
+  },
+  "testemunhas": {
+    "nome_1": "TESTEMUNHA 01",
+    "cpf_1": "",
+    "nome_2": "TESTEMUNHA 02",
+    "cpf_2": ""
+  },
+  "pagamento_integrador": {
+    "forma_pagamento": "Pagamento do restante à PIENG — PIX ou transferência bancária",
+    "banco": "290 - PagSeguro Internet Instituição de Pagamento S.A.",
+    "agencia": "0001",
+    "conta": "55112299-7",
+    "tipo_conta": "Conta de pagamento",
+    "cnpj_integrador": "45.719.837/0001-23",
+    "nome_integrador": "PIENG SOLUCOES ENERGETICAS LTDA",
+    "pix_integrador": "45.719.837/0001-23"
   }
 }

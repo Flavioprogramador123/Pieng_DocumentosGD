@@ -1,0 +1,41 @@
+Nome: Test
+CPF: 123
+Endereço: Rua
+Número: 1
+Bairro: C
+Cidade: Anapolis
+UF: GO
+CEP: 75000000
+Unidade Consumidora (UC): 704.212.012-65
+Classe: RESIDENCIAL
+Tipo de Ligação: MONOFASICO
+Tensão de Atendimento (V): 220V
+Disjuntor de Entrada (A): 40
+Modalidade de Compensação: AUTOCONSUMO LOCAL
+Fuso UTM: 22S
+
+# MÓDULOS FOTOVOLTAICOS
+Quantidade de Módulos: 8
+Fabricante dos Módulos: Jinko
+Modelo dos Módulos: JKM555M-72HL4-V
+Potência Unitária dos Módulos (Wp): 555
+
+# INVERSORES
+Quantidade de Inversores: 1
+Fabricante dos Inversores: Growatt
+Modelo dos Inversores: MIN 5000TL-X
+Potência Nominal dos Inversores (kW): 5.0
+Tipo de Fonte: SOLAR FOTOVOLTAICA
+Data Prevista de Operação: 2026-08-28
+Bitola do Cabo CC: 6 mm²
+Bitola do Cabo CA: 10 mm²
+Bitola Cabo Padrão: 10 mm²
+Tipo de Arranjo: Telhado inclinado
+DPS CC: DPS Classe II
+DPS CA: 275 V
+Aterramento: Haste copper 2,4 m com caixa de inspeção — ≤ 10 Ω Ω
+Curva do Disjuntor: C
+DR: DR 30 mA — alta sensibilidade
+
+Data do Documento: 28/08/2026
+Cidade do Documento: Anapolis

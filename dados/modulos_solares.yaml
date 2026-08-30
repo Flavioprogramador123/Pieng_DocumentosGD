@@ -1,0 +1,90 @@
+# Módulos solares — importado de Yamlmodulos.yaml
+# Usado para popular catalog.db (SQLite) — specs para memorial e cálculos de string
+modulos_solares:
+  - marca: "RENE PV"
+    potencia_w: 620
+    eficiencia_pct: 22.90
+    tecnologia: "Bifacial"
+    voc_v: 47.98
+    isc_a: 16.30
+    vmp_v: 40.39
+    imp_a: 15.35
+    dimensoes_mm: "2384x1134x30"
+    peso_kg: 33.0
+
+  - marca: "RENE PV"
+    potencia_w: 625
+    eficiencia_pct: 23.10
+    tecnologia: "Bifacial"
+    voc_v: 48.10
+    isc_a: 16.35
+    vmp_v: 40.50
+    imp_a: 15.43
+    dimensoes_mm: "2384x1134x30"
+    peso_kg: 33.0
+
+  - marca: "TSUN POWER"
+    potencia_w: 630
+    eficiencia_pct: 23.30
+    tecnologia: "N-Type Bifacial"
+    voc_v: 48.25
+    isc_a: 16.42
+    vmp_v: 40.65
+    imp_a: 15.50
+    dimensoes_mm: "2384x1134x30"
+    peso_kg: 33.5
+
+  - marca: "TSUN POWER"
+    potencia_w: 645
+    eficiencia_pct: 23.90
+    tecnologia: "N-Type Bifacial"
+    voc_v: 48.50
+    isc_a: 16.60
+    vmp_v: 40.90
+    imp_a: 15.77
+    dimensoes_mm: "2384x1134x30"
+    peso_kg: 33.5
+
+  - marca: "RENE PV"
+    potencia_w: 670
+    eficiencia_pct: 22.60
+    tecnologia: "Bifacial"
+    voc_v: 49.30
+    isc_a: 16.90
+    vmp_v: 41.60
+    imp_a: 16.10
+    dimensoes_mm: "2384x1303x33"
+    peso_kg: 38.0
+
+  - marca: "RENE PV"
+    potencia_w: 680
+    eficiencia_pct: 22.90
+    tecnologia: "Bifacial"
+    voc_v: 49.51
+    isc_a: 17.13
+    vmp_v: 42.08
+    imp_a: 16.16
+    dimensoes_mm: "2384x1303x33"
+    peso_kg: 38.3
+
+  - marca: "TSUN POWER"
+    potencia_w: 690
+    eficiencia_pct: 22.22
+    tecnologia: "N-Type Bifacial"
+    voc_v: 49.91
+    isc_a: 17.17
+    vmp_v: 42.55
+    imp_a: 16.22
+    dimensoes_mm: "2384x1303x33"
+    peso_kg: 38.3
+
+  - marca: "TSUN POWER"
+    potencia_w: 700
+    eficiencia_pct: 22.54
+    tecnologia: "N-Type Bifacial"
+    voc_v: 50.31
+    isc_a: 17.21
+    vmp_v: 43.00
+    imp_a: 16.28
+    dimensoes_mm: "2384x1303x33"
+    peso_kg: 38.3

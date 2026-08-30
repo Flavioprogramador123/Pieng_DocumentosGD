@@ -16,4 +16,19 @@ Não apague ainda se quiser comparar um documento antigo. Quando o `iniciar.bat`
 | `automacao-docs/` e manuais extras | Documentação duplicada/contraditória |
 | Zips e `package.json` Express da raiz | Artefatos de entrega/cópia |
 
-O sistema ativo está na raiz: `backend/`, `frontend/`, `templates/`, `saida/`, `dados/`.
+## Limpeza de 29/08/2026 (pré-GitHub)
+
+| Pasta | Conteúdo |
+|-------|----------|
+| `scripts_dev/` | Patches pontuais (`patch_nt_formulario`, `patch_modelo_contrato_numero`, …), extratores de memorial, criadores de template, `requirements.txt` antigo |
+| `scripts_testes/` | `test_catalog_search.py`, `test_enrichment.py` (testes manuais, não pytest) |
+| `templates_backup/` | `.bak_*`, `_test_fill_nt.xlsx`, planilha Tokens-Revisao, `ModeloContrato_marcadores.docx`, texto de referência do contrato |
+| `dados_analise/` | `debug_txt.txt`, análises de marcadores/tokens do memorial |
+| `docs_memorial/` | `MEMORIAL_LEGENDA.md`, `MEMORIAL_TOKENS.md` (referência de desenvolvimento) |
+| `diagnostico/` | `diagnostico.bat`, `diagnostico.sh` |
+| `temp_figura_maps/` | Protótipo da figura de localização (integrado em `backend/figura_localizacao.py`) |
+| `imagenscaixas/` | Assets antigos da caixa de medição (substituídos por `templates/assets/caixa_medicao/`) |
+
+**Mantido no fluxo ativo:** `backend/patch_memorial_demand.py` (aplicado na subida da API), `export_calculations.py`, catálogo YAML, templates oficiais sem sufixo `.bak`.
+
+O sistema ativo está na raiz: `backend/`, `equatorial_automation_frontend/`, `templates/`, `saida/`, `dados/`.

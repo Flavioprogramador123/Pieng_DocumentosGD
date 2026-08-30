@@ -4,6 +4,8 @@ color 0B
 
 cd /d "%~dp0backend"
 
+call "%~dp0kill_port_5000.bat"
+
 REM Verificar/criar ambiente virtual
 if not exist ".venv\Scripts\python.exe" (
     echo [*] Preparando ambiente Python...

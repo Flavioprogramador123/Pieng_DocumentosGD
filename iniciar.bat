@@ -5,6 +5,7 @@ cls
 
 REM ============================================
 REM Sistema de Automacao Equatorial Energia
+REM Backend pronto ANTES do frontend e do browser
 REM ============================================
 
 echo.
@@ -13,7 +14,6 @@ echo   ^|   Sistema de Automacao Equatorial Energia      ^|
 echo   ===================================================
 echo.
 
-REM Verificar Python
 python --version >nul 2>&1
 if errorlevel 1 (
     color 0C
@@ -24,7 +24,6 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM Verificar Node.js
 node --version >nul 2>&1
 if errorlevel 1 (
     color 0C
@@ -35,64 +34,103 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM Barra de progresso animada
-echo   Iniciando sistema...
+echo   [1/4] Preparando backend (venv + dependencias)...
+cd /d "%~dp0backend"
+if not exist ".venv\Scripts\python.exe" (
+    echo         Criando ambiente virtual Python...
+    python -m venv .venv
+    if errorlevel 1 (
+        color 0C
+        echo   [X] Falha ao criar .venv em backend\
+        pause
+        exit /b 1
+    )
+    ".venv\Scripts\python.exe" -m pip install -q --upgrade pip
+    ".venv\Scripts\python.exe" -m pip install -q -r requirements_api.txt
+) else (
+    ".venv\Scripts\python.exe" -m pip install -q -r requirements_api.txt >nul 2>&1
+)
+cd /d "%~dp0"
+echo         [OK] Backend preparado
 echo.
-echo   [                                        ] 0%%
 
-REM Iniciar Backend
+echo   [2/4] Subindo backend e aguardando http://127.0.0.1:5000 ...
+call "%~dp0kill_port_5000.bat"
 start /min "" cmd /k "%~dp0start_backend.bat"
-timeout /T 1 /NOBREAK >nul
-cls
-echo.
-echo   ===================================================
-echo   ^|   Sistema de Automacao Equatorial Energia      ^|
-echo   ===================================================
-echo.
-echo   Iniciando sistema...
-echo.
-echo   [##########                              ] 25%%
-timeout /T 1 /NOBREAK >nul
 
-REM Aguardar backend
-cls
-echo.
-echo   ===================================================
-echo   ^|   Sistema de Automacao Equatorial Energia      ^|
-echo   ===================================================
-echo.
-echo   Iniciando sistema...
-echo.
-echo   [####################                    ] 50%%
-timeout /T 2 /NOBREAK >nul
+set "BACKEND_OK=0"
+for /L %%i in (1,1,90) do (
+    powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:5000/api/health' -UseBasicParsing -TimeoutSec 2; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+    if not errorlevel 1 (
+        set "BACKEND_OK=1"
+        goto :backend_ready
+    )
+    if %%i==30 echo         ... ainda aguardando backend (30s)
+    if %%i==60 echo         ... ainda aguardando backend (60s)
+    timeout /T 1 /NOBREAK >nul
+)
+:backend_ready
 
-REM Iniciar Frontend
+if "!BACKEND_OK!"=="0" (
+    color 0C
+    echo.
+    echo   [X] Backend nao respondeu em http://127.0.0.1:5000/api/health
+    echo       Verifique a janela minimizada "Backend API" ou rode kill_port_5000.bat
+    echo.
+    pause
+    exit /b 1
+)
+echo         [OK] Backend online
+echo.
+
+echo   [3/4] Preparando frontend e subindo Vite...
+cd /d "%~dp0equatorial_automation_frontend"
+if not exist "node_modules" (
+    echo         Instalando npm install (primeira vez)...
+    call npm install
+    if errorlevel 1 (
+        color 0C
+        echo   [X] Falha no npm install
+        cd /d "%~dp0"
+        pause
+        exit /b 1
+    )
+) else (
+    call npm install >nul 2>&1
+)
+cd /d "%~dp0"
 start /min "" cmd /k "%~dp0start_frontend.bat"
-cls
-echo.
-echo   ===================================================
-echo   ^|   Sistema de Automacao Equatorial Energia      ^|
-echo   ===================================================
-echo.
-echo   Iniciando sistema...
-echo.
-echo   [##############################          ] 75%%
-timeout /T 2 /NOBREAK >nul
 
-REM Abrir navegador
-start http://localhost:5173
-cls
+set "FRONTEND_OK=0"
+for /L %%i in (1,1,60) do (
+    powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:5173/' -UseBasicParsing -TimeoutSec 2; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+    if not errorlevel 1 (
+        set "FRONTEND_OK=1"
+        goto :frontend_ready
+    )
+    if %%i==20 echo         ... aguardando Vite (20s)
+    if %%i==40 echo         ... aguardando Vite (40s)
+    timeout /T 1 /NOBREAK >nul
+)
+:frontend_ready
+
+if "!FRONTEND_OK!"=="0" (
+    color 0E
+    echo         [!] Frontend ainda nao respondeu — abra manualmente http://localhost:5173
+    color 0A
+) else (
+    echo         [OK] Frontend online
+)
 echo.
-echo   ===================================================
-echo   ^|   Sistema de Automacao Equatorial Energia      ^|
-echo   ===================================================
-echo.
-echo   Iniciando sistema...
-echo.
-echo   [########################################] 100%%
+
+echo   [4/4] Abrindo navegador...
+if "!FRONTEND_OK!"=="1" (
+    start http://localhost:5173
+) else (
+    echo         Pulando abertura automatica ate o Vite ficar pronto.
+)
 timeout /T 1 /NOBREAK >nul
 
-REM Tela final
 cls
 color 0A
 echo.
@@ -100,17 +138,16 @@ echo   ===================================================
 echo   ^|        Sistema Iniciado com Sucesso            ^|
 echo   ===================================================
 echo.
-echo   Backend:   http://127.0.0.1:5000
-echo   Frontend:  http://localhost:5173
+echo   Backend:   http://127.0.0.1:5000  (online)
+if "!FRONTEND_OK!"=="1" (
+    echo   Frontend:  http://localhost:5173  (online)
+) else (
+    echo   Frontend:  http://localhost:5173  (iniciando — aguarde a janela Vite)
+)
 echo.
 echo   ===================================================
-echo   Status da IA:
-echo   * Gemini 3.6 Flash: Ativo
-echo   * Ollama (opcional): Verificando...
+echo   [i] Para parar, feche as janelas Backend e Frontend.
 echo   ===================================================
-echo.
-echo   [i] Para parar o sistema, feche as janelas do
-echo       Backend e Frontend que foram abertas.
 echo.
 echo   Pressione qualquer tecla para sair deste console...
 pause >nul

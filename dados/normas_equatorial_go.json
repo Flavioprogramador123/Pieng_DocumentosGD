@@ -1,0 +1,279 @@
+{
+  "meta": {
+    "versao": "1.0.0",
+    "atualizado": "2026-08-29",
+    "concessionaria": "Equatorial Energia Goiás",
+    "uf_principal": "GO",
+    "referencias": [
+      "NTC-04 Rev.4 CELG-D — Norma Técnica de Construção, fatores de demanda BT secundária",
+      "PRODIST Módulo 3 — Acesso de microgeração e minigeração distribuída",
+      "NBR 5410:2004 — Instalações elétricas de baixa tensão",
+      "Resolução Normativa ANEEL nº 1.000/2021 — Geração distribuída"
+    ],
+    "escopo": "Padrão de entrada, tensões, cabos e demanda fornecida para projetos BT residenciais/comerciais em Goiás"
+  },
+
+  "tensoes": {
+    "GO": {
+      "monofasico": {
+        "vn_v": 220,
+        "rotulo": "220V",
+        "tipo_rede": "Monofásico",
+        "formula_corrente": "I = P / V",
+        "nota": "Linha-neutro 220 V — ramal residencial típico"
+      },
+      "bifasico": {
+        "vn_v": 220,
+        "rotulo": "220V",
+        "tipo_rede": "Bifásico",
+        "formula_corrente": "I = P / V_fase",
+        "nota": "Duas fases + neutro, 220 V entre fase e neutro"
+      },
+      "trifasico": {
+        "vn_v": 220,
+        "v_ll_v": 380,
+        "rotulo": "220/380V",
+        "tipo_rede": "Trifásico",
+        "formula_corrente": "I = P / (√3 × V_LL)",
+        "nota": "Trifásico 120° — cálculo com V_LL = 380 V"
+      }
+    },
+    "DEFAULT": {
+      "monofasico": { "vn_v": 220, "rotulo": "220V" },
+      "bifasico": { "vn_v": 220, "rotulo": "220V" },
+      "trifasico": { "vn_v": 220, "v_ll_v": 380, "rotulo": "220/380V" }
+    }
+  },
+
+  "padrao_entrada": [
+    {
+      "uf": "GO",
+      "tipo_ligacao": "MONOFASICO",
+      "classe": "RESIDENCIAL",
+      "tensao_v": "220V",
+      "disjuntor_a": 40,
+      "bitola_cabo_padrao_mm2": "10 mm²",
+      "bitola_cabo_ca_inversor_mm2": "6 mm²",
+      "bitola_cabo_cc_mm2": "4 mm²",
+      "dps_tipo": "DPS Classe II",
+      "dps_classe_v": "275 V",
+      "curva_disjuntor": "C",
+      "dr_ma": 30,
+      "num_polos_disjuntor": 1,
+      "descricao_disjuntor": "Disjuntor monopolar",
+      "capacidade_interrupcao_ka": 10,
+      "notas": "Padrão residencial monofásico GO — disjuntor geral 40 A curva C, DR 30 mA"
+    },
+    {
+      "uf": "GO",
+      "tipo_ligacao": "BIFASICO",
+      "classe": "RESIDENCIAL",
+      "tensao_v": "220V",
+      "disjuntor_a": 40,
+      "bitola_cabo_padrao_mm2": "10 mm²",
+      "bitola_cabo_ca_inversor_mm2": "6 mm²",
+      "bitola_cabo_cc_mm2": "4 mm²",
+      "dps_tipo": "DPS Classe II",
+      "dps_classe_v": "275 V",
+      "curva_disjuntor": "C",
+      "dr_ma": 30,
+      "num_polos_disjuntor": 3,
+      "descricao_disjuntor": "Disjuntor tripolar",
+      "capacidade_interrupcao_ka": 10,
+      "notas": "Bifásico residencial — 2 fases + neutro"
+    },
+    {
+      "uf": "GO",
+      "tipo_ligacao": "TRIFASICO",
+      "classe": "RESIDENCIAL",
+      "tensao_v": "220/380V",
+      "disjuntor_a": 63,
+      "bitola_cabo_padrao_mm2": "10 mm²",
+      "bitola_cabo_ca_inversor_mm2": "10 mm²",
+      "bitola_cabo_cc_mm2": "6 mm²",
+      "dps_tipo": "DPS Classe II",
+      "dps_classe_v": "275 V",
+      "curva_disjuntor": "C",
+      "dr_ma": 30,
+      "num_polos_disjuntor": 3,
+      "descricao_disjuntor": "Disjuntor tripolar",
+      "capacidade_interrupcao_ka": 10,
+      "notas": "Trifásico residencial — 3 polos (fases), V_LL 380 V"
+    },
+    {
+      "uf": "GO",
+      "tipo_ligacao": "MONOFASICO",
+      "classe": "COMERCIAL",
+      "tensao_v": "220V",
+      "disjuntor_a": 50,
+      "bitola_cabo_padrao_mm2": "16 mm²",
+      "bitola_cabo_ca_inversor_mm2": "10 mm²",
+      "bitola_cabo_cc_mm2": "6 mm²",
+      "dps_tipo": "DPS Classe II",
+      "dps_classe_v": "275 V",
+      "curva_disjuntor": "C",
+      "dr_ma": 30,
+      "num_polos_disjuntor": 1,
+      "descricao_disjuntor": "Disjuntor monopolar",
+      "capacidade_interrupcao_ka": 10,
+      "notas": "Comercial pequeno porte monofásico"
+    },
+    {
+      "uf": "GO",
+      "tipo_ligacao": "TRIFASICO",
+      "classe": "COMERCIAL",
+      "tensao_v": "220/380V",
+      "disjuntor_a": 100,
+      "bitola_cabo_padrao_mm2": "25 mm²",
+      "bitola_cabo_ca_inversor_mm2": "16 mm²",
+      "bitola_cabo_cc_mm2": "10 mm²",
+      "dps_tipo": "DPS Classe II",
+      "dps_classe_v": "275 V",
+      "curva_disjuntor": "C",
+      "dr_ma": 30,
+      "num_polos_disjuntor": 3,
+      "descricao_disjuntor": "Disjuntor tripolar",
+      "capacidade_interrupcao_ka": 10,
+      "notas": "Comercial trifásico — demanda maior"
+    },
+    {
+      "uf": "DEFAULT",
+      "tipo_ligacao": "MONOFASICO",
+      "classe": "RESIDENCIAL",
+      "tensao_v": "220V",
+      "disjuntor_a": 40,
+      "bitola_cabo_padrao_mm2": "10 mm²",
+      "bitola_cabo_ca_inversor_mm2": "6 mm²",
+      "bitola_cabo_cc_mm2": "4 mm²",
+      "dps_tipo": "DPS Classe II",
+      "dps_classe_v": "275 V",
+      "curva_disjuntor": "C",
+      "dr_ma": 30,
+      "num_polos_disjuntor": 1,
+      "descricao_disjuntor": "Disjuntor monopolar",
+      "capacidade_interrupcao_ka": 10,
+      "notas": "Fallback nacional"
+    }
+  ],
+
+  "tabela_cabos": {
+    "cc_modulo_inversor": [
+      { "potencia_kwp_max": 3, "isc_a_max": 12, "bitola_mm2": "4 mm²", "metodo": "B1/B2", "nota": "Residencial até ~3 kWp" },
+      { "potencia_kwp_max": 5, "isc_a_max": 15, "bitola_mm2": "4 mm²", "metodo": "B1/B2", "nota": "Até 5 kWp — padrão residencial GO" },
+      { "potencia_kwp_max": 10, "isc_a_max": 25, "bitola_mm2": "6 mm²", "metodo": "B1/B2", "nota": "5–10 kWp" },
+      { "potencia_kwp_max": 20, "isc_a_max": 40, "bitola_mm2": "10 mm²", "metodo": "B1/B2", "nota": "10–20 kWp" },
+      { "potencia_kwp_max": 50, "isc_a_max": 60, "bitola_mm2": "16 mm²", "metodo": "B1/B2", "nota": "Acima de 20 kWp" },
+      { "potencia_kwp_max": 999, "isc_a_max": 999, "bitola_mm2": "25 mm²", "metodo": "B1/B2", "nota": "Grande porte — dimensionar projeto" }
+    ],
+    "ca_inversor_padrao": [
+      { "potencia_kw_max": 3, "corrente_a_max": 20, "bitola_mm2": "4 mm²", "nota": "Micro/mini residencial" },
+      { "potencia_kw_max": 5, "corrente_a_max": 32, "bitola_mm2": "6 mm²", "nota": "Até 5 kW — padrão GO" },
+      { "potencia_kw_max": 10, "corrente_a_max": 50, "bitola_mm2": "10 mm²", "nota": "5–10 kW" },
+      { "potencia_kw_max": 20, "corrente_a_max": 80, "bitola_mm2": "16 mm²", "nota": "10–20 kW" },
+      { "potencia_kw_max": 75, "corrente_a_max": 125, "bitola_mm2": "25 mm²", "nota": "Até limite BT 75 kW" },
+      { "potencia_kw_max": 999, "corrente_a_max": 999, "bitola_mm2": "35 mm²", "nota": "Verificar queda de tensão e NBR 5410" }
+    ],
+    "ca_padrao_entrada": [
+      { "disjuntor_a_max": 40, "bitola_mm2": "10 mm²", "nota": "Ramal 40 A — residencial típico GO" },
+      { "disjuntor_a_max": 50, "bitola_mm2": "10 mm²", "nota": "Ramal 50 A" },
+      { "disjuntor_a_max": 63, "bitola_mm2": "16 mm²", "nota": "Ramal 63 A — trifásico residencial" },
+      { "disjuntor_a_max": 100, "bitola_mm2": "25 mm²", "nota": "Comercial trifásico" },
+      { "disjuntor_a_max": 999, "bitola_mm2": "35 mm²", "nota": "Alta demanda BT" }
+    ]
+  },
+
+  "demanda_fornecida": {
+    "descricao": "Demanda fornecida (PD) e demanda de projeto para levantamento NTC-04",
+    "formula_pd_kw": "PD = VN × IDG × NF × FP / 1000",
+    "variaveis": {
+      "VN": "Tensão nominal de fase (V) — 220 V em GO mono/bi",
+      "V_LL": "Tensão linha-linha trifásica (380 V GO) — usar na corrente, não na PD simplificada",
+      "IDG": "Corrente do disjuntor geral (A)",
+      "NF": "Número de fases energizadas (1 mono, 2 bi, 3 tri)",
+      "FP": "Fator de potência da instalação (0,92 residencial típico)"
+    },
+    "fator_potencia_padrao": 0.92,
+    "nf_por_tipo_ligacao": {
+      "MONOFASICO": 1,
+      "BIFASICO": 2,
+      "TRIFASICO": 3
+    },
+    "pd_por_disjuntor": [
+      { "uf": "GO", "tipo_ligacao": "MONOFASICO", "disjuntor_a": 40, "vn_v": 220, "nf": 1, "fp": 0.92, "pd_kw": 8.096 },
+      { "uf": "GO", "tipo_ligacao": "BIFASICO", "disjuntor_a": 40, "vn_v": 220, "nf": 2, "fp": 0.92, "pd_kw": 16.192 },
+      { "uf": "GO", "tipo_ligacao": "TRIFASICO", "disjuntor_a": 63, "vn_v": 220, "nf": 3, "fp": 0.92, "pd_kva": 41.58, "pd_kw": 38.254 },
+      { "uf": "GO", "tipo_ligacao": "MONOFASICO", "disjuntor_a": 50, "vn_v": 220, "nf": 1, "fp": 0.92, "pd_kw": 10.12 },
+      { "uf": "GO", "tipo_ligacao": "TRIFASICO", "disjuntor_a": 100, "vn_v": 220, "nf": 3, "fp": 0.92, "pd_kw": 60.72 }
+    ],
+    "demanda_alvo_residencial_kw": [4, 5, 6, 7, 8, 10, 12, 15],
+    "regras": [
+      "demanda_alvo_kw deve ser coerente com o levantamento NTC-04 (FD tabulado pelo sistema)",
+      "Para GD residencial típica GO monofásica 40 A: PD máxima ≈ 8,1 kW — demanda-alvo comum: 5–8 kW",
+      "Potência FV instalada não substitui demanda existente; somar cargas convencionais",
+      "Se TXT mencionar 'demanda contratada' ou 'carga instalada', mapear para demanda_alvo_kw",
+      "Classe RESIDENCIAL → NTC-04 Tabelas 2, 3 e 4; COMERCIAL → diversificação maior"
+    ]
+  },
+
+  "ntc04_resumo": {
+    "norma": "NTC-04 Rev.4 CELG-D / Equatorial Goiás",
+    "tabelas_usadas": [
+      { "id": "T2", "nome": "Iluminação + TUG residencial", "campo": "fd_residential_lighting_tug_group" },
+      { "id": "T3", "nome": "Chuveiro, micro-ondas, secadora, acumulação", "campo": "fd_table3" },
+      { "id": "T4", "nome": "Ar-condicionado residencial", "campo": "fd_table4_ac_residential" }
+    ],
+    "tipos_carga": [
+      "iluminacao", "tug", "chuveiro", "microondas", "ar_condicionado",
+      "geladeira", "secadora", "motor", "forno_fogao", "outro"
+    ],
+    "observacao": "FD é sempre calculado pelo backend — a IA só sugere composição de cargas (descricao, pot_w, qtd, fp, tipo)"
+  },
+
+  "hsp": {
+    "GO": {
+      "media_h_dia": 5.2,
+      "regiao": "Centro-Oeste",
+      "cidade_referencia": "Goiânia",
+      "nota": "Média estadual — ajustar por município quando conhecido (4,8–5,5 h/dia)"
+    }
+  },
+
+  "tokens_guia": {
+    "TENSAO_ATENDIMENTO": "Tensão de atendimento (220V ou 220/380V)",
+    "TENSAO_ATENDIMENTO_FORMATADA": "Tensão formatada para memorial",
+    "TIPO_LIGACAO": "MONOFASICO | BIFASICO | TRIFASICO",
+    "NUM_FASES": "1 mono, 2 bi, 3 tri — fórmula PD",
+    "DISJUNTOR_ENTRADA": "Corrente nominal disjuntor geral (A)",
+    "CORRENTE_ENTRADA": "Alias memorial — mesmo valor do disjuntor de entrada",
+    "BITOLA_CABO_CC": "Cabo CC módulo → inversor",
+    "BITOLA_CABO_CA": "Cabo CA inversor → quadro/padrão",
+    "BITOLA_CABO_PADRAO": "Cabo ramal padrão de entrada",
+    "CURVA_ATUACAO_DISJUNTOR": "Curva C típica residencial GO",
+    "DEMANDA_ALVO_KW": "Demanda-alvo para tabela NTC-04",
+    "TABELA_DEMANDA": "Levantamento de carga (texto ou tabela Word)",
+    "TABELA_DEMANDA_JSON": "Payload JSON da tabela para inserção no memorial"
+  },
+
+  "ia_instrucoes": {
+    "extracao_txt": [
+      "Identifique: nome, CPF, endereço, UC, classe (RESIDENCIAL/COMERCIAL), tipo_ligacao, tensao, disjuntor_entrada (A)",
+      "Extraia equipamentos: modulos[] e inversores[] com quantidade, fabricante, modelo, potencia",
+      "Busque demanda: 'demanda contratada', 'demanda alvo', 'carga instalada', 'kW' → demanda_alvo_kw",
+      "Busque cabos: bitola CC, CA, padrão se mencionados no TXT",
+      "UF padrão GO se não informada; concessionária Equatorial Goiás",
+      "num_poste: use 'ilégível' se não constar no TXT"
+    ],
+    "demanda_levantamento": [
+      "Monte cargas plausíveis para a classe e demanda-alvo informada",
+      "Não informe FD — calculado automaticamente pela NTC-04",
+      "Residencial GO típico: iluminação, TUG, chuveiro 5500 W, geladeira, micro-ondas, A/C",
+      "Ajuste potências/quantidades para aproximar demanda-alvo — validar in loco"
+    ],
+    "pos_processamento": [
+      "Após extrair TXT, cruzar com padrao_entrada GO por UF+tipo_ligacao+classe",
+      "Preencher bitolas conforme tabela_cabos se potência FV conhecida",
+      "Gerar tabela de demanda se demanda_alvo_kw presente",
+      "Sincronizar tokens do memorial com dados enriquecidos"
+    ]
+  }
+}

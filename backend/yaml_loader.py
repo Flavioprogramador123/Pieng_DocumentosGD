@@ -197,9 +197,16 @@ def normalized_to_frontend(normalized: dict) -> dict:
 def import_yaml_project(text: str) -> dict:
     raw = parse_yaml_content(text)
     normalized = normalize_form_payload(raw)
-    normalized, catalog_notes = enrich_from_catalog(normalized)
+    from token_enrichment import enrich_normalized_payload
+    normalized = enrich_normalized_payload(normalized)
+    from residential_defaults import apply_residential_defaults
     normalized = apply_residential_defaults(normalized)
     parsed = normalized_to_frontend(normalized)
+    catalog_notes: list[str] = []
+    for m in normalized.get('modulos') or []:
+        if m.get('voc'):
+            catalog_notes.append(f"Módulo {m.get('fabricante')} {m.get('modelo')}: specs OK")
+            break
     return {
         'success': True,
         'normalized': normalized,

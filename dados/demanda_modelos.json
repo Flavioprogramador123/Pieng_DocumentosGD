@@ -1,0 +1,130 @@
+{
+  "meta": {
+    "versao": "1.0.0",
+    "atualizado": "2026-08-29",
+    "norma": "NTC-04 Rev.4 CELG-D — Equatorial Goiás",
+    "descricao": "Modelos prontos de levantamento de carga para o memorial. O sistema recalcula FD pela NTC-04 e ajusta potências à demanda-alvo."
+  },
+  "modelos": [
+    {
+      "id": "res_mono_7kw",
+      "nome": "Residencial simples monofásico — 7 kW",
+      "descricao": "Casa padrão GO: chuveiro 5500 W, TUG, iluminação, geladeira, micro-ondas e 2 splits. Monofásico 220 V / 40 A.",
+      "classe": "RESIDENCIAL",
+      "tipo_ligacao": "MONOFASICO",
+      "tensao_atendimento": "220V",
+      "disjuntor_entrada_a": 40,
+      "demanda_alvo_kw": 7.0,
+      "notas": "Perfil mais usado em GD residencial monofásica em Goiás.",
+      "cargas": [
+        {"descricao": "Iluminação residencial", "tipo": "iluminacao", "pot_w": 100, "qtd": 12, "fp": 0.95},
+        {"descricao": "Tomadas de uso geral (TUG)", "tipo": "tug", "pot_w": 100, "qtd": 10, "fp": 0.92},
+        {"descricao": "Chuveiro elétrico", "tipo": "chuveiro", "pot_w": 5500, "qtd": 1, "fp": 1.0},
+        {"descricao": "Geladeira / freezer", "tipo": "geladeira", "pot_w": 300, "qtd": 1, "fp": 0.85},
+        {"descricao": "Forno de micro-ondas", "tipo": "microondas", "pot_w": 1000, "qtd": 1, "fp": 0.90},
+        {"descricao": "Ar-condicionado split", "tipo": "ar_condicionado", "pot_w": 1200, "qtd": 2, "fp": 0.85}
+      ]
+    },
+    {
+      "id": "res_mono_5kw",
+      "nome": "Apartamento compacto monofásico — 5 kW",
+      "descricao": "Apartamento ou kitnet: chuveiro 3500 W, poucas TUG, 1 split pequeno. Monofásico 220 V / 40 A.",
+      "classe": "RESIDENCIAL",
+      "tipo_ligacao": "MONOFASICO",
+      "tensao_atendimento": "220V",
+      "disjuntor_entrada_a": 40,
+      "demanda_alvo_kw": 5.0,
+      "notas": "Demanda baixa — limite útil próximo à PD monofásica 40 A (~8,1 kW).",
+      "cargas": [
+        {"descricao": "Iluminação residencial", "tipo": "iluminacao", "pot_w": 100, "qtd": 8, "fp": 0.95},
+        {"descricao": "Tomadas de uso geral (TUG)", "tipo": "tug", "pot_w": 100, "qtd": 6, "fp": 0.92},
+        {"descricao": "Chuveiro elétrico", "tipo": "chuveiro", "pot_w": 3500, "qtd": 1, "fp": 1.0},
+        {"descricao": "Geladeira", "tipo": "geladeira", "pot_w": 250, "qtd": 1, "fp": 0.85},
+        {"descricao": "Micro-ondas", "tipo": "microondas", "pot_w": 800, "qtd": 1, "fp": 0.90},
+        {"descricao": "Ar-condicionado split 9000 BTU", "tipo": "ar_condicionado", "pot_w": 900, "qtd": 1, "fp": 0.85}
+      ]
+    },
+    {
+      "id": "res_tri_12kw",
+      "nome": "Residência média trifásica — 12 kW",
+      "descricao": "Casa trifásica: chuveiro 5500 W, 3 splits, lava-louça. Trifásico 220/380 V / 63 A.",
+      "classe": "RESIDENCIAL",
+      "tipo_ligacao": "TRIFASICO",
+      "tensao_atendimento": "220/380V",
+      "disjuntor_entrada_a": 63,
+      "demanda_alvo_kw": 12.0,
+      "notas": "Residência com mais pontos e climatização em vários ambientes.",
+      "cargas": [
+        {"descricao": "Iluminação residencial", "tipo": "iluminacao", "pot_w": 100, "qtd": 14, "fp": 0.95},
+        {"descricao": "Tomadas de uso geral (TUG)", "tipo": "tug", "pot_w": 100, "qtd": 12, "fp": 0.92},
+        {"descricao": "Chuveiro elétrico", "tipo": "chuveiro", "pot_w": 5500, "qtd": 1, "fp": 1.0},
+        {"descricao": "Geladeira / freezer", "tipo": "geladeira", "pot_w": 350, "qtd": 1, "fp": 0.85},
+        {"descricao": "Micro-ondas", "tipo": "microondas", "pot_w": 1200, "qtd": 1, "fp": 0.90},
+        {"descricao": "Ar-condicionado split", "tipo": "ar_condicionado", "pot_w": 1800, "qtd": 3, "fp": 0.85},
+        {"descricao": "Lava-louças", "tipo": "lava_louca", "pot_w": 1500, "qtd": 1, "fp": 0.90}
+      ]
+    },
+    {
+      "id": "res_tri_18kw",
+      "nome": "Residência moderna trifásica — 18 kW",
+      "descricao": "Sobrado ou casa de alto padrão: 2 chuveiros, 4 splits, secadora, bomba de piscina. Trifásico 63 A.",
+      "classe": "RESIDENCIAL",
+      "tipo_ligacao": "TRIFASICO",
+      "tensao_atendimento": "220/380V",
+      "disjuntor_entrada_a": 63,
+      "demanda_alvo_kw": 18.0,
+      "notas": "Climatização intensa e equipamentos eletrodomésticos de maior porte.",
+      "cargas": [
+        {"descricao": "Iluminação residencial", "tipo": "iluminacao", "pot_w": 100, "qtd": 18, "fp": 0.95},
+        {"descricao": "Tomadas de uso geral (TUG)", "tipo": "tug", "pot_w": 100, "qtd": 16, "fp": 0.92},
+        {"descricao": "Chuveiro suíte master", "tipo": "chuveiro", "pot_w": 6500, "qtd": 1, "fp": 1.0},
+        {"descricao": "Chuveiro banheiro social", "tipo": "chuveiro", "pot_w": 5500, "qtd": 1, "fp": 1.0},
+        {"descricao": "Geladeira duplex", "tipo": "geladeira", "pot_w": 400, "qtd": 1, "fp": 0.85},
+        {"descricao": "Freezer horizontal", "tipo": "geladeira", "pot_w": 350, "qtd": 1, "fp": 0.85},
+        {"descricao": "Micro-ondas / forno elétrico", "tipo": "microondas", "pot_w": 1500, "qtd": 1, "fp": 0.90},
+        {"descricao": "Ar-condicionado split", "tipo": "ar_condicionado", "pot_w": 2400, "qtd": 4, "fp": 0.85},
+        {"descricao": "Secadora de roupas", "tipo": "secadora", "pot_w": 2500, "qtd": 1, "fp": 0.85},
+        {"descricao": "Bomba de piscina", "tipo": "motor", "pot_w": 1200, "qtd": 1, "fp": 0.85}
+      ]
+    },
+    {
+      "id": "com_mono_10kw",
+      "nome": "Comércio pequeno monofásico — 10 kW",
+      "descricao": "Loja de bairro, salão ou escritório: iluminação comercial, 2 splits, vitrine refrigerada. Monofásico 50 A.",
+      "classe": "COMERCIAL",
+      "tipo_ligacao": "MONOFASICO",
+      "tensao_atendimento": "220V",
+      "disjuntor_entrada_a": 50,
+      "demanda_alvo_kw": 10.0,
+      "notas": "Comércio de pequeno porte em ramal monofásico.",
+      "cargas": [
+        {"descricao": "Iluminação comercial", "tipo": "iluminacao", "pot_w": 120, "qtd": 16, "fp": 0.95},
+        {"descricao": "Tomadas de uso geral", "tipo": "tug", "pot_w": 150, "qtd": 10, "fp": 0.90},
+        {"descricao": "Ar-condicionado comercial", "tipo": "ar_condicionado", "pot_w": 3000, "qtd": 2, "fp": 0.85},
+        {"descricao": "Geladeira expositora", "tipo": "geladeira", "pot_w": 400, "qtd": 2, "fp": 0.85},
+        {"descricao": "Freezer vertical", "tipo": "geladeira", "pot_w": 350, "qtd": 1, "fp": 0.85},
+        {"descricao": "Computador / PDV / impressora", "tipo": "tug", "pot_w": 800, "qtd": 1, "fp": 0.95}
+      ]
+    },
+    {
+      "id": "com_tri_22kw",
+      "nome": "Comércio trifásico — 22 kW",
+      "descricao": "Loja média, padaria ou clínica: climatização, câmaras frias, equipamentos de atendimento. Trifásico 100 A.",
+      "classe": "COMERCIAL",
+      "tipo_ligacao": "TRIFASICO",
+      "tensao_atendimento": "220/380V",
+      "disjuntor_entrada_a": 100,
+      "demanda_alvo_kw": 22.0,
+      "notas": "Perfil comercial trifásico típico para GD de médio porte.",
+      "cargas": [
+        {"descricao": "Iluminação comercial e vitrine", "tipo": "iluminacao", "pot_w": 150, "qtd": 24, "fp": 0.95},
+        {"descricao": "Tomadas e circuitos auxiliares", "tipo": "tug", "pot_w": 200, "qtd": 14, "fp": 0.90},
+        {"descricao": "Ar-condicionado comercial", "tipo": "ar_condicionado", "pot_w": 3500, "qtd": 4, "fp": 0.85},
+        {"descricao": "Geladeira expositora", "tipo": "geladeira", "pot_w": 800, "qtd": 3, "fp": 0.85},
+        {"descricao": "Freezer / câmara fria compacta", "tipo": "geladeira", "pot_w": 600, "qtd": 2, "fp": 0.85},
+        {"descricao": "Forno elétrico / equipamento padaria", "tipo": "microondas", "pot_w": 3000, "qtd": 1, "fp": 0.90},
+        {"descricao": "Motobomba / exaustão", "tipo": "motor", "pot_w": 1500, "qtd": 1, "fp": 0.85}
+      ]
+    }
+  ]
+}

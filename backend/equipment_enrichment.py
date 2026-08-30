@@ -207,15 +207,13 @@ Potência nominal (kW): {potencia_kw or 'desconhecida'}
 
 
 def _needs_module_enrichment(module):
-    return bool(module.get('modelo')) and not all(
-        module.get(k) for k in ('voc', 'isc', 'vmpp', 'impp')
-    )
+    modelo = module.get('modelo') or module.get('model')
+    return bool(modelo) and not all(module.get(k) for k in ('voc', 'isc', 'vmpp', 'impp'))
 
 
 def _needs_inverter_enrichment(inverter):
-    return bool(inverter.get('modelo')) and not all(
-        inverter.get(k) for k in ('mppt_min', 'mppt_max')
-    )
+    modelo = inverter.get('modelo') or inverter.get('model')
+    return bool(modelo) and not all(inverter.get(k) for k in ('mppt_min', 'mppt_max'))
 
 
 def _merge_specs(target, specs, fields):
@@ -224,27 +222,58 @@ def _merge_specs(target, specs, fields):
             target[field] = specs[field]
 
 
-def enrich_module_specs(fabricante, modelo, potencia=None):
-    row = lookup_module(fabricante, modelo)
+def enrich_module_specs(fabricante, modelo, potencia=None, catalog_only=False):
+    """
+    Busca especificações de módulo:
+    1. Catálogo SQLite (match exato — sem aproximar potência)
+    2. IA (Ollama/Gemini) — só se catalog_only=False
+    """
+    from catalog_db import find_module_by_name_or_power
+
+    row = find_module_by_name_or_power(
+        fabricante=fabricante or '',
+        modelo=modelo or '',
+        potencia_wp=potencia or 0,
+    )
+
     if row:
         return catalog_module_to_specs(row), 'catalog'
+
+    if catalog_only:
+        return {}, 'none'
+
     specs, source = _query_specs(_module_prompt(fabricante, modelo, potencia))
     return specs, source
 
 
-def enrich_inverter_specs(fabricante, modelo, potencia_kw=None):
-    row = lookup_inverter(fabricante, modelo)
+def enrich_inverter_specs(fabricante, modelo, potencia_kw=None, catalog_only=False):
+    """
+    Busca especificações de inversor:
+    1. Catálogo SQLite (match exato)
+    2. IA — só se catalog_only=False
+    """
+    from catalog_db import find_inverter_by_name_or_power
+
+    row = find_inverter_by_name_or_power(
+        fabricante=fabricante or '',
+        modelo=modelo or '',
+        potencia_kw=potencia_kw or 0,
+    )
+
     if row:
         return catalog_inverter_to_specs(row), 'catalog'
+
+    if catalog_only:
+        return {}, 'none'
+
     specs, source = _query_specs(_inverter_prompt(fabricante, modelo, potencia_kw))
     return specs, source
 
 
-def enrich_equipment_lists(modulos, inversores, save_to_catalog=False):
+def enrich_equipment_lists(modulos, inversores, save_to_catalog=False, catalog_only=False):
     """
     Preenche lacunas em modulos[] e inversores[] quando modelo está informado.
-    Consulta catálogo SQLite antes da IA.
-    Retorna (modulos, inversores, sources_used).
+    Consulta catálogo SQLite; IA só se catalog_only=False (botão Enriquecer com IA).
     """
     sources = []
     enriched_modulos = []
@@ -253,14 +282,19 @@ def enrich_equipment_lists(modulos, inversores, save_to_catalog=False):
         if _needs_module_enrichment(item):
             specs, source = enrich_module_specs(
                 item.get('fabricante'),
-                item.get('modelo'),
-                item.get('potencia'),
+                item.get('modelo') or item.get('model'),
+                item.get('potencia') or item.get('power'),
+                catalog_only=catalog_only,
             )
             if source != 'none':
                 sources.append(f'modulo:{source}')
             _merge_specs(item, specs, ('voc', 'isc', 'vmpp', 'impp', 'eficiencia'))
             if save_to_catalog and source not in ('none', 'catalog'):
-                save_module_from_form(item.get('fabricante'), item.get('modelo'), item)
+                save_module_from_form(
+                    item.get('fabricante'),
+                    item.get('modelo') or item.get('model'),
+                    item,
+                )
         enriched_modulos.append(item)
 
     enriched_inversores = []
@@ -269,8 +303,9 @@ def enrich_equipment_lists(modulos, inversores, save_to_catalog=False):
         if _needs_inverter_enrichment(item):
             specs, source = enrich_inverter_specs(
                 item.get('fabricante'),
-                item.get('modelo'),
-                item.get('potencia'),
+                item.get('modelo') or item.get('model'),
+                item.get('potencia') or item.get('power'),
+                catalog_only=catalog_only,
             )
             if source != 'none':
                 sources.append(f'inversor:{source}')
@@ -280,7 +315,11 @@ def enrich_equipment_lists(modulos, inversores, save_to_catalog=False):
                 ('tensao_nominal', 'corrente_nominal', 'mppt_min', 'mppt_max', 'eficiencia', 'num_mppt', 'tipo_inversor'),
             )
             if save_to_catalog and source not in ('none', 'catalog'):
-                save_inverter_from_form(item.get('fabricante'), item.get('modelo'), item)
+                save_inverter_from_form(
+                    item.get('fabricante'),
+                    item.get('modelo') or item.get('model'),
+                    item,
+                )
         enriched_inversores.append(item)
 
     return enriched_modulos, enriched_inversores, list(dict.fromkeys(sources))

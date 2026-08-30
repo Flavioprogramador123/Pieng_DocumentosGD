@@ -11,8 +11,8 @@ from typing import Any
 RESIDENTIAL_TECHNICAL_DEFAULTS = {
     'tipo_aterramento': 'Haste copper 2,4 m com caixa de inspeção',
     'resistencia_aterramento': '≤ 10 Ω',
-    'bitola_cabo_cc': '6 mm²',
-    'bitola_cabo_ca': '10 mm²',
+    'bitola_cabo_cc': '4 mm²',
+    'bitola_cabo_ca': '6 mm²',
     'bitola_cabo_padrao': '10 mm²',
     'curva_disjuntor': 'C',
     'dps_tipo': 'DPS Classe II',
@@ -30,6 +30,7 @@ RESIDENTIAL_UC_DEFAULTS = {
     'classe': 'RESIDENCIAL',
     'disjuntor_entrada': '40',
     'fuso_utm': '22S',
+    'num_poste': 'ilégível',
 }
 
 
@@ -118,16 +119,21 @@ def apply_residential_defaults(payload: dict) -> dict:
         ):
             tipo = result['dados_tecnicos']['tipo_aterramento']
             res = result['dados_tecnicos'].get('resistencia_aterramento', '')
-            result['dados_tecnicos']['aterramento'] = f'{tipo} — {res}'.strip(' —')
+            res_txt = str(res).strip()
+            if res_txt and not res_txt.endswith('Ω'):
+                res_txt = f'{res_txt} Ω'
+            result['dados_tecnicos']['aterramento'] = f'{tipo} — {res_txt}'.strip(' —')
 
     # Data do documento / operação → hoje se vazio
+    contrato = result.setdefault('contrato', {})
     doc_date = (
-        result['dados_tecnicos'].get('data_documento')
+        contrato.get('data_documento')
+        or result['dados_tecnicos'].get('data_documento')
         or result['cliente'].get('data_documento')
     )
     if _is_empty(doc_date):
         doc_date = today_iso()
-        result['dados_tecnicos']['data_documento'] = doc_date
+    contrato.setdefault('data_documento', doc_date)
 
     if _is_empty(result['dados_tecnicos'].get('data_operacao')):
         result['dados_tecnicos']['data_operacao'] = doc_date

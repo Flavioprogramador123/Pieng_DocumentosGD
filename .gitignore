@@ -11,6 +11,25 @@ backend/config_padrao.local.json
 # Saída gerada
 saida/
 data/catalog.db
+data/catalog.db-shm
+data/catalog.db-wal
+data/users.json
+data/trusted_devices.json
+data/pending_device_verifications.json
+
+# Protótipos e temp
+.temp/
+
+# Ambientes legados dentro de obsoleto/
+obsoleto/venv/
+obsoleto/node_modules/
+
+# Backups locais de templates
+templates/*.bak*
+templates/~$*
+
+# Config local do IDE
+.claude/settings.local.json
 
 # Python
 __pycache__/

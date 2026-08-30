@@ -21,6 +21,15 @@ UF_VOLTAGE: dict[str, dict[str, float]] = {
     'DEFAULT': {'monofasico': 220.0, 'bifasico': 220.0, 'trifasico': 380.0},
 }
 
+try:
+    from normas_loader import get_uf_voltage_map
+
+    _normas_voltages = get_uf_voltage_map()
+    for _uf, _vals in (_normas_voltages or {}).items():
+        UF_VOLTAGE.setdefault(_uf, {}).update(_vals)
+except Exception:
+    pass
+
 
 def _map_system_type(tipo_ligacao: str | None) -> str:
     t = (tipo_ligacao or '').upper()
@@ -29,6 +38,60 @@ def _map_system_type(tipo_ligacao: str | None) -> str:
     if 'BIF' in t:
         return 'bifasico'
     return 'monofasico'
+
+
+def resolve_ligacao_config(tipo_ligacao: str | None = None) -> dict[str, Any]:
+    """
+    Mapeia tipo de ligação para NF (fórmula PD), condutores e disjuntor.
+
+    NF em PD = VN × IDG × NF × FP é o número de FASES energizadas (1/2/3),
+    não a quantidade de polos do disjuntor nem condutores do ramal.
+    Monofásico 220 V: NF=1, 1 condutor fase + 1 neutro, disjuntor monopolar (1 polo no memorial).
+    """
+    system_type = _map_system_type(tipo_ligacao)
+    t = (tipo_ligacao or '').upper()
+
+    if 'TRIF' in t or system_type == 'trifasico':
+        return {
+            'system_type': 'trifasico',
+            'num_fases': 3,
+            'qtd_condutores_fase': '3',
+            'qtd_condutores_neutro': '1',
+            'num_polos_disjuntor': '3',
+            'descricao_polos': 'Tripolar',
+            'tipo_rede': 'Trifásico',
+            'descricao_conexao_inversores': (
+                'conectados em fases distintas do sistema trifásico para balanceamento de carga'
+            ),
+            'descricao_disjuntor_padrao': 'Disjuntor tripolar',
+        }
+    if 'BIF' in t or system_type == 'bifasico':
+        return {
+            'system_type': 'bifasico',
+            'num_fases': 2,
+            'qtd_condutores_fase': '2',
+            'qtd_condutores_neutro': '1',
+            'num_polos_disjuntor': '3',
+            'descricao_polos': 'Tripolar',
+            'tipo_rede': 'Bifásico',
+            'descricao_conexao_inversores': (
+                'conectados em fases distintas do sistema bifásico para balanceamento de carga'
+            ),
+            'descricao_disjuntor_padrao': 'Disjuntor tripolar',
+        }
+    return {
+        'system_type': 'monofasico',
+        'num_fases': 1,
+        'qtd_condutores_fase': '1',
+        'qtd_condutores_neutro': '1',
+        'num_polos_disjuntor': '1',
+        'descricao_polos': 'Unipolar',
+        'tipo_rede': 'Monofásico',
+        'descricao_conexao_inversores': (
+            'conectados em paralelo na mesma fase do circuito monofásico'
+        ),
+        'descricao_disjuntor_padrao': 'Disjuntor monopolar',
+    }
 
 
 def _parse_dual_voltage(text: str | None) -> tuple[float | None, float | None]:
@@ -59,8 +122,9 @@ def resolve_ac_voltage(
     v_mono, v_tri = _parse_dual_voltage(tensao_atendimento)
     if system_type == 'trifasico':
         voltage = v_tri or defaults['trifasico']
-        formula = 'I = P / (√3 × V_LL)'
-        note = f'Trifásico 120° — V_LL = {voltage:.0f} V'
+        v_ln = v_mono or defaults['monofasico']
+        formula = 'I = P / V (micro fase-neutro) ou I = P / (√3 × V_LL) (inversor string)'
+        note = f'Trifásico 120° — V fase-neutro = {v_ln:.0f} V, V_LL = {voltage:.0f} V'
     elif system_type == 'bifasico':
         voltage = v_mono or defaults['bifasico']
         formula = 'I = P / V_fase'

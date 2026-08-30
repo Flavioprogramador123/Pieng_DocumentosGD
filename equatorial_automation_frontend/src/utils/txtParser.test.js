@@ -84,3 +84,61 @@ test('extrai o TXT colado do Rosembergue', () => {
   assert.equal(inverters[0].power, '2.25')
   assert.equal(inverters[0].fabricante, 'DEYE')
 })
+
+test('parseTxtData — contrato e texto pagamento multilinha', () => {
+  const txt = `contrato : 123/2026
+
+texto pagamento:
+
+O investimento objeto deste contrato é de R$ 11.500,00;
+
+ - entrada de R$ 5.000,00 (já pagos).
+
+restante em 18x R$ 429,03 no cartão de crédito, no início das obras.`
+
+  const { contract } = parseTxtData(txt)
+  assert.equal(contract.numero_contrato, '123/2026')
+  assert.match(contract.texto_valor_pagamento_contrato, /R\$ 11\.500,00/)
+  assert.match(contract.texto_valor_pagamento_contrato, /entrada de R\$ 5\.000,00/)
+  assert.match(contract.texto_valor_pagamento_contrato, /18x R\$ 429,03/)
+})
+
+test('parseTxtData — coordenadas Google Earth (UTM + graus)', () => {
+  const txt = `Coordenadas: 22 K 722658.18 m E 8193755.57 m S / -16.326994 -48.915886`
+  const { technical } = parseTxtData(txt)
+  assert.equal(technical.coordenada_utm_x, '722658.18')
+  assert.equal(technical.coordenada_utm_y, '8193755.57')
+  assert.equal(technical.fuso_utm, '22S')
+  assert.equal(technical.latitude, '-16.326994')
+  assert.equal(technical.longitude, '-48.915886')
+})
+
+test('parseTxtData — graus decimais calculam UTM (Google Earth)', () => {
+  const txt = `Coordenadas georreferenciadas: -16.306664, -48.913032`
+  const { technical } = parseTxtData(txt)
+  assert.equal(technical.latitude, '-16.306664')
+  assert.equal(technical.longitude, '-48.913032')
+  assert.equal(technical.coordenada_utm_x, '722986.05')
+  assert.equal(technical.coordenada_utm_y, '8196002.05')
+  assert.equal(technical.fuso_utm, '22S')
+})
+
+test('parseTxtData — auditoria Google Earth faixa L (UTM + graus)', () => {
+  const txt = `Coordenadas: 22 L 713364.87 m E, 8243329.38 m S / -15.879944 -49.007317`
+  const { technical } = parseTxtData(txt)
+  assert.equal(technical.coordenada_utm_x, '713364.87')
+  assert.equal(technical.coordenada_utm_y, '8243329.38')
+  assert.equal(technical.fuso_utm, '22S')
+  assert.equal(technical.latitude, '-15.879944')
+  assert.equal(technical.longitude, '-49.007317')
+})
+
+test('parseTxtData — auditoria faixa L: graus decimais → UTM (~1 m)', () => {
+  const txt = `Coordenadas georreferenciadas: -15.879944, -49.007317`
+  const { technical } = parseTxtData(txt)
+  assert.equal(technical.latitude, '-15.879944')
+  assert.equal(technical.longitude, '-49.007317')
+  assert.equal(technical.coordenada_utm_x, '713363.95')
+  assert.equal(technical.coordenada_utm_y, '8243328.96')
+  assert.equal(technical.fuso_utm, '22S')
+})

@@ -15,6 +15,14 @@ from advanced_calculations import (
 )
 from demand_table import generate_demand_table
 from grid_voltage import resolve_ac_voltage
+from nbr5410_calculations import (
+    calculate_ac_current_nbr5410,
+    validate_inverter_network_compatibility,
+    validate_network_power_limit,
+    calculate_breaker_per_phase,
+    analyze_microinverter_distribution,
+    calculate_breaker_groups_microinverters,
+)
 from string_calculations import ac_current_a, analyze_dc_strings
 
 
@@ -54,6 +62,51 @@ def _map_system_type(tipo_ligacao: str | None) -> str:
     return 'monofasico'
 
 
+def _parse_bitola_mm2(val: Any) -> float | None:
+    if val is None or str(val).strip() == '':
+        return None
+    match = re.search(r'([\d]+(?:[.,]\d+)?)', str(val))
+    if not match:
+        return None
+    try:
+        return float(match.group(1).replace(',', '.'))
+    except ValueError:
+        return None
+
+
+def _validate_user_cables(
+    technical: dict,
+    recommended_cc: str,
+    recommended_ca: str,
+    recommended_padrao: str | None = None,
+) -> list[str]:
+    """Compara bitolas informadas pelo usuário com as recomendadas — só alerta, não altera."""
+    warnings: list[str] = []
+    checks = [
+        ('bitola_cabo_cc', recommended_cc, 'CC (inversor)'),
+        ('bitola_cabo_ca', recommended_ca, 'CA (inversor)'),
+    ]
+    if recommended_padrao:
+        checks.append(('bitola_cabo_padrao', recommended_padrao, 'padrão de entrada'))
+
+    for field, recommended, label in checks:
+        user_mm = _parse_bitola_mm2(technical.get(field))
+        rec_mm = _parse_bitola_mm2(recommended)
+        if user_mm is None or rec_mm is None:
+            continue
+        if user_mm < rec_mm:
+            warnings.append(
+                f'Cabo {label}: informado {user_mm:g} mm², recomendado {rec_mm:g} mm² '
+                f'(abaixo do sugerido — confira NBR 5410).'
+            )
+        elif user_mm > rec_mm:
+            warnings.append(
+                f'Cabo {label}: informado {user_mm:g} mm², recomendado {rec_mm:g} mm² '
+                f'(acima do mínimo — OK se conferido).'
+            )
+    return warnings
+
+
 def calculate_technical_parameters(modules, inverters, context: dict | None = None) -> dict[str, Any]:
     """
     Calcula parâmetros técnicos completos.
@@ -80,7 +133,13 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
         and _safe_float(i.get('potencia', i.get('power'))) > 0
     )
 
-    hsp = float(context.get('hsp') or 5.2)
+    hsp = float(context.get('hsp') or 0)
+    if hsp <= 0:
+        try:
+            from normas_loader import get_hsp
+            hsp = get_hsp(client.get('uf'))
+        except Exception:
+            hsp = 5.2
     efficiency = 0.80
     days_per_month = 30.4
     estimated_monthly = total_module_power_kw * hsp * efficiency * days_per_month
@@ -101,19 +160,88 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
     else:
         cable_cc, cable_ca = '25mm²', '35mm²'
 
+    try:
+        from normas_loader import get_bitola_ca, get_bitola_cc
+        cable_cc = get_bitola_cc(total_module_power_kw).replace(' ', '')
+        cable_ca = get_bitola_ca(total_inverter_power_kw).replace(' ', '')
+    except Exception:
+        pass
+
     voltage_info = resolve_ac_voltage(
         uf=client.get('uf'),
         tipo_ligacao=client.get('tipo_ligacao'),
         tensao_atendimento=client.get('tensao_atendimento') or technical.get('tensao_atendimento'),
     )
     voltage = voltage_info['voltage_v']
+    voltage_ln = voltage_info['voltage_ln_v']
     system_type = voltage_info['system_type']
     power_w = max(total_inverter_power_kw, total_module_power_kw) * 1000
 
     dc_strings = analyze_dc_strings(modules or [], inverters or [], technical)
-    corrente_ac = ac_current_a(total_inverter_power_kw, voltage_info)
 
-    disjuntor_recomendado = max(10, int(math.ceil(corrente_ac * 1.25))) if corrente_ac else 0
+    topology = dc_strings.get('topology', 'string')
+    num_inverters = dc_strings.get('inverter_quantity', 1)
+
+    v_calc = voltage_ln if (topology == 'micro' and system_type == 'trifasico') else voltage
+
+    ac_current_result = calculate_ac_current_nbr5410(
+        power_kw=total_inverter_power_kw,
+        voltage_v=voltage,
+        system_type=system_type,
+        topology=topology,
+        num_devices=num_inverters,
+        voltage_ln_v=voltage_ln,
+    )
+
+    corrente_ac = ac_current_result['current_total_a']
+    corrente_por_fase = ac_current_result['current_per_phase_a']
+
+    # Validar compatibilidade inversor × rede
+    inverter_type = (inverters[0].get('tipo_inversor') or technical.get('tipo_inversor') or '').lower() if inverters else ''
+    network_compatibility = validate_inverter_network_compatibility(
+        inverter_type=inverter_type or system_type,
+        network_type=system_type,
+        topology=topology,
+    )
+
+    # Validar limite de potência da rede
+    power_limit = validate_network_power_limit(
+        power_kw=total_inverter_power_kw,
+        voltage_v=voltage,
+        system_type=system_type,
+    )
+
+    # Disjuntores CA conforme topologia (micro: grupos até 3 em série; string: 1 por inversor)
+    if topology == 'micro' and num_inverters > 0:
+        power_per_micro = (total_inverter_power_kw * 1000) / num_inverters
+        breaker_groups_info = calculate_breaker_groups_microinverters(
+            num_microinverters=num_inverters,
+            power_per_micro_w=power_per_micro,
+            voltage_v=v_calc,
+        )
+        # Respeitar agrupamento informado pelo usuário (1–3 micros/disjuntor)
+        user_group = _safe_int(technical.get('micros_por_grupo_ca'), 3) or 3
+        user_group = min(3, max(1, user_group))
+        if user_group != 3:
+            micro_groups = dc_strings.get('micro_groups') or []
+            breaker_groups_info = {
+                'num_breakers': len(micro_groups) or breaker_groups_info['num_breakers'],
+                'breaker_groups': breaker_groups_info.get('breaker_groups') or [],
+                'total_breakers_detail': (
+                    f'{len(micro_groups)} disjuntor(es) CA — até {user_group} micro(s) em série por disjuntor'
+                ),
+            }
+        num_breakers_ca = dc_strings.get('num_ca_breakers') or breaker_groups_info['num_breakers']
+    else:
+        num_breakers_ca = num_inverters
+        breaker_groups_info = {
+            'num_breakers': num_inverters,
+            'breaker_groups': [],
+            'total_breakers_detail': f'{num_inverters} disjuntor(es) CA (1 por inversor string)',
+        }
+
+    breaker_result = calculate_breaker_per_phase(corrente_por_fase)
+    disjuntor_recomendado = breaker_result['breaker_rated_a']
     tarifa = 1.10
     economia_mensal = estimated_monthly * tarifa
 
@@ -124,7 +252,11 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
     # Cabo CC: preferir Isc de projeto das strings (paralelo), não soma errada de módulos
     if dc_strings.get('isc_design_a'):
         isc = dc_strings['isc_design_a']
-        cable_cc = '6mm²' if isc <= 15 else '10mm²' if isc <= 25 else '16mm²'
+        try:
+            from normas_loader import get_bitola_cc
+            cable_cc = get_bitola_cc(total_module_power_kw, isc_a=isc).replace(' ', '')
+        except Exception:
+            cable_cc = '6mm²' if isc <= 15 else '10mm²' if isc <= 25 else '16mm²'
     else:
         cable_cc = cable_cc  # noqa: keep heuristic from power tier above
 
@@ -148,6 +280,47 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
     if dc_strings.get('status') == 'ERRO':
         compatibility_status = 'ERRO'
 
+    # Adicionar avisos NBR 5410
+    compatibility_messages.extend(ac_current_result.get('warnings') or [])
+    if ac_current_result.get('warnings') and compatibility_status == 'OK':
+        compatibility_status = 'ATENÇÃO'
+
+    # Adicionar compatibilidade de rede
+    if not network_compatibility['compatible']:
+        compatibility_status = 'ERRO'
+        compatibility_messages.append(network_compatibility['message'])
+    else:
+        compatibility_messages.append(network_compatibility['message'])
+
+    # Adicionar validação de limite de potência
+    if not power_limit['valid']:
+        compatibility_status = 'ERRO'
+        compatibility_messages.append(power_limit['message'])
+    else:
+        compatibility_messages.append(power_limit['message'])
+
+    recommended_padrao = None
+    try:
+        from normas_loader import get_bitola_padrao
+        idg = float(
+            str(
+                technical.get('disjuntor_entrada')
+                or client.get('disjuntor_entrada')
+                or '40'
+            ).replace(',', '.')
+        )
+        recommended_padrao = get_bitola_padrao(idg)
+    except (TypeError, ValueError):
+        recommended_padrao = '10 mm²'
+
+    cable_warnings = _validate_user_cables(
+        technical, cable_cc, cable_ca, recommended_padrao,
+    )
+    if cable_warnings:
+        compatibility_messages.extend(cable_warnings)
+        if compatibility_status == 'OK':
+            compatibility_status = 'ATENÇÃO'
+
     result: dict[str, Any] = {
         'total_module_power_kw': round(total_module_power_kw, 2),
         'total_inverter_power_kw': round(total_inverter_power_kw, 2),
@@ -161,6 +334,12 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
         'voltage_info': voltage_info,
         'system_type': system_type,
         'corrente_ac_a': round(corrente_ac, 2),
+        'corrente_por_fase_a': round(corrente_por_fase, 2),
+        'ac_current_nbr5410': ac_current_result,
+        'network_compatibility': network_compatibility,
+        'power_limit': power_limit,
+        'num_breakers_ca': num_breakers_ca,
+        'breaker_groups': breaker_groups_info,
         'dc_strings': dc_strings,
         'cable_section_cc': cable_cc,
         'cable_section_ca': cable_ca,
@@ -182,8 +361,10 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
         'cables': {
             'recommended_cc': cable_cc,
             'recommended_ca': cable_ca,
+            'recommended_padrao': recommended_padrao,
             'detail': cables_detail,
         },
+        'cable_warnings': cable_warnings,
         'protection': protection_detail,
         'compatibility': {
             'status': compatibility_status,
@@ -201,18 +382,32 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
         or context.get('demanda_alvo_kw')
         or client.get('demanda_alvo_kw')
     )
-    if demanda_raw not in (None, ''):
+    modelo_id = technical.get('demanda_modelo_id') or context.get('demanda_modelo_id')
+    if demanda_raw not in (None, '') or modelo_id:
         try:
-            target = float(str(demanda_raw).replace(',', '.'))
-            prefer_ai = bool(context.get('demand_table_ai'))
-            result['demand_table'] = generate_demand_table(
-                target_kw=target,
-                classe=client.get('classe') or 'INDUSTRIAL',
-                client_name=client.get('client_name') or client.get('nome') or '',
-                uc=client.get('consumer_unit') or client.get('numero') or '',
-                notes=technical.get('demanda_notas') or '',
-                prefer_ai=prefer_ai,
-            )
+            if modelo_id:
+                from demand_presets import generate_from_model
+                target = None
+                if demanda_raw not in (None, ''):
+                    target = float(str(demanda_raw).replace(',', '.'))
+                result['demand_table'] = generate_from_model(
+                    modelo_id,
+                    client_name=client.get('client_name') or client.get('nome') or '',
+                    uc=client.get('consumer_unit') or client.get('numero') or '',
+                    target_kw=target,
+                    notes=technical.get('demanda_notas') or '',
+                )
+            else:
+                target = float(str(demanda_raw).replace(',', '.'))
+                prefer_ai = bool(context.get('demand_table_ai'))
+                result['demand_table'] = generate_demand_table(
+                    target_kw=target,
+                    classe=client.get('classe') or 'RESIDENCIAL',
+                    client_name=client.get('client_name') or client.get('nome') or '',
+                    uc=client.get('consumer_unit') or client.get('numero') or '',
+                    notes=technical.get('demanda_notas') or '',
+                    prefer_ai=prefer_ai,
+                )
         except (TypeError, ValueError) as exc:
             result['demand_table_error'] = str(exc)
 
@@ -231,7 +426,11 @@ def _build_all_items(calc: dict) -> list[dict]:
         {'grupo': 'Elétrico', 'rotulo': 'Tensão de cálculo', 'valor': f"{calc['voltage_v']} V ({calc.get('voltage_info', {}).get('note', '')})", 'token': 'TENSAO_ATENDIMENTO'},
         {'grupo': 'Elétrico', 'rotulo': 'Fórmula corrente AC', 'valor': calc.get('voltage_info', {}).get('formula', '—'), 'token': None},
         {'grupo': 'Elétrico', 'rotulo': 'Corrente AC estimada', 'valor': f"{calc['corrente_ac_a']} A", 'token': 'CORRENTE_ENTRADA'},
+        {'grupo': 'Elétrico', 'rotulo': 'Corrente por fase', 'valor': f"{calc.get('corrente_por_fase_a', '—')} A", 'token': None},
+        {'grupo': 'Elétrico', 'rotulo': 'Fórmula NBR 5410', 'valor': (calc.get('ac_current_nbr5410') or {}).get('formula', '—'), 'token': None},
+        {'grupo': 'Elétrico', 'rotulo': 'Distribuição CA', 'valor': (calc.get('ac_current_nbr5410') or {}).get('distribution', '—'), 'token': None},
         {'grupo': 'Elétrico', 'rotulo': 'Disjuntor recomendado', 'valor': f"{calc['disjuntor_recomendado_a']} A", 'token': 'DISJUNTOR_ENTRADA'},
+        {'grupo': 'Elétrico', 'rotulo': 'Qtd disjuntores CA', 'valor': str(calc.get('num_breakers_ca', '—')), 'token': None},
         {'grupo': 'Cabos', 'rotulo': 'Bitola CC recomendada', 'valor': calc['cable_section_cc'], 'token': 'BITOLA_CABO_CC'},
         {'grupo': 'Cabos', 'rotulo': 'Bitola CA recomendada', 'valor': calc['cable_section_ca'], 'token': 'BITOLA_CABO_CA'},
         {'grupo': 'Economia', 'rotulo': 'Economia mensal estimada', 'valor': f"R$ {calc['economia_mensal_estimada']}", 'token': None},
@@ -241,10 +440,33 @@ def _build_all_items(calc: dict) -> list[dict]:
         items.extend([
             {'grupo': 'Strings CC', 'rotulo': 'Topologia', 'valor': dc.get('topology', '—'), 'token': None},
             {'grupo': 'Strings CC', 'rotulo': 'Módulos/string', 'valor': str(dc.get('modules_per_string', '—')), 'token': None},
+            {'grupo': 'Strings CC', 'rotulo': 'Strings/MPPT (paralelo)', 'valor': str(dc.get('strings_per_mppt', '—')), 'token': None},
+            {'grupo': 'Strings CC', 'rotulo': 'Total strings', 'valor': str(dc.get('strings_count', '—')), 'token': None},
             {'grupo': 'Strings CC', 'rotulo': 'Voc string (série)', 'valor': f"{dc.get('string_voc_v', '—')} V", 'token': None},
             {'grupo': 'Strings CC', 'rotulo': 'Isc string (= módulo)', 'valor': f"{dc.get('string_isc_a', '—')} A", 'token': None},
             {'grupo': 'Strings CC', 'rotulo': 'Isc projeto (×1,25)', 'valor': f"{dc.get('isc_design_a', '—')} A", 'token': None},
         ])
+        if dc.get('configuracao_strings_text'):
+            items.append({
+                'grupo': 'Strings CC',
+                'rotulo': 'Texto memorial (config.)',
+                'valor': dc['configuracao_strings_text'][:120] + '…' if len(dc['configuracao_strings_text']) > 120 else dc['configuracao_strings_text'],
+                'token': 'CONFIGURACAO_STRINGS_CC',
+            })
+        if dc.get('protecao_cc_text'):
+            items.append({
+                'grupo': 'Proteção',
+                'rotulo': 'Proteção CC (texto)',
+                'valor': dc['protecao_cc_text'][:100] + '…' if len(dc['protecao_cc_text']) > 100 else dc['protecao_cc_text'],
+                'token': 'PROTECAO_CC_DESCRICAO',
+            })
+        if dc.get('protecao_ca_text'):
+            items.append({
+                'grupo': 'Proteção',
+                'rotulo': 'Proteção CA (texto)',
+                'valor': dc['protecao_ca_text'][:100] + '…' if len(dc['protecao_ca_text']) > 100 else dc['protecao_ca_text'],
+                'token': 'PROTECAO_CA_DESCRICAO',
+            })
     prot = calc.get('protection') or {}
     if prot:
         items.extend([
@@ -259,4 +481,32 @@ def _build_all_items(calc: dict) -> list[dict]:
             'valor': f"{cab.get('recommended_section_mm2')} mm²",
             'token': None,
         })
+
+    bg = calc.get('breaker_groups') or {}
+    if bg.get('total_breakers_detail'):
+        items.append({
+            'grupo': 'Proteção',
+            'rotulo': 'Disjuntores CA (regra)',
+            'valor': bg['total_breakers_detail'],
+            'token': None,
+        })
+    for group in bg.get('breaker_groups') or []:
+        items.append({
+            'grupo': 'Proteção',
+            'rotulo': f"Grupo {group.get('group_id', '?')} — {group.get('micros_count', '?')} micro(s)",
+            'valor': (
+                f"I={group.get('current_a', '—')} A → "
+                f"disjuntor {group.get('breaker_a', '—')} A"
+            ),
+            'token': None,
+        })
+
+    if dc.get('cable_cc_note'):
+        items.append({
+            'grupo': 'Strings CC',
+            'rotulo': 'Nota cabo CC',
+            'valor': dc['cable_cc_note'],
+            'token': None,
+        })
+
     return items

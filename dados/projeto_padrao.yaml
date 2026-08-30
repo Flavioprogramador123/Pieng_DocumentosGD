@@ -73,9 +73,9 @@ dados_tecnicos:
   data_documento: ""              # AAAA-MM-DD — vazio = hoje
   data_operacao: ""               # previsão de operação
 
-  # Cabos e proteção
-  bitola_cabo_cc: "6 mm²"
-  bitola_cabo_ca: "10 mm²"
+  # Cabos e proteção (CC inversor / CA inversor / CA padrão entrada)
+  bitola_cabo_cc: "4 mm²"
+  bitola_cabo_ca: "6 mm²"
   bitola_cabo_padrao: "10 mm²"
   disjuntor_curva: "C"
   dps_tipo: "DPS Classe II"
