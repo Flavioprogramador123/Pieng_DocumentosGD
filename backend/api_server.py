@@ -1592,7 +1592,7 @@ def fill_documents():
             if not file.is_file():
                 continue
             suffix = file.suffix.lower()
-            if suffix not in ('.docx', '.xlsx', '.dxf', '.png', '.txt'):
+            if suffix not in ('.docx', '.xlsx', '.dxf', '.dwg', '.png', '.txt'):
                 continue
             file_info = {
                 'name': file.name,
@@ -1603,7 +1603,9 @@ def fill_documents():
 
             if suffix == '.xlsx':
                 excel_file = file_info
-            elif suffix == '.dxf' and file.name.lower() == 'planta.dxf':
+            elif suffix == '.dwg' and file.name.lower() == 'planta.dwg':
+                planta_file = file_info
+            elif suffix == '.dxf' and file.name.lower() == 'planta.dxf' and not planta_file:
                 planta_file = file_info
             elif suffix == '.docx' and 'memorial' in file.name.lower():
                 memorial_file = file_info

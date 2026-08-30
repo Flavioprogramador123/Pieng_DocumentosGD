@@ -6,7 +6,8 @@ Template de prancha com tokens `{{NOME_DO_TOKEN}}` em TEXT/MTEXT.
 
 | Arquivo | Uso |
 |---------|-----|
-| **`planta.dxf`** | Prancha com textos já preenchidos — abrir no AutoCAD |
+| **`planta.dwg`** | Prancha com textos preenchidos (~2 MB) — abrir no AutoCAD |
+| `planta.dxf` | *Fallback* se ODA File Converter não estiver instalado |
 | `figura_localizacao.png` | Mapa (referência para colar na prancha) |
 | `tokens_autocad.txt` | Backup dos valores (opcional) |
 
@@ -15,11 +16,22 @@ Quando editar o DWG, **reexporte** `projeto_Modelo.dxf` para o preenchimento aut
 ## Fluxo (retoques finais)
 
 1. Gere documentos na web → pasta `80 - Nome Cliente\`
-2. Abra **`planta.dxf`** no AutoCAD
+2. Abra **`planta.dwg`** no AutoCAD (ou `planta.dxf` se ODA não converteu)
 3. **Mapa de localização:** abra `figura_localizacao.png` (ou o mapa na tela), **Win+Shift+S**, recorte e **Ctrl+V** no AutoCAD na área da prancha
 4. Ajuste escala/posição do mapa e demais detalhes
 5. Apague o marcador `{{FIGURA_LOCALIZACAO}}` se ainda existir
-6. **Salvar como** `planta.dwg`
+6. Salve o DWG após colar o mapa (já é `.dwg` quando ODA está instalado)
+
+## ODA File Converter (conversão automática DXF→DWG)
+
+Instale no Windows para entregar `planta.dwg` compacto (~2 MB em vez de ~25 MB DXF):
+
+https://www.opendesign.com/guestfiles/oda_file_converter
+
+Caminho padrão: `C:\Program Files\ODA\ODAFileConverter\ODAFileConverter.exe`  
+Opcional no `.env`: `ODA_FILE_CONVERTER=caminho\para\ODAFileConverter.exe`
+
+Teste: `python backend/test_dxf_to_dwg.py`
 
 ## LISP (opcional — só se não usar `planta.dxf`)
 

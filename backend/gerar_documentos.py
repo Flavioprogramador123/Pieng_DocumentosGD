@@ -1903,15 +1903,17 @@ def main() -> None:
 
     try:
         from autocad_tokens import write_autocad_tokens_file
-        from autocad_fill import generate_planta_dxf
+        from autocad_fill import generate_planta_cad
 
         tok_path = write_autocad_tokens_file(args.output_dir, values)
         if tok_path:
             print(f'Tokens AutoCAD: {tok_path.resolve()}')
 
-        planta_path, planta_pending = generate_planta_dxf(args.output_dir, values)
+        planta_path, planta_pending, planta_fmt = generate_planta_cad(args.output_dir, values)
         if planta_path:
-            print(f'Planta CAD: {planta_path.resolve()}')
+            print(f'Planta CAD ({planta_fmt.upper()}): {planta_path.resolve()}')
+            if planta_fmt == 'dxf':
+                print('AVISO: ODA File Converter indisponível — entregue planta.dxf (salvar como DWG no AutoCAD).')
             if planta_pending:
                 pend = ', '.join(sorted(planta_pending))
                 print(f'AVISO: tokens CAD sem valor: {pend}')

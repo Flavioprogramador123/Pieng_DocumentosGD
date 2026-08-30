@@ -1,8 +1,10 @@
 """
-Gera planta.dxf na pasta do cliente com tokens {{TOKEN}} já preenchidos.
+Gera planta CAD na pasta do cliente com tokens {{TOKEN}} já preenchidos.
 
-Usa templates/projeto_Modelo.dxf (exporte o DWG quando atualizar o template).
-O usuário abre planta.dxf no AutoCAD, insere/ajusta o mapa e salva como .dwg.
+Fluxo: ezdxf preenche planta.dxf → ODA File Converter gera planta.dwg (entrega).
+Se ODA indisponível, mantém planta.dxf (fallback).
+
+Template: templates/projeto_Modelo.dxf (exporte o DWG quando atualizar o template).
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from figura_localizacao import FIGURA_TOKEN
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE_DXF = ROOT / 'templates' / 'projeto_Modelo.dxf'
 PLANTA_DXF = 'planta.dxf'
+PLANTA_DWG = 'planta.dwg'
 
 PLAIN_TOKEN_RE = re.compile(r'\{\{([A-Z0-9_]+)\}\}', re.IGNORECASE)
 ESCAPED_TOKEN_RE = re.compile(r'\\?\{\\?\{([A-Z0-9_]+)\\?\}\\?\}', re.IGNORECASE)
@@ -126,7 +129,7 @@ def _scan_pending_tokens(doc: ezdxf.document.Drawing, values: dict[str, str]) ->
 
 def generate_planta_dxf(output_dir: Path, values: dict[str, str]) -> tuple[Path | None, set[str]]:
     """
-    Gera output_dir/planta.dxf com dados do cliente.
+    Gera output_dir/planta.dxf com dados do cliente (intermediário ezdxf).
     Retorna (caminho, tokens_sem_valor).
     """
     if not TEMPLATE_DXF.is_file():
@@ -139,3 +142,28 @@ def generate_planta_dxf(output_dir: Path, values: dict[str, str]) -> tuple[Path 
     pending = fill_dxf_document(doc, values)
     doc.saveas(dest)
     return dest, pending
+
+
+def generate_planta_cad(output_dir: Path, values: dict[str, str]) -> tuple[Path | None, set[str], str]:
+    """
+    Gera planta CAD para entrega ao cliente.
+    Retorna (caminho, tokens_sem_valor, formato: 'dwg' | 'dxf').
+    """
+    dxf_path, pending = generate_planta_dxf(output_dir, values)
+    if not dxf_path:
+        return None, pending, 'dxf'
+
+    dwg_path = output_dir / PLANTA_DWG
+    try:
+        from dxf_to_dwg import convert_dxf_to_dwg
+
+        if convert_dxf_to_dwg(dxf_path, dwg_path):
+            try:
+                dxf_path.unlink()
+            except OSError:
+                pass
+            return dwg_path, pending, 'dwg'
+    except Exception:
+        pass
+
+    return dxf_path, pending, 'dxf'

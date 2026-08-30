@@ -105,7 +105,7 @@ def write_autocad_tokens_file(output_dir: Path, values: dict[str, str]) -> Path 
     lines = [
         '# tokens_autocad.txt — Automação Equatorial PIENG',
         '# Template: templates/projeto_Modelo.dwg / projeto_Modelo.dxf',
-        '# Saída CAD: planta.dxf (tokens já preenchidos; abrir no AutoCAD)',
+        '# Saída CAD: planta.dwg (tokens preenchidos; fallback planta.dxf se ODA ausente)',
         '# Mapa: figura_localizacao.png — recorte Win+Shift+S e colar no AutoCAD',
         '# Formato: TOKEN=valor (sem chaves; no DWG use {{TOKEN}})',
         '',
