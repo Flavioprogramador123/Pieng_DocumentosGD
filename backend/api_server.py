@@ -11,7 +11,7 @@ from load_secrets import load_local_env, redact_secrets
 
 load_local_env()
 
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, session
 from flask_cors import CORS
 import json
 import tempfile
@@ -48,7 +48,14 @@ from catalog_db import (
 from patch_memorial_demand import patch_memorial_template
 from grid_voltage import suggest_tensao_atendimento
 from yaml_loader import export_form_to_yaml, import_yaml_project, read_template
-from output_paths import get_output_base_dir, output_config_status, folder_name_from_contract
+from output_paths import (
+    get_output_base_dir,
+    output_config_status,
+    folder_name_from_contract,
+    save_local_output_dir,
+    resolve_client_file,
+    open_path_in_os,
+)
 from equipment_validation import validate_modules_inverters
 
 app = Flask(__name__)
@@ -71,6 +78,29 @@ BASE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BASE_DIR.parent
 TEMPLATES_DIR = ROOT_DIR / 'templates'
 CONFIG_FILE = BASE_DIR / 'config_padrao.json'
+
+VIEWABLE_SUFFIXES = frozenset({'.png', '.jpg', '.jpeg', '.gif', '.webp', '.txt'})
+
+VIEW_MIME = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.txt': 'text/plain; charset=utf-8',
+}
+
+
+def _file_actions(folder_name: str, file_name: str, suffix: str) -> dict:
+    view_url = None
+    if suffix in VIEWABLE_SUFFIXES:
+        from urllib.parse import quote
+        view_url = f"/api/view/{quote(folder_name)}/{quote(file_name)}"
+    return {
+        'view_url': view_url,
+        'can_view_web': view_url is not None,
+        'can_open_app': True,
+    }
 
 init_db()
 try:
@@ -1527,11 +1557,66 @@ def preview_de_para():
         }), 500
 
 
-@app.route('/api/output-config', methods=['GET'])
+@app.route('/api/output-config', methods=['GET', 'POST'])
 def output_config():
-    """Pasta de saída dos documentos (Google Drive / LGPD)."""
+    """Pasta de saída dos documentos (Google Drive / disco local / fallback)."""
     try:
+        if request.method == 'POST':
+            if session.get('role') != 'master':
+                return jsonify({'success': False, 'error': 'Somente administrador pode alterar a pasta de saída.'}), 403
+            data = request.get_json(silent=True) or {}
+            raw_path = (data.get('client_output_dir') or '').strip()
+            save_local_output_dir(raw_path)
+            status = output_config_status()
+            return jsonify({
+                'success': True,
+                'message': 'Pasta de saída atualizada.' if raw_path else 'Override local removido — usando .env ou padrão.',
+                **status,
+            })
+
         return jsonify({'success': True, **output_config_status()})
+    except Exception as e:
+        return jsonify({'success': False, 'error': _safe_error_message(e)}), 500
+
+
+@app.route('/api/output/open-folder', methods=['POST'])
+def open_output_folder():
+    """Abre a pasta do cliente (ou base) no Explorer/Finder."""
+    try:
+        data = request.get_json(silent=True) or {}
+        folder_name = (data.get('folder_name') or '').strip()
+        output_base, _ = get_output_base_dir()
+        target = output_base / folder_name if folder_name else output_base
+        target = target.resolve()
+        if not str(target).startswith(str(output_base.resolve())):
+            return jsonify({'success': False, 'error': 'Pasta inválida'}), 403
+        if folder_name and not target.is_dir():
+            return jsonify({'success': False, 'error': 'Pasta do cliente não encontrada'}), 404
+        if not folder_name:
+            target.mkdir(parents=True, exist_ok=True)
+        open_path_in_os(target)
+        return jsonify({'success': True, 'path': str(target)})
+    except Exception as e:
+        return jsonify({'success': False, 'error': _safe_error_message(e)}), 500
+
+
+@app.route('/api/output/open-file', methods=['POST'])
+def open_output_file():
+    """Abre arquivo gerado no aplicativo padrão (Word, Excel, AutoCAD…)."""
+    try:
+        data = request.get_json(silent=True) or {}
+        folder_name = (data.get('folder_name') or '').strip()
+        file_name = (data.get('file_name') or '').strip()
+        if not folder_name or not file_name:
+            return jsonify({'success': False, 'error': 'folder_name e file_name são obrigatórios'}), 400
+        output_base, _ = get_output_base_dir()
+        file_path = resolve_client_file(output_base, folder_name, file_name)
+        open_path_in_os(file_path)
+        return jsonify({'success': True, 'path': str(file_path)})
+    except FileNotFoundError:
+        return jsonify({'success': False, 'error': 'Arquivo não encontrado'}), 404
+    except ValueError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 403
     except Exception as e:
         return jsonify({'success': False, 'error': _safe_error_message(e)}), 500
 
@@ -1649,7 +1734,8 @@ def fill_documents():
                 'name': file.name,
                 'size': file.stat().st_size,
                 'path': str(file),
-                'download_url': f"/api/download/{folder_name}/{file.name}"
+                'download_url': f"/api/download/{folder_name}/{file.name}",
+                **_file_actions(folder_name, file.name, suffix),
             }
 
             if suffix == '.xlsx':
@@ -1713,9 +1799,9 @@ def download_file(filepath):
     """
     try:
         output_base, _ = get_output_base_dir()
+        output_base = output_base.resolve()
         # Resolver path completo e normalizar
-        file_path = output_base / filepath
-        file_path = file_path.resolve()
+        file_path = (output_base / filepath).resolve()
 
         # SEGURANÇA: Verificar que o arquivo está dentro do diretório permitido
         if not str(file_path).startswith(str(output_base)):
@@ -1749,6 +1835,33 @@ def download_file(filepath):
             'success': False,
             'error': 'Erro ao baixar arquivo'
         }), 500
+
+
+@app.route('/api/view/<folder_name>/<file_name>', methods=['GET'])
+def view_file(folder_name, file_name):
+    """Visualiza arquivo no navegador (PNG, TXT)."""
+    try:
+        from urllib.parse import unquote
+        folder_name = unquote(folder_name)
+        file_name = unquote(file_name)
+        suffix = Path(file_name).suffix.lower()
+        if suffix not in VIEWABLE_SUFFIXES:
+            return jsonify({'success': False, 'error': 'Tipo de arquivo não suportado para visualização web'}), 400
+
+        output_base, _ = get_output_base_dir()
+        file_path = resolve_client_file(output_base, folder_name, file_name)
+        return send_file(
+            file_path,
+            as_attachment=False,
+            mimetype=VIEW_MIME.get(suffix, 'application/octet-stream'),
+            download_name=file_path.name,
+        )
+    except FileNotFoundError:
+        return jsonify({'success': False, 'error': 'Arquivo não encontrado'}), 404
+    except ValueError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 403
+    except Exception:
+        return jsonify({'success': False, 'error': 'Erro ao abrir arquivo'}), 500
 
 
 @app.route('/api/list-clients', methods=['GET'])

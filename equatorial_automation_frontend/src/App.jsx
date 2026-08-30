@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
-import { Plus, Trash2, FileText, Calculator, Download, Upload, Save, FileJson, Search, Database, LogOut, Users, Menu, RefreshCw } from 'lucide-react'
+import { Plus, Trash2, FileText, Calculator, Download, Upload, Save, FileJson, Search, Database, LogOut, Users, Menu, RefreshCw, FolderOpen } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +39,8 @@ import { parseCoordinateText, syncTechnicalCoordinates } from './utils/coordinat
 import { computeAreaArranjo } from './utils/areaUtils'
 import { FiguraLocalizacaoPreview } from '@/components/FiguraLocalizacaoPreview.jsx'
 import { OdaSetupPrompt, shouldShowOdaPrompt } from '@/components/OdaSetupPrompt.jsx'
+import { GeneratedFilesPanel } from '@/components/GeneratedFilesPanel.jsx'
+import { OutputSettingsDialog } from '@/components/OutputSettingsDialog.jsx'
 
 function App() {
   const [activeTab, setActiveTab] = useState('entrada')
@@ -113,7 +115,9 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [generatedFiles, setGeneratedFiles] = useState(null)
   const [outputDirectory, setOutputDirectory] = useState('')
+  const [outputFolderName, setOutputFolderName] = useState('')
   const [outputWarning, setOutputWarning] = useState('')
+  const [outputSettingsOpen, setOutputSettingsOpen] = useState(false)
   const [aiStatus, setAiStatus] = useState({ ollama: false, gemini: false, primary: 'none' })
   const [deParaOpen, setDeParaOpen] = useState(true)
   const [deParaWidth, setDeParaWidth] = useState(460)
@@ -1018,6 +1022,7 @@ function App() {
       if (response.ok) {
         setGeneratedFiles(data.files)
         setOutputDirectory(data.output_directory || '')
+        setOutputFolderName(data.folder_name || '')
         setOutputWarning(data.output_warning || '')
         if (deParaOpen) fetchDeParaPreview()
         const dest = data.output_directory ? `\n\nPasta:\n${data.output_directory}` : ''
@@ -1112,6 +1117,10 @@ function App() {
                   Atualizar DE/PARA
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setOutputSettingsOpen(true)}>
+                  <FolderOpen className="h-4 w-4" />
+                  Pasta de saída
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleExportYaml}>
                   <FileJson className="h-4 w-4" />
                   Exportar YAML
@@ -2504,96 +2513,13 @@ Data do Documento: 15/08/2026
                       {loading ? 'Gerando...' : 'Gerar Documentos'}
                     </Button>
 
-                    {generatedFiles && (
-                      <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                        <p className="font-semibold text-green-800 mb-3">✅ Documentos Gerados com Sucesso!</p>
-                        {outputDirectory && (
-                          <div className="mb-3 p-2 bg-white rounded border border-green-200 text-xs text-gray-700 break-all">
-                            <span className="font-medium">Pasta no Google Drive / disco:</span>
-                            <br />
-                            {outputDirectory}
-                            <p className="mt-1 text-gray-500">Dados pessoais (LGPD) — não compartilhe nem suba ao GitHub.</p>
-                          </div>
-                        )}
-                        {outputWarning && (
-                          <p className="mb-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">{outputWarning}</p>
-                        )}
-                        <div className="space-y-2">
-                          {generatedFiles.excel && (
-                            <div className="flex items-center justify-between p-2 bg-white rounded border border-green-300">
-                              <span className="text-sm text-gray-700">📊 Excel: {generatedFiles.excel.name}</span>
-                              <a
-                                href={generatedFiles.excel.download_url}
-                                download
-                                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
-                              >
-                                Baixar
-                              </a>
-                            </div>
-                          )}
-                          {generatedFiles.memorial && (
-                            <div className="flex items-center justify-between p-2 bg-white rounded border border-green-300">
-                              <span className="text-sm text-gray-700">📄 Memorial: {generatedFiles.memorial.name}</span>
-                              <a
-                                href={generatedFiles.memorial.download_url}
-                                download
-                                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
-                              >
-                                Baixar
-                              </a>
-                            </div>
-                          )}
-                          {generatedFiles.procuracao && (
-                            <div className="flex items-center justify-between p-2 bg-white rounded border border-green-300">
-                              <span className="text-sm text-gray-700">📝 Procuração: {generatedFiles.procuracao.name}</span>
-                              <a
-                                href={generatedFiles.procuracao.download_url}
-                                download
-                                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
-                              >
-                                Baixar
-                              </a>
-                            </div>
-                          )}
-                          {generatedFiles.contrato && (
-                            <div className="flex items-center justify-between p-2 bg-white rounded border border-green-300">
-                              <span className="text-sm text-gray-700">📋 Contrato: {generatedFiles.contrato.name}</span>
-                              <a
-                                href={generatedFiles.contrato.download_url}
-                                download
-                                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
-                              >
-                                Baixar
-                              </a>
-                            </div>
-                          )}
-                          {generatedFiles.planta && (
-                            <div className="flex items-center justify-between p-2 bg-white rounded border border-green-300">
-                              <span className="text-sm text-gray-700">📐 Planta CAD: {generatedFiles.planta.name} (dados já preenchidos)</span>
-                              <a
-                                href={generatedFiles.planta.download_url}
-                                download
-                                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
-                              >
-                                Baixar
-                              </a>
-                            </div>
-                          )}
-                          {generatedFiles.outros && generatedFiles.outros.length > 0 && generatedFiles.outros.map((file, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-2 bg-white rounded border border-green-300">
-                              <span className="text-sm text-gray-700">📎 {file.name}</span>
-                              <a
-                                href={file.download_url}
-                                download
-                                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
-                              >
-                                Baixar
-                              </a>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    <GeneratedFilesPanel
+                      generatedFiles={generatedFiles}
+                      outputDirectory={outputDirectory}
+                      outputFolderName={outputFolderName}
+                      outputWarning={outputWarning}
+                      onOpenFolderError={(msg) => alert(msg)}
+                    />
                   </div>
                 ) : (
                   <div className="text-center py-12 text-gray-500">
@@ -2638,6 +2564,13 @@ Data do Documento: 15/08/2026
           setOdaStatus(status)
           if (status?.installed) setOdaPromptOpen(false)
         }}
+      />
+
+      <OutputSettingsDialog
+        open={outputSettingsOpen}
+        onClose={() => setOutputSettingsOpen(false)}
+        isMaster={authUser?.role === 'master'}
+        onSaved={() => {}}
       />
     </div>
   )
