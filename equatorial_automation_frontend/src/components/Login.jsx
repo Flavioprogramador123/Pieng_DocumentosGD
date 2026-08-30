@@ -147,7 +147,7 @@ export function Login({ onSuccess, authStatus, confirmToken = null }) {
 
   if (confirmToken && loading && !error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="min-h-screen flex items-center justify-center pieng-page-bg">
         <p className="text-gray-600">Confirmando dispositivo...</p>
       </div>
     )
@@ -155,7 +155,7 @@ export function Login({ onSuccess, authStatus, confirmToken = null }) {
 
   if (verifyStep && !confirmToken) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+      <div className="min-h-screen pieng-page-bg flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader className="text-center space-y-3">
             <CardTitle className="text-2xl">Confirme este computador</CardTitle>
@@ -243,16 +243,19 @@ export function Login({ onSuccess, authStatus, confirmToken = null }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen pieng-page-bg flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center space-y-3">
           <img
-            src="/brand/logo-app-96.png"
+            src="/brand/logo-app-48.png"
+            srcSet="/brand/logo-app-48.png 1x, /brand/logo-app-96.png 2x"
             alt="PIENG"
-            className="h-16 w-16 mx-auto object-contain"
+            width={48}
+            height={48}
+            className="h-12 w-12 mx-auto object-contain"
             onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
-          <CardTitle className="text-2xl">Automação Equatorial</CardTitle>
+          <CardTitle className="text-xl text-primary font-semibold">Automação Equatorial</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

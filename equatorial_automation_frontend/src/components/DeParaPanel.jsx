@@ -3,7 +3,6 @@ import {
   Maximize2,
   Minimize2,
   PanelRightClose,
-  PanelRightOpen,
   RefreshCw,
   Search,
 } from 'lucide-react'
@@ -15,8 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.j
 const STORAGE_KEY = 'deParaPanelWidth'
 const DEFAULT_WIDTH = 460
 const MIN_WIDTH = 300
-const NARROW_WIDTH = 360
-const WIDE_WIDTH = 620
 const MAX_WIDTH_RATIO = 0.92
 
 function clampWidth(value) {
@@ -58,7 +55,7 @@ function MappingTable({ rows, pendingTokens, filter, showLabel = true }) {
 
   if (filtered.length === 0) {
     return (
-      <p className="text-sm text-gray-500 py-6 text-center">
+      <p className="text-sm text-muted-foreground py-6 text-center">
         Nenhum placeholder mapeado ainda. Preencha o formulário ou importe o TXT.
       </p>
     )
@@ -67,8 +64,8 @@ function MappingTable({ rows, pendingTokens, filter, showLabel = true }) {
   return (
     <div className="overflow-y-auto h-full min-h-0">
       <table className="w-full text-xs border-collapse">
-        <thead className="sticky top-0 bg-gray-50 z-10 shadow-sm">
-          <tr className="border-b text-left text-gray-600">
+        <thead className="sticky top-0 bg-muted z-10 shadow-sm">
+          <tr className="border-b text-left text-muted-foreground">
             {showLabel && <th className="p-2 font-medium">Campo</th>}
             <th className="p-2 font-medium">Placeholder</th>
             <th className="p-2 font-medium">Valor</th>
@@ -79,16 +76,16 @@ function MappingTable({ rows, pendingTokens, filter, showLabel = true }) {
           {filtered.map((row, idx) => {
             const pending = pendingTokens?.has?.(row.token)
             return (
-              <tr key={`${row.token}-${idx}`} className="border-b border-gray-100 align-top hover:bg-blue-50/40">
+              <tr key={`${row.token}-${idx}`} className="border-b border-gray-100 align-top hover:bg-muted/60">
                 {showLabel && (
-                  <td className="p-2 text-gray-800 max-w-[100px] break-words">{row.label || '—'}</td>
+                  <td className="p-2 text-foreground max-w-[100px] break-words">{row.label || '—'}</td>
                 )}
-                <td className="p-2 font-mono text-blue-700 whitespace-nowrap">{row.placeholder}</td>
-                <td className="p-2 text-gray-700 break-all">
+                <td className="p-2 font-mono text-primary whitespace-nowrap">{row.placeholder}</td>
+                <td className="p-2 text-foreground break-all">
                   {row.value ? (
                     <span title={row.value}>{row.value}</span>
                   ) : (
-                    <span className="text-gray-400 italic">vazio</span>
+                    <span className="text-muted-foreground italic">vazio</span>
                   )}
                 </td>
                 <td className="p-2">
@@ -191,7 +188,6 @@ export function DeParaPanel({
     }
   }
 
-  const stats = preview?.stats
   const pendingSet = new Set()
   if (preview?.unresolved_by_template) {
     Object.values(preview.unresolved_by_template).forEach((tokens) => {
@@ -218,9 +214,9 @@ export function DeParaPanel({
       <button
         type="button"
         onClick={onToggle}
-        className="fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-blue-600 text-white px-2 py-4 rounded-l-lg shadow-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+        className="fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-primary text-primary-foreground px-2 py-4 rounded-l-md shadow-md text-sm font-medium hover:opacity-90 transition-opacity"
         style={{ writingMode: 'vertical-rl' }}
-        title="Abrir painel DE/PARA"
+        title="Abrir conferência de placeholders"
       >
         DE/PARA
       </button>
@@ -229,7 +225,7 @@ export function DeParaPanel({
 
   return (
     <aside
-      className="fixed right-0 top-0 z-40 h-screen bg-white border-l border-gray-200 shadow-2xl flex flex-col"
+      className="fixed right-0 top-0 z-40 h-screen bg-white border-l border-border shadow-2xl flex flex-col"
       style={{ width: `${width}px`, maxWidth: '100vw' }}
     >
       <div
@@ -240,26 +236,17 @@ export function DeParaPanel({
         onMouseDown={startResize}
         onDoubleClick={() => applyWidth(DEFAULT_WIDTH)}
         className={`absolute left-0 top-0 bottom-0 w-2 -ml-1 z-50 cursor-col-resize group ${
-          resizing ? 'bg-blue-500/30' : 'hover:bg-blue-400/25'
+          resizing ? 'bg-primary/30' : 'hover:bg-primary/20'
         }`}
       >
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-12 rounded-full bg-gray-300 group-hover:bg-blue-500 transition-colors" />
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-12 rounded-full bg-border group-hover:bg-primary transition-colors" />
       </div>
 
-      <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50 shrink-0">
-        <div className="flex items-start justify-between gap-2 mb-3">
-          <div className="min-w-0">
-            <h2 className="font-bold text-gray-900">Conferência DE/PARA</h2>
-            <p className="text-xs text-gray-600 mt-1">
-              Placeholders {'{{TOKEN}}'} e valores que serão encaixados nos templates.
-            </p>
-            <p className="text-[10px] text-gray-500 mt-1">
-              Largura: {Math.round(width)}px — arraste a borda esquerda ou use os botões abaixo.
-            </p>
-            {preview?.source === 'local' && (
-              <p className="text-xs text-amber-700 mt-1">Preview local (reinicie o backend para dados completos).</p>
-            )}
-          </div>
+      <div className="p-4 border-b border-border bg-card shrink-0">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <h2 className="font-semibold text-foreground text-sm sm:text-base min-w-0">
+            Conferência Placeholders {'{{TOKEN}}'}
+          </h2>
           <div className="flex shrink-0 gap-0.5">
             <Button
               variant="ghost"
@@ -275,42 +262,13 @@ export function DeParaPanel({
           </div>
         </div>
 
-        <div className="flex gap-1 mb-3">
-          <Button type="button" variant="outline" size="sm" className="text-xs h-7 px-2" onClick={() => applyWidth(NARROW_WIDTH)}>
-            Estreito
-          </Button>
-          <Button type="button" variant="outline" size="sm" className="text-xs h-7 px-2" onClick={() => applyWidth(DEFAULT_WIDTH)}>
-            Padrão
-          </Button>
-          <Button type="button" variant="outline" size="sm" className="text-xs h-7 px-2" onClick={() => applyWidth(WIDE_WIDTH)}>
-            Largo
-          </Button>
-        </div>
-
         {error && (
-          <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2 mb-2">{error}</p>
-        )}
-
-        {stats && (
-          <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-            <div className="bg-white rounded p-2 border">
-              <span className="text-gray-500">Formulário</span>
-              <p className="font-semibold text-green-700">
-                {stats.form_filled}/{stats.form_fields} preenchidos
-              </p>
-            </div>
-            <div className="bg-white rounded p-2 border">
-              <span className="text-gray-500">Templates</span>
-              <p className="font-semibold text-amber-700">
-                {stats.template_pending ?? 0} pendente(s)
-              </p>
-            </div>
-          </div>
+          <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2 mb-3">{error}</p>
         )}
 
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-gray-400" />
+            <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               className="pl-8 h-9 text-sm"
               placeholder="Filtrar placeholder ou valor..."
@@ -354,7 +312,7 @@ export function DeParaPanel({
               </p>
               {derivedRows.length > 0 && (
                 <>
-                  <p className="text-xs font-semibold text-gray-700 mb-2">Valores derivados / padrão</p>
+                  <p className="text-xs font-semibold text-foreground mb-2">Valores derivados / padrão</p>
                   <MappingTable rows={derivedRows} pendingTokens={pendingSet} filter={filter} />
                 </>
               )}
@@ -362,7 +320,7 @@ export function DeParaPanel({
           ) : (
             Object.entries(preview.unresolved_by_template).map(([file, tokens]) => (
               <div key={file} className="mb-4">
-                <p className="text-xs font-semibold text-gray-800 mb-2 truncate" title={file}>
+                <p className="text-xs font-semibold text-foreground mb-2 truncate" title={file}>
                   {file}
                 </p>
                 <div className="flex flex-wrap gap-1">
@@ -381,14 +339,5 @@ export function DeParaPanel({
         </TabsContent>
       </Tabs>
     </aside>
-  )
-}
-
-export function DeParaPanelToggle({ onToggle }) {
-  return (
-    <Button variant="outline" onClick={onToggle}>
-      <PanelRightOpen className="mr-2 h-4 w-4" />
-      DE/PARA
-    </Button>
   )
 }

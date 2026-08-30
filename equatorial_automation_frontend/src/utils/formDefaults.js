@@ -120,6 +120,22 @@ export const EXEMPLO_TEXTO_VALOR_PAGAMENTO_CONTRATO = `• O investimento objeto
 
 ou parcelados em 18 x R$ 804,00 no cartão de crédito.`
 
+export const EXEMPLO_TEXTO_VALOR_PAGAMENTO_AVISTA = `• O investimento objeto deste contrato é de R$ 28.500,00.
+
+- Pagamento integral à vista na assinatura do contrato, via PIX ou transferência bancária.`
+
+export const EXEMPLO_TEXTO_VALOR_PAGAMENTO_ENTRADA = `• O investimento objeto deste contrato é de R$ 35.000,00.
+
+- Entrada de 50% (R$ 17.500,00) na assinatura do contrato.
+
+- Saldo em 12 parcelas de R$ 1.458,33, via boleto bancário.`
+
+export const EXEMPLOS_TEXTO_VALOR_PAGAMENTO = [
+  { id: 'cartao', label: 'R$ 12.000 / 18× cartão', texto: EXEMPLO_TEXTO_VALOR_PAGAMENTO_CONTRATO },
+  { id: 'avista', label: 'R$ 28.500 à vista', texto: EXEMPLO_TEXTO_VALOR_PAGAMENTO_AVISTA },
+  { id: 'entrada', label: 'R$ 35.000 / 50% + 12× boleto', texto: EXEMPLO_TEXTO_VALOR_PAGAMENTO_ENTRADA },
+]
+
 
 
 /** Compatibilidade: formulários JSON antigos guardavam contrato em technical. */

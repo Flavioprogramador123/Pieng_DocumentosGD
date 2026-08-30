@@ -6,8 +6,15 @@ import { Label } from '@/components/ui/label.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
-import { Plus, Trash2, FileText, Calculator, Download, Upload, Save, FileJson, Search, Database, LogOut, Users } from 'lucide-react'
-import { DeParaPanel, DeParaPanelToggle } from '@/components/DeParaPanel.jsx'
+import { Plus, Trash2, FileText, Calculator, Download, Upload, Save, FileJson, Search, Database, LogOut, Users, Menu, RefreshCw } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu.jsx'
+import { DeParaPanel } from '@/components/DeParaPanel.jsx'
 import { CalculationsResults } from '@/components/CalculationsResults.jsx'
 import { CatalogPanel } from '@/components/CatalogPanel.jsx'
 import { CatalogEquipmentPicker, applyCatalogFieldsToItem } from '@/components/CatalogEquipmentPicker.jsx'
@@ -27,7 +34,7 @@ import { normalizeTensaoFaseNeutro } from '@/utils/gridVoltage.js'
 import './App.css'
 
 import { buildLocalDeParaPreview } from './utils/deParaMapper'
-import { getInitialTechnicalData, getInitialContractData, EXEMPLO_TEXTO_VALOR_PAGAMENTO_CONTRATO, contractFromLegacyTechnical } from './utils/formDefaults'
+import { getInitialTechnicalData, getInitialContractData, EXEMPLO_TEXTO_VALOR_PAGAMENTO_CONTRATO, EXEMPLOS_TEXTO_VALOR_PAGAMENTO, contractFromLegacyTechnical } from './utils/formDefaults'
 import { parseCoordinateText, syncTechnicalCoordinates } from './utils/coordinateUtils'
 import { computeAreaArranjo } from './utils/areaUtils'
 import { FiguraLocalizacaoPreview } from '@/components/FiguraLocalizacaoPreview.jsx'
@@ -121,6 +128,7 @@ function App() {
   const [authStatus, setAuthStatus] = useState({ master_configured: false })
   /** Disjuntor informado manualmente ou via TXT — não sobrescrever ao mudar ligação/classe. */
   const disjuntorEntradaManual = useRef(false)
+  const loadFormInputRef = useRef(null)
 
   const modulesAreaKey = modules
     .map((m) => `${m.quantity}|${m.area_modulo}|${m.comprimento_m}|${m.largura_m}`)
@@ -1015,8 +1023,8 @@ function App() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <p className="text-gray-600">Verificando sessão...</p>
+      <div className="min-h-screen flex items-center justify-center pieng-page-bg">
+        <p className="text-muted-foreground">Verificando sessão...</p>
       </div>
     )
   }
@@ -1038,89 +1046,100 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+    <div className="min-h-screen pieng-page-bg p-8">
       <div
         className="max-w-7xl mx-auto transition-[margin] duration-200"
         style={{ marginRight: deParaOpen ? deParaWidth : 0 }}
       >
-        <header className="flex items-start gap-5 mb-8">
-          <img
-            src="/brand/logo-app-96.png"
-            srcSet="/brand/logo-app-96.png 1x, /brand/icon-192.png 2x"
-            width={96}
-            height={96}
-            alt="PIENG Soluções Energéticas"
-            className="h-20 w-20 sm:h-24 sm:w-24 shrink-0 object-contain"
-          />
-          <div className="pt-1 sm:pt-2 min-w-0">
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2 text-left">
-              Automação Equatorial Energia
-            </h1>
-            <p className="text-gray-600 text-left text-sm sm:text-base">
-              Sistema de Preenchimento de Documentos PRODIST 3 - Geração Distribuída
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              {authUser.username}
-              {authUser.role === 'master' ? ' · administrador' : ' · operador'}
-            </p>
+        <header className="flex items-start justify-between gap-4 mb-8">
+          <div className="flex items-start gap-5 min-w-0 flex-1">
+            <img
+              src="/brand/logo-app-48.png"
+              srcSet="/brand/logo-app-48.png 1x, /brand/logo-app-96.png 2x"
+              width={48}
+              height={48}
+              alt="PIENG Soluções Energéticas"
+              className="h-12 w-12 shrink-0 object-contain"
+            />
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-semibold text-primary tracking-tight mb-1 text-left">
+                Automação Equatorial Energia
+              </h1>
+              <p className="text-muted-foreground text-left text-sm">
+                Sistema de Preenchimento de Documentos PRODIST 3 — Geração Distribuída
+              </p>
+              <p className="text-xs text-muted-foreground/80 mt-1">
+                {authUser.username}
+                {authUser.role === 'master' ? ' · administrador' : ' · operador'}
+              </p>
+            </div>
           </div>
-        </header>
 
-        {/* Botões de Ação Globais */}
-        <div className="flex gap-4 justify-end mb-6 flex-wrap">
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sair
-          </Button>
-          {!deParaOpen && <DeParaPanelToggle onToggle={() => setDeParaOpen(true)} />}
-          <Button
-            variant={activeTab === 'catalogo' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('catalogo')}
-          >
-            <Database className="mr-2 h-4 w-4" />
-            Catálogo SQL
-          </Button>
-          <Button variant="outline" onClick={fetchDeParaPreview} disabled={deParaLoading}>
-            Atualizar DE/PARA
-          </Button>
-          <Button variant="outline" onClick={handleExportYaml}>
-            <FileJson className="mr-2 h-4 w-4" />
-            Exportar YAML
-          </Button>
-          <Button variant="outline" onClick={handleSaveForm}>
-            <Save className="mr-2 h-4 w-4" />
-            Salvar Formulário
-          </Button>
-          <label>
-            <Button variant="outline" asChild>
-              <span>
-                <Upload className="mr-2 h-4 w-4" />
-                Carregar Formulário
-              </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Sair
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" title="Menu" aria-label="Menu de ações">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => setActiveTab('catalogo')}>
+                  <Database className="h-4 w-4" />
+                  Catálogo SQL
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={fetchDeParaPreview} disabled={deParaLoading}>
+                  <RefreshCw className={`h-4 w-4 ${deParaLoading ? 'animate-spin' : ''}`} />
+                  Atualizar DE/PARA
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleExportYaml}>
+                  <FileJson className="h-4 w-4" />
+                  Exportar YAML
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSaveForm}>
+                  <Save className="h-4 w-4" />
+                  Salvar Formulário
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={(e) => {
+                  e.preventDefault()
+                  loadFormInputRef.current?.click()
+                }}>
+                  <Upload className="h-4 w-4" />
+                  Carregar Formulário
+                </DropdownMenuItem>
+                {authUser.role === 'master' && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setActiveTab('usuarios')}>
+                      <Users className="h-4 w-4" />
+                      Usuários
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <input
+              ref={loadFormInputRef}
               type="file"
               accept=".json"
               className="hidden"
               onChange={handleLoadForm}
             />
-          </label>
-        </div>
+          </div>
+        </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className={`grid w-full ${authUser.role === 'master' ? 'grid-cols-7' : 'grid-cols-6'}`}>
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="entrada">📄 Entrada</TabsTrigger>
             <TabsTrigger value="cliente">👤 Cliente</TabsTrigger>
             <TabsTrigger value="equipamentos">⚡ Equipamentos</TabsTrigger>
             <TabsTrigger value="contrato">📋 Contrato</TabsTrigger>
             <TabsTrigger value="tecnico">🔧 Dados Técnicos</TabsTrigger>
             <TabsTrigger value="calculos">📊 Cálculos</TabsTrigger>
-            {authUser.role === 'master' && (
-              <TabsTrigger value="usuarios">
-                <Users className="inline h-4 w-4 mr-1" />
-                Usuários
-              </TabsTrigger>
-            )}
           </TabsList>
 
           {/* ABA 1: ENTRADA TXT / YAML */}
@@ -1983,20 +2002,22 @@ Data do Documento: 15/08/2026
                   <p className="text-xs text-muted-foreground mt-1">
                     Texto livre → {'{{TEXTO_VALOR_PAGAMENTO_CONTRATO}}'} (Cláusula de valor/pagamento). Enter = nova linha.
                   </p>
-                  {!contractData.texto_valor_pagamento_contrato?.trim() && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="mt-2"
-                      onClick={() => setContractData({
-                        ...contractData,
-                        texto_valor_pagamento_contrato: EXEMPLO_TEXTO_VALOR_PAGAMENTO_CONTRATO,
-                      })}
-                    >
-                      Usar exemplo (R$ 12.000 / 18× cartão)
-                    </Button>
-                  )}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {EXEMPLOS_TEXTO_VALOR_PAGAMENTO.map((exemplo) => (
+                      <Button
+                        key={exemplo.id}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setContractData({
+                          ...contractData,
+                          texto_valor_pagamento_contrato: exemplo.texto,
+                        })}
+                      >
+                        {exemplo.label}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="flex gap-3">
