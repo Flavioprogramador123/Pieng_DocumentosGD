@@ -58,7 +58,9 @@
   --popover-foreground: oklch(0.25 0.01 264);
 
   /* Primary - Azul Corporativo #1e3a8a */
+  --primary: #1e3a8a;                            /* Azul escuro - fallback */
   --primary: oklch(0.45 0.15 264);               /* Azul escuro */
+  --primary-foreground: #ffffff;                 /* Branco - fallback */
   --primary-foreground: oklch(1 0 0);            /* Branco */
 
   /* Secondary */
@@ -70,15 +72,20 @@
   --muted-foreground: oklch(0.50 0.01 264);      /* Cinza médio */
 
   /* Accent - Azul de destaque #3b82f6 */
+  --accent: #3b82f6;                             /* Azul médio - fallback */
   --accent: oklch(0.65 0.20 264);                /* Azul médio */
+  --accent-foreground: #ffffff;                  /* Branco - fallback */
   --accent-foreground: oklch(1 0 0);             /* Branco */
 
   /* Destructive */
   --destructive: oklch(0.577 0.245 27.325);      /* Vermelho */
 
   /* Borders & Inputs */
+  --border: #e5e7eb;                             /* Cinza azulado - fallback */
   --border: oklch(0.90 0.005 264);               /* Cinza azulado */
+  --input: #e5e7eb;                              /* Cinza azulado - fallback */
   --input: oklch(0.90 0.005 264);
+  --ring: #1e3a8a;                               /* Azul primário - fallback */
   --ring: oklch(0.45 0.15 264);                  /* Azul primário */
 
   /* Charts - Tons de azul profissional */
@@ -115,7 +122,9 @@
   --popover-foreground: oklch(0.98 0 0);
 
   /* Primary - Azul claro para destaque */
+  --primary: #3b82f6;                            /* Azul claro - fallback */
   --primary: oklch(0.65 0.20 264);               /* Azul claro */
+  --primary-foreground: #1e293b;                 /* Azul escuro - fallback */
   --primary-foreground: oklch(0.18 0.01 264);    /* Azul escuro */
 
   /* Secondary */
@@ -127,7 +136,9 @@
   --muted-foreground: oklch(0.70 0.01 264);      /* Cinza claro */
 
   /* Accent */
+  --accent: #3b82f6;                             /* Azul médio - fallback */
   --accent: oklch(0.60 0.18 264);                /* Azul médio */
+  --accent-foreground: #ffffff;                  /* Branco - fallback */
   --accent-foreground: oklch(0.98 0 0);          /* Branco */
 
   /* Destructive */
