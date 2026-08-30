@@ -145,11 +145,32 @@ def resolve_ac_voltage(
     }
 
 
+def normalize_tensao_fase_neutro(
+    tensao_atendimento: str | None = None,
+    uf: str | None = None,
+) -> str:
+    """Label F-N para formulário (127V ou 220V). LL vem do tipo de ligação."""
+    if tensao_atendimento:
+        text = str(tensao_atendimento).upper()
+        if '13.8' in text or '13800' in text:
+            return '13.8kV'
+        nums = [int(n) for n in re.findall(r'\d{2,3}', text)]
+        if nums and min(nums) == 127:
+            return '127V'
+        if nums:
+            return '220V'
+    uf_key = (uf or 'GO').upper()[:2]
+    defaults = UF_VOLTAGE.get(uf_key, UF_VOLTAGE['DEFAULT'])
+    return f"{int(defaults['monofasico'])}V"
+
+
 def suggest_tensao_atendimento(uf: str | None, tipo_ligacao: str | None) -> str:
-    """Sugere label para o formulário (ex.: 220V ou 220/380V)."""
+    """Sugere tensão F-N (127V ou 220V) — trifásico/bifásico fica no tipo de ligação."""
     uf_key = (uf or 'GO').upper()[:2]
     defaults = UF_VOLTAGE.get(uf_key, UF_VOLTAGE['DEFAULT'])
     system_type = _map_system_type(tipo_ligacao)
-    if system_type == 'trifasico':
-        return f"{int(defaults['monofasico'])}/{int(defaults['trifasico'])}V"
-    return f"{int(defaults['monofasico'])}V"
+    if system_type == 'bifasico':
+        v = defaults['bifasico']
+    else:
+        v = defaults['monofasico']
+    return f"{int(v)}V"

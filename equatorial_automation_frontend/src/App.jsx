@@ -23,6 +23,7 @@ import {
   parseTxtData,
   toIsoDate,
 } from './utils/txtParser'
+import { normalizeTensaoFaseNeutro } from '@/utils/gridVoltage.js'
 import './App.css'
 
 import { buildLocalDeParaPreview } from './utils/deParaMapper'
@@ -322,7 +323,7 @@ function App() {
       if (padrao?.tensao_v) {
         setClientData((prev) => ({
           ...prev,
-          tensao_atendimento: padrao.tensao_v,
+          tensao_atendimento: normalizeTensaoFaseNeutro(padrao.tensao_v, ufVal),
         }))
       }
       const disjA = padrao?.disjuntor_a ?? 40
@@ -1467,29 +1468,31 @@ Data do Documento: 15/08/2026
                     </div>
 
                     <div>
-                      <Label htmlFor="tensao_atendimento">Tensão de Atendimento</Label>
+                      <Label htmlFor="tensao_atendimento">Tensão fase-neutro (V)</Label>
                       <Select
-                        value={clientData.tensao_atendimento}
+                        value={normalizeTensaoFaseNeutro(clientData.tensao_atendimento, clientData.uf)}
                         onValueChange={(value) => setClientData({...clientData, tensao_atendimento: value})}
                       >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="127V">127V</SelectItem>
-                          <SelectItem value="220V">220V</SelectItem>
-                          <SelectItem value="220/380V">220/380V (Trifásico)</SelectItem>
-                          <SelectItem value="13.8kV">13.8kV (Média Tensão)</SelectItem>
+                          <SelectItem value="127V">127 V</SelectItem>
+                          <SelectItem value="220V">220 V</SelectItem>
+                          <SelectItem value="13.8kV">13,8 kV (média tensão)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div>
-                      <Label htmlFor="tipo_ligacao">Tipo de Ligação</Label>
+                      <Label htmlFor="tipo_ligacao">Tipo de ligação</Label>
                       <Select
                         value={clientData.tipo_ligacao}
                         onValueChange={(value) => {
-                          setClientData({...clientData, tipo_ligacao: value})
+                          setClientData((prev) => ({
+                            ...prev,
+                            tipo_ligacao: value,
+                          }))
                           syncPadraoEntrada(clientData.uf, value, clientData.classe)
                         }}
                       >
@@ -1532,6 +1535,7 @@ Data do Documento: 15/08/2026
                         type="number"
                         min="1"
                         step="1"
+                        className="w-24"
                         value={technicalData.disjuntor_entrada || '40'}
                         onChange={(e) => {
                           disjuntorEntradaManual.current = true
@@ -1539,10 +1543,6 @@ Data do Documento: 15/08/2026
                         }}
                         placeholder="40"
                       />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Tabela ramal BT (NT.00020.EQTL): disjuntor e cabo conforme carga kW
-                        (demanda-alvo ou potência FV). Padrão 40 A se não informado.
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -2047,6 +2047,7 @@ Data do Documento: 15/08/2026
                       <Label>Disjuntor de Entrada (A)</Label>
                       <Input
                         type="number"
+                        className="w-24"
                         value={technicalData.disjuntor_entrada || '40'}
                         onChange={(e) => {
                           disjuntorEntradaManual.current = true

@@ -173,6 +173,9 @@ def resolve_entrada_uc(
         padrao['ramal_cabo_aluminio_multiplexado_mm2'] = faixa.get('cabo_aluminio_multiplexado_mm2')
     elif not padrao.get('disjuntor_a'):
         padrao['disjuntor_a'] = 40
+    if padrao.get('tensao_v'):
+        from grid_voltage import normalize_tensao_fase_neutro
+        padrao['tensao_v'] = normalize_tensao_fase_neutro(padrao['tensao_v'], uf)
     return padrao
 
 
@@ -397,6 +400,9 @@ def build_ai_context(mode: str = 'completo') -> str:
 
 def apply_normas_to_payload(normalized: dict[str, Any]) -> None:
     """Preenche lacunas no payload normalizado conforme normas GO (in-place)."""
+    def _empty(val: Any) -> bool:
+        return val is None or str(val).strip() == ''
+
     cliente = normalized.setdefault('cliente', {})
     uc = normalized.setdefault('unidade_consumidora', {})
     tec = normalized.setdefault('dados_tecnicos', {})
@@ -413,9 +419,6 @@ def apply_normas_to_payload(normalized: dict[str, Any]) -> None:
     padrao = resolve_entrada_uc(uf, lig, cls, carga_kw=carga_kw)
     if not padrao:
         return
-
-    def _empty(val: Any) -> bool:
-        return val is None or str(val).strip() == ''
 
     if _empty(uc.get('tensao_atendimento')):
         uc['tensao_atendimento'] = padrao.get('tensao_v')

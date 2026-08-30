@@ -24,6 +24,10 @@ Integração inteligente de strings CC com dados SAJ/DEYE do catálogo.
 
 ### Corrigido
 - **Excel corrompido** — `gerar_documentos.py` remove `calcChain.xml` e sua referência em `[Content_Types].xml` para evitar erro "Encontramos um problema em um conteúdo" ao abrir arquivos .xlsx gerados.
+- **Erro 500 em preview-de-para** — `normas_loader.py` moveu definição de `_empty()` para antes do primeiro uso (UnboundLocalError).
+
+### Segurança
+- **Emails removidos** — `.env.example` e `device_trust.py` substituíram emails reais por placeholders genéricos para evitar exposição pública.
 
 ---
 

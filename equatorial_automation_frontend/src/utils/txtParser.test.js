@@ -71,7 +71,7 @@ test('extrai o TXT colado do Rosembergue', () => {
   assert.equal(client.consumer_unit, '000068889901235')
   assert.equal(client.email, 'doceslu@uol.com.br')
   assert.equal(client.telefone, '62 9274-3040')
-  assert.equal(client.tensao_atendimento, '220/380V')
+  assert.equal(client.tensao_atendimento, '220V')
   assert.equal(client.tipo_ligacao, 'TRIFASICO')
   assert.equal(technical.latitude, '-16.291613')
   assert.equal(technical.longitude, '-48.973249')

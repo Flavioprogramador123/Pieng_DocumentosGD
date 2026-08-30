@@ -262,9 +262,8 @@ export function mapTensao(value) {
   const v = String(value || '').toUpperCase().replace(/\s/g, '')
   if (!v) return ''
   if (v.includes('13.8') || v.includes('13800') || v.includes('13,8')) return '13.8kV'
-  if (v.includes('220/380') || v.includes('380') || v.includes('220380')) return '220/380V'
   if (v.includes('127')) return '127V'
-  if (v.includes('220')) return '220V'
+  if (v.includes('220') || v.includes('380') || v.includes('220380') || v.includes('220/380')) return '220V'
   return String(value).trim()
 }
 

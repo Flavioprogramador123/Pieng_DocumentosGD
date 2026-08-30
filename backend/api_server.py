@@ -49,6 +49,7 @@ from patch_memorial_demand import patch_memorial_template
 from grid_voltage import suggest_tensao_atendimento
 from yaml_loader import export_form_to_yaml, import_yaml_project, read_template
 from output_paths import get_output_base_dir, output_config_status, folder_name_from_contract
+from equipment_validation import validate_modules_inverters
 
 app = Flask(__name__)
 
@@ -1228,30 +1229,11 @@ def calculate_system():
         modules = data.get('modules') or []
         inverters = data.get('inverters') or []
 
-        if not modules or not inverters:
+        equipment_error = validate_modules_inverters(modules, inverters)
+        if equipment_error:
             return jsonify({
                 'success': False,
-                'error': 'Módulos e inversores são obrigatórios',
-            }), 400
-
-        def _has_valid_equipment(items, qty_keys=('quantity', 'quantidade'), power_keys=('power', 'potencia')):
-            for item in items:
-                if not isinstance(item, dict):
-                    continue
-                qty = next((item.get(k) for k in qty_keys if item.get(k) not in (None, '')), None)
-                pwr = next((item.get(k) for k in power_keys if item.get(k) not in (None, '')), None)
-                if qty and pwr:
-                    try:
-                        if float(str(pwr).replace(',', '.')) > 0 and int(float(str(qty).replace(',', '.'))) > 0:
-                            return True
-                    except (TypeError, ValueError):
-                        continue
-            return False
-
-        if not _has_valid_equipment(modules) or not _has_valid_equipment(inverters):
-            return jsonify({
-                'success': False,
-                'error': 'Informe quantidade e potência (Wp/kW) em pelo menos um módulo e um inversor.',
+                'error': equipment_error,
             }), 400
 
         # Catálogo SQLite — sem IA e sem aproximar potência (ex.: 544 W ≠ 620 W)

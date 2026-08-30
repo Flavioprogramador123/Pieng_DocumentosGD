@@ -66,7 +66,7 @@ SEED_INVERTERS = [
 ]
 SEED_PADRAO = [
     ('GO', 'MONOFASICO', '220V', 40, '10 mm²', 'DPS Classe II', 'C', 30, 'Residencial GO'),
-    ('GO', 'TRIFASICO', '220/380V', 63, '10 mm²', 'DPS Classe II', 'C', 30, 'Trifásico GO — 380 V LL'),
+    ('GO', 'TRIFASICO', '220V', 63, '10 mm²', 'DPS Classe II', 'C', 30, 'Trifásico GO — 380 V LL'),
     ('DEFAULT', 'MONOFASICO', '220V', 40, '10 mm²', 'DPS Classe II', 'C', 30, 'Padrão nacional'),
 ]
 
