@@ -84,7 +84,10 @@ export function buildLocalDeParaPreview(clientData, contractData, technicalData,
 
   push('Endereço', 'ENDERECO', clientData.logradouro)
 
-  push('Número', 'NUMERO', clientData.numero)
+  if (clientData.logradouro) {
+    const numero = (clientData.numero || '').trim() || 'S/N'
+    push('Número', 'NUMERO', numero)
+  }
 
   push('Complemento', 'COMPLEMENTO', clientData.complemento)
 
@@ -110,7 +113,9 @@ export function buildLocalDeParaPreview(clientData, contractData, technicalData,
 
     clientData.logradouro,
 
-    clientData.numero ? `Nº ${clientData.numero}` : '',
+    clientData.logradouro
+      ? `Nº ${(clientData.numero || '').trim() || 'S/N'}`
+      : '',
 
     clientData.complemento,
 

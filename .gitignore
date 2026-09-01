@@ -8,6 +8,8 @@ backend/.env.*
 config_padrao.local.json
 backend/config_padrao.local.json
 backend/output_config.local.json
+backend/app_settings.local.json
+backend/secrets_drive.local.json
 
 # Saída gerada
 saida/
@@ -28,6 +30,7 @@ obsoleto/node_modules/
 # Backups locais de templates
 templates/*.bak*
 templates/~$*
+templates/antigo/
 
 # Config local do IDE
 .claude/settings.local.json

@@ -4,6 +4,7 @@ import {
   parseTxtData,
   toIsoDate,
   formatCpf,
+  formatTelefone,
   parseAddress,
 } from './txtParser.js'
 
@@ -54,6 +55,24 @@ test('parseAddress separa rua e complemento (quadra/lote/anexo)', () => {
   assert.match(addr.complemento, /Anexo Itamaraty/)
 })
 
+test('formatTelefone normaliza DDD 62 com e sem zero à esquerda', () => {
+  assert.equal(formatTelefone('062991827090'), '(62) 99182-7090')
+  assert.equal(formatTelefone('62991827090'), '(62) 99182-7090')
+  assert.equal(formatTelefone('(62) 99182-7090'), '(62) 99182-7090')
+})
+
+test('parseTxtData — rótulo fone e formatos numéricos', () => {
+  for (const line of [
+    'fone: 062991827090',
+    'Fone: 62991827090',
+    'fone 062991827090',
+    'Telefone Celular: 62991827090',
+  ]) {
+    const { client } = parseTxtData(line)
+    assert.equal(client.telefone, '(62) 99182-7090', `falhou em: ${line}`)
+  }
+})
+
 test('extrai o TXT colado do Rosembergue', () => {
   const { client, technical, modules, inverters } = parseTxtData(SAMPLE)
 
@@ -70,8 +89,8 @@ test('extrai o TXT colado do Rosembergue', () => {
   assert.equal(client.cep, '75050-270')
   assert.equal(client.consumer_unit, '000068889901235')
   assert.equal(client.email, 'doceslu@uol.com.br')
-  assert.equal(client.telefone, '62 9274-3040')
-  assert.equal(client.tensao_atendimento, '220V')
+  assert.equal(client.telefone, '(62) 9274-3040')
+  assert.equal(client.tensao_atendimento, '220/380V')
   assert.equal(client.tipo_ligacao, 'TRIFASICO')
   assert.equal(technical.latitude, '-16.291613')
   assert.equal(technical.longitude, '-48.973249')
@@ -83,6 +102,16 @@ test('extrai o TXT colado do Rosembergue', () => {
   assert.equal(inverters[0].quantity, '8')
   assert.equal(inverters[0].power, '2.25')
   assert.equal(inverters[0].fabricante, 'DEYE')
+})
+
+test('parseTxtData — ligação existente TRI 380 V e disjuntor trifásico', () => {
+  const txt = `Ligação Existente: Convencional B1 / TRI - Tensão Nom.: 380 V
+Disjuntor de Proteção AC: 40A Trifásico`
+  const { client, technical } = parseTxtData(txt)
+  assert.equal(client.tipo_ligacao, 'TRIFASICO')
+  assert.equal(client.tensao_atendimento, '220/380V')
+  assert.equal(client.classe, 'RESIDENCIAL')
+  assert.equal(technical.disjuntor_entrada, '40')
 })
 
 test('parseTxtData — contrato e texto pagamento multilinha', () => {

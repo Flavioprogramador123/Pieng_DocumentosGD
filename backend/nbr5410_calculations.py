@@ -12,8 +12,8 @@ REGRAS CRÍTICAS:
 
 2. INVERSORES STRING:
    - CADA INVERSOR = 1 DISJUNTOR CA dedicado
-   - TRIFÁSICO: pode conectar em rede trifásica (3 fases balanceadas)
-   - MONOFÁSICO: SOMENTE pode conectar em rede monofásica
+   - TRIFÁSICO: inversor trifásico balanceado (I = P / (√3 × V_LL))
+   - MONOFÁSICO em rede trifásica: conecta em 1 fase (I = P / VN) — permitido
    - Bifásico: conecta em 2 fases
 
 3. LIMITES DE POTÊNCIA POR REDE:
@@ -23,20 +23,26 @@ REGRAS CRÍTICAS:
    - Rede TRIFÁSICA 380V (GO): MÁXIMO 75 kW
    - IMPORTANTE: Limite de 12kW em 220V monofásico é RÍGIDO
 
-4. CÁLCULO DE CORRENTE CA (NBR 5410):
-   - Monofásico (127V ou 220V): I = P / V
-   - Bifásico (220V entre fases): I = P / V
-   - Trifásico (220V/380V): I = P / (V × √3)
-     * V = tensão linha-linha (LL)
-     * Para GO: 380V trifásico
+4. CÁLCULO DE CORRENTE CA DO INVERSOR (potência nominal × fase do equipamento):
+   - Inversor MONOFÁSICO: I = P / VN → disjuntor monopolar
+   - Inversor TRIFÁSICO: I = P / (V_LL × √3) → disjuntor tripolar
+   - Independente do padrão de entrada (disjuntor geral da UC)
 
-5. DISTRIBUIÇÃO DE CARGA:
-   - Trifásico: dividir corrente total por 3 (balanceamento entre fases)
+5. PADRÃO DE ENTRADA (rede concessionária):
+   - Tensão e tipo de ligação vêm da UC — não mudam com o inversor
+   - Disjuntor de entrada = valor informado no formulário (disjuntor geral existente)
+
+6. COMPATIBILIDADE:
+   - Inversor trifásico em rede monofásica: IMPOSSÍVEL conectar
+   - Inversor monofásico em rede trifásica: OK (1 fase)
+
+7. DISTRIBUIÇÃO DE CARGA (microinversores):
+   - Trifásico: dividir micros nas 3 fases
    - Cada fase carrega aproximadamente I_total / 3
 
-6. QUANTIDADE DE DISJUNTORES CA:
+8. QUANTIDADE DE DISJUNTORES CA DO INVERSOR:
    - Microinversores: 1 disjuntor para cada grupo de até 3 micros
-   - Inversores string: 1 disjuntor por inversor
+   - Inversores string: 1 disjuntor por inversor (monopolar ou tripolar conforme fase_ca)
 """
 
 from __future__ import annotations
@@ -65,6 +71,118 @@ def _si(val, default=0) -> int:
         return default
 
 
+def calculate_inverter_ac_current(
+    power_kw: float,
+    inverter_fase: str,
+    voltage_ln_v: float,
+    voltage_ll_v: float,
+    topology: str = 'string',
+    num_devices: int = 1,
+) -> dict[str, Any]:
+    """
+    Corrente CA e disjuntor do inversor — baseado na potência nominal e fase CA do equipamento.
+
+    Não confundir com o padrão de entrada (disjuntor geral da concessionária).
+    """
+    inv = (inverter_fase or 'monofasico').lower()
+    power_w = power_kw * 1000
+    warnings: list[str] = []
+    v_ln = voltage_ln_v or 220.0
+    v_ll = voltage_ll_v or 380.0
+
+    if topology == 'micro':
+        inv = 'monofasico'
+        power_per_micro_w = power_w / num_devices if num_devices > 0 else power_w
+        i_micro = power_per_micro_w / v_ln if v_ln else 0
+        i_nom = i_micro
+        i_total = power_w / v_ln if v_ln else 0
+        formula = f'I_micro = P / VN = {power_per_micro_w:.0f}W / {v_ln:.0f}V'
+        distribution = (
+            f'{num_devices} microinversor(es) monofásico(s) — '
+            f'{i_micro:.2f} A por equipamento'
+        )
+        num_polos = 1
+        descricao_polos = 'Monopolar'
+        if num_devices > 3:
+            warnings.append(
+                f'⚠️  {num_devices} microinversores — limite recomendado: 3 em série por disjuntor.'
+            )
+        return _inverter_current_result(
+            i_nom=i_nom,
+            i_total=i_total,
+            formula=formula,
+            distribution=distribution,
+            inv=inv,
+            num_polos=num_polos,
+            descricao_polos=descricao_polos,
+            power_kw=power_kw,
+            warnings=warnings,
+        )
+
+    # Inversor string — fórmula conforme fase CA do equipamento (não da rede)
+    if 'trif' in inv:
+        i_nom = power_w / (v_ll * math.sqrt(3)) if v_ll else 0
+        formula = f'I = P / (V_LL × √3) = {power_w:.0f}W / ({v_ll:.0f}V × 1,732)'
+        distribution = f'Inversor trifásico — {i_nom:.2f} A (linha/fase)'
+        num_polos = 3
+        descricao_polos = 'Tripolar'
+    elif 'bif' in inv:
+        i_nom = power_w / v_ln if v_ln else 0
+        formula = f'I = P / V = {power_w:.0f}W / {v_ln:.0f}V'
+        distribution = f'Inversor bifásico — {i_nom:.2f} A'
+        num_polos = 2
+        descricao_polos = 'Bipolar'
+    else:
+        i_nom = power_w / v_ln if v_ln else 0
+        formula = f'I = P / VN = {power_w:.0f}W / {v_ln:.0f}V'
+        distribution = f'Inversor monofásico — {i_nom:.2f} A (1 fase + neutro)'
+        num_polos = 1
+        descricao_polos = 'Monopolar'
+
+    return _inverter_current_result(
+        i_nom=i_nom,
+        i_total=i_nom,
+        formula=formula,
+        distribution=distribution,
+        inv=inv,
+        num_polos=num_polos,
+        descricao_polos=descricao_polos,
+        power_kw=power_kw,
+        warnings=warnings,
+    )
+
+
+def _inverter_current_result(
+    *,
+    i_nom: float,
+    i_total: float,
+    formula: str,
+    distribution: str,
+    inv: str,
+    num_polos: int,
+    descricao_polos: str,
+    power_kw: float,
+    warnings: list[str],
+) -> dict[str, Any]:
+    i_design = i_nom * 1.25
+    breaker_a = standard_breaker_rating(i_design)
+    return {
+        'current_nominal_a': round(i_nom, 2),
+        'current_total_a': round(i_total, 2),
+        'current_per_phase_a': round(i_nom, 2),
+        'current_design_a': round(i_design, 2),
+        'breaker_rated_a': breaker_a,
+        'breaker_standard': f'{breaker_a}A',
+        'num_polos_disjuntor': num_polos,
+        'descricao_polos_disjuntor': descricao_polos,
+        'inverter_fase': inv,
+        'formula': formula,
+        'distribution': distribution,
+        'power_kw': power_kw,
+        'warnings': warnings,
+    }
+
+
 def calculate_ac_current_nbr5410(
     power_kw: float,
     voltage_v: float,
@@ -72,6 +190,7 @@ def calculate_ac_current_nbr5410(
     topology: str = 'string',
     num_devices: int = 1,
     voltage_ln_v: float | None = None,
+    inverter_system_type: str | None = None,
 ) -> dict[str, Any]:
     """
     Calcula corrente CA conforme NBR 5410.
@@ -160,38 +279,26 @@ def calculate_ac_current_nbr5410(
             'microinverters_per_phase': micros_per_phase if system_type in ('trifasico', 'bifasico') else num_devices,
         }
 
-    # INVERSORES STRING
+    # INVERSORES STRING — delega ao cálculo por fase do equipamento
     else:
-        if system_type == 'trifasico':
-            # Inversor string trifásico: I_linha = P / (V_LL × √3)
-            i_total = power_w / (voltage_v * math.sqrt(3)) if voltage_v else 0
-            i_per_phase = i_total
-
-            formula = f'I = P / (V_LL × √3) = {power_w:.0f}W / ({voltage_v:.0f}V × 1,732)'
-            distribution = f'Inversor trifásico balanceado: {i_total:.2f} A (linha/fase)'
-
-        elif system_type == 'bifasico':
-            # Bifásico: I = P / V (tensão entre fases)
-            i_total = power_w / voltage_v if voltage_v else 0
-            i_per_phase = i_total / 2
-
-            formula = f'I = P / V = {power_w:.0f}W / {voltage_v}V'
-            distribution = f'Distribuído em 2 fases: {i_per_phase:.2f} A por fase'
-
-        else:  # monofasico
-            # Monofásico: I = P / V
-            i_total = power_w / voltage_v if voltage_v else 0
-            i_per_phase = i_total
-
-            formula = f'I = P / V = {power_w:.0f}W / {voltage_v}V'
-            distribution = 'Monofásico: 1 fase'
-
+        inv_fase = (inverter_system_type or 'monofasico').lower()
+        result = calculate_inverter_ac_current(
+            power_kw=power_kw,
+            inverter_fase=inv_fase,
+            voltage_ln_v=v_ln,
+            voltage_ll_v=voltage_v,
+            topology='string',
+            num_devices=num_devices,
+        )
+        # Compatibilidade rede × inversor (só aviso informativo nesta função legada)
+        if system_type == 'trifasico' and 'mono' in inv_fase:
+            result['distribution'] += ' — conectado em 1 fase da rede trifásica'
         return {
-            'current_total_a': round(i_total, 2),
-            'current_per_phase_a': round(i_per_phase, 2),
-            'formula': formula,
-            'distribution': distribution,
-            'warnings': warnings,
+            'current_total_a': result['current_total_a'],
+            'current_per_phase_a': result['current_per_phase_a'],
+            'formula': result['formula'],
+            'distribution': result['distribution'],
+            'warnings': result['warnings'],
         }
 
 
@@ -217,6 +324,28 @@ def validate_inverter_network_compatibility(
     inverter_type = (inverter_type or '').lower()
     network_type = (network_type or '').lower()
 
+    # Inversor trifásico em rede monofásica — impossível conectar
+    if 'trif' in inverter_type and 'mono' in network_type:
+        return {
+            'compatible': False,
+            'status': 'ERRO',
+            'message': (
+                '❌ ERRO: Inversor TRIFÁSICO não pode ser ligado em rede MONOFÁSICA — '
+                'não há como conectar.'
+            ),
+        }
+
+    # Monofásico string em rede trifásica: conecta em 1 fase (permitido)
+    if topology == 'string' and 'mono' in inverter_type and 'trif' in network_type:
+        return {
+            'compatible': True,
+            'status': 'OK',
+            'message': (
+                'Inversor monofásico conectado em uma fase da rede trifásica '
+                '(I = P / VN — permitido pela concessionária).'
+            ),
+        }
+
     # Microinversores monofásicos em rede trifásica/bifásica (fases distintas)
     if topology == 'micro' and 'trif' in network_type:
         return {
@@ -234,13 +363,23 @@ def validate_inverter_network_compatibility(
             'message': 'Microinversores monofásicos em fases distintas do sistema bifásico.',
         }
 
-    # REGRA: Inversor monofásico SOMENTE em rede monofásica
-    if 'mono' in inverter_type and 'mono' not in network_type:
+    # Inversor monofásico em rede bifásica (sem ser micro): aviso
+    if 'mono' in inverter_type and 'bif' in network_type and topology != 'micro':
+        return {
+            'compatible': True,
+            'status': 'OK',
+            'message': 'Inversor monofásico em rede bifásica — conectado em uma fase.',
+        }
+
+    # Inversor monofásico em rede exclusivamente monofásica
+    if 'mono' in inverter_type and 'mono' not in network_type and topology != 'micro':
         return {
             'compatible': False,
             'status': 'ERRO',
-            'message': f'❌ ERRO: Inversor MONOFÁSICO não pode ser conectado em rede {network_type.upper()}. '
-                       f'Use inversor trifásico ou altere a rede para monofásica.',
+            'message': (
+                f'❌ ERRO: Inversor MONOFÁSICO não compatível com rede {network_type.upper()} '
+                f'(exceto conexão em 1 fase da trifásica).'
+            ),
         }
 
     # REGRA: Inversor trifásico pode conectar em rede trifásica

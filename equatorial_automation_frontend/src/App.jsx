@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
-import { Plus, Trash2, FileText, Calculator, Download, Upload, Save, FileJson, Search, Database, LogOut, Users, Menu, RefreshCw, FolderOpen } from 'lucide-react'
+import { Plus, Trash2, FileText, Calculator, Download, Upload, Save, FileJson, Search, Database, LogOut, Users, Menu, RefreshCw, FolderOpen, Settings } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +41,8 @@ import { FiguraLocalizacaoPreview } from '@/components/FiguraLocalizacaoPreview.
 import { OdaSetupPrompt, shouldShowOdaPrompt } from '@/components/OdaSetupPrompt.jsx'
 import { GeneratedFilesPanel } from '@/components/GeneratedFilesPanel.jsx'
 import { OutputSettingsDialog } from '@/components/OutputSettingsDialog.jsx'
+import { AppSettingsDialog } from '@/components/AppSettingsDialog.jsx'
+import { ContractNumberDialog } from '@/components/ContractNumberDialog.jsx'
 
 function App() {
   const [activeTab, setActiveTab] = useState('entrada')
@@ -118,6 +120,8 @@ function App() {
   const [outputFolderName, setOutputFolderName] = useState('')
   const [outputWarning, setOutputWarning] = useState('')
   const [outputSettingsOpen, setOutputSettingsOpen] = useState(false)
+  const [appSettingsOpen, setAppSettingsOpen] = useState(false)
+  const [contractNumberDialogOpen, setContractNumberDialogOpen] = useState(false)
   const [aiStatus, setAiStatus] = useState({ ollama: false, gemini: false, primary: 'none' })
   const [deParaOpen, setDeParaOpen] = useState(true)
   const [deParaWidth, setDeParaWidth] = useState(460)
@@ -235,6 +239,9 @@ function App() {
   }, [authUser])
 
   const buildRequestPayload = (options = {}) => {
+    const contract = options.contractOverride
+      ? { ...contractData, ...options.contractOverride }
+      : contractData
     const endereco_completo = [
       clientData.logradouro,
       clientData.numero ? `Nº ${clientData.numero}` : '',
@@ -245,7 +252,7 @@ function App() {
 
     return {
       client: clientData,
-      contract: contractData,
+      contract,
       technical: technicalData,
       client_name: clientData.client_name,
       client_address: endereco_completo,
@@ -253,7 +260,7 @@ function App() {
       client_cpf: clientData.cpf,
       grid_voltage: clientData.tensao_atendimento,
       ...clientData,
-      ...contractData,
+      ...contract,
       ...technicalData,
       endereco_completo,
       modules,
@@ -1001,25 +1008,33 @@ function App() {
     }
   }
 
-  const generateDocuments = async () => {
-    if (!contractData.numero_contrato?.trim()) {
-      alert('Informe o número do contrato na aba Contrato.\n\nA pasta no Google Drive será: número + 1º e 2º nome (ex.: 80 - João Silva).')
-      setActiveTab('contrato')
+  const runGenerateDocuments = async (numeroContratoOverride) => {
+    const numero = (numeroContratoOverride ?? contractData.numero_contrato)?.trim()
+    if (!numero) {
+      setContractNumberDialogOpen(true)
       return
+    }
+
+    if (numeroContratoOverride && numeroContratoOverride !== contractData.numero_contrato) {
+      setContractData((prev) => ({ ...prev, numero_contrato: numeroContratoOverride.trim() }))
     }
 
     setLoading(true)
     try {
-      const requestData = buildRequestPayload({ enrich_specs: false })
+      const requestData = buildRequestPayload({
+        enrich_specs: false,
+        contractOverride: { numero_contrato: numero },
+      })
 
       const response = await apiFetch('/fill-documents', {
         method: 'POST',
-        body: JSON.stringify(requestData)
+        body: JSON.stringify(requestData),
       })
 
       const data = await response.json()
 
       if (response.ok) {
+        setContractNumberDialogOpen(false)
         setGeneratedFiles(data.files)
         setOutputDirectory(data.output_directory || '')
         setOutputFolderName(data.folder_name || '')
@@ -1040,6 +1055,12 @@ function App() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const generateDocuments = () => runGenerateDocuments()
+
+  const handleContractNumberConfirm = (numero) => {
+    runGenerateDocuments(numero)
   }
 
   if (authLoading) {
@@ -1117,6 +1138,10 @@ function App() {
                   Atualizar DE/PARA
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setAppSettingsOpen(true)}>
+                  <Settings className="h-4 w-4" />
+                  Configurações
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setOutputSettingsOpen(true)}>
                   <FolderOpen className="h-4 w-4" />
                   Pasta de saída
@@ -2571,6 +2596,22 @@ Data do Documento: 15/08/2026
         onClose={() => setOutputSettingsOpen(false)}
         isMaster={authUser?.role === 'master'}
         onSaved={() => {}}
+      />
+
+      <AppSettingsDialog
+        open={appSettingsOpen}
+        onClose={() => setAppSettingsOpen(false)}
+        isMaster={authUser?.role === 'master'}
+        onSaved={() => {}}
+      />
+
+      <ContractNumberDialog
+        open={contractNumberDialogOpen}
+        onClose={() => { if (!loading) setContractNumberDialogOpen(false) }}
+        initialValue={contractData.numero_contrato}
+        clientName={clientData.client_name}
+        loading={loading}
+        onConfirm={handleContractNumberConfirm}
       />
     </div>
   )

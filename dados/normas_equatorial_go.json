@@ -186,10 +186,12 @@
 
   "demanda_fornecida": {
     "descricao": "Demanda fornecida (PD) e demanda de projeto para levantamento NTC-04",
-    "formula_pd_kw": "PD = VN × IDG × NF × FP / 1000",
+    "formula_pd_kw": "GO mono: P = V_FN × IDG × FP; GO tri equilibrado: P = √3 × V_FF × IDG × FP",
     "variaveis": {
-      "VN": "Tensão nominal de fase (V) — 220 V em GO mono/bi",
-      "V_LL": "Tensão linha-linha trifásica (380 V GO) — usar na corrente, não na PD simplificada",
+      "V_FN": "Tensão fase-neutro (220 V em GO)",
+      "V_FF": "Tensão fase-fase / linha-linha (380 V nominal GO; 220 × √3 ≈ 381 V)",
+      "VN": "Alias de V_FN — tensão nominal de fase",
+      "V_LL": "Alias de V_FF — tensão linha-linha trifásica",
       "IDG": "Corrente do disjuntor geral (A)",
       "NF": "Número de fases energizadas (1 mono, 2 bi, 3 tri)",
       "FP": "Fator de potência da instalação (0,92 residencial típico)"
@@ -203,9 +205,9 @@
     "pd_por_disjuntor": [
       { "uf": "GO", "tipo_ligacao": "MONOFASICO", "disjuntor_a": 40, "vn_v": 220, "nf": 1, "fp": 0.92, "pd_kw": 8.096 },
       { "uf": "GO", "tipo_ligacao": "BIFASICO", "disjuntor_a": 40, "vn_v": 220, "nf": 2, "fp": 0.92, "pd_kw": 16.192 },
-      { "uf": "GO", "tipo_ligacao": "TRIFASICO", "disjuntor_a": 63, "vn_v": 220, "nf": 3, "fp": 0.92, "pd_kva": 41.58, "pd_kw": 38.254 },
+      { "uf": "GO", "tipo_ligacao": "TRIFASICO", "disjuntor_a": 63, "vn_v": 220, "v_ll_v": 380, "fp": 0.92, "pd_kva": 41.465, "pd_kw": 38.148 },
       { "uf": "GO", "tipo_ligacao": "MONOFASICO", "disjuntor_a": 50, "vn_v": 220, "nf": 1, "fp": 0.92, "pd_kw": 10.12 },
-      { "uf": "GO", "tipo_ligacao": "TRIFASICO", "disjuntor_a": 100, "vn_v": 220, "nf": 3, "fp": 0.92, "pd_kw": 60.72 }
+      { "uf": "GO", "tipo_ligacao": "TRIFASICO", "disjuntor_a": 100, "vn_v": 220, "v_ll_v": 380, "fp": 0.92, "pd_kva": 65.72, "pd_kw": 60.462 }
     ],
     "demanda_alvo_residencial_kw": [4, 5, 6, 7, 8, 10, 12, 15],
     "regras": [

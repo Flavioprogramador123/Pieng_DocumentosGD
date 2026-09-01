@@ -158,6 +158,31 @@ def _fetch_tile(
     return Image.open(BytesIO(response.content)).convert('RGB')
 
 
+def _fetch_tile_with_fallback(
+    session: requests.Session,
+    zoom: int,
+    x: int,
+    y: int,
+    primary_key: str | None = None,
+) -> Image.Image | None:
+    """Tenta provedor principal e fallbacks — evita quadrado cinza por tile ausente."""
+    keys = []
+    if primary_key:
+        keys.append(primary_key)
+    for k in ('osmde', 'osm', 'esri'):
+        if k not in keys:
+            keys.append(k)
+    for key in keys:
+        provider = TILE_PROVIDERS.get(key)
+        if not provider:
+            continue
+        try:
+            return _fetch_tile(session, provider, zoom, x, y)
+        except requests.RequestException:
+            continue
+    return None
+
+
 def _draw_pin(draw: ImageDraw.ImageDraw, x: float, y: float, size: int = 28) -> None:
     cx, cy = int(x), int(y)
     r = size // 2
@@ -254,21 +279,27 @@ def _resolve_zoom_for_location(
     nominatim_data: dict[str, Any] | None = None,
     tile_provider: str | None = None,
 ) -> int:
-    fixed = _resolve_zoom(zoom)
-    if fixed is not None:
-        return fixed
+    try:
+        from app_settings import resolve_figura_zoom
+        resolved = resolve_figura_zoom(zoom)
+        if resolved is not None:
+            return resolved
+    except ImportError:
+        fixed = _resolve_zoom(zoom)
+        if fixed is not None:
+            return fixed
 
     data = nominatim_data if nominatim_data is not None else _nominatim_reverse(lat, lon)
     if _is_rural_address(data):
         return ZOOM_RURAL
 
-    provider = resolve_tile_provider(tile_provider)
+    provider_key = (tile_provider or os.environ.get('FIGURA_MAP_TILE') or DEFAULT_TILE_PROVIDER).strip().lower()
     center_x, center_y = latlon_to_tile(lat, lon, ZOOM_URBAN)
     session = requests.Session()
     session.headers.update({'User-Agent': USER_AGENT})
     try:
-        center_tile = _fetch_tile(session, provider, ZOOM_URBAN, center_x, center_y)
-        if _tile_looks_sparse(center_tile):
+        center_tile = _fetch_tile_with_fallback(session, ZOOM_URBAN, center_x, center_y, provider_key)
+        if center_tile and _tile_looks_sparse(center_tile):
             return ZOOM_RURAL
     except requests.RequestException:
         pass
@@ -308,7 +339,14 @@ def build_map_tiles(
     tile_provider: str | None = None,
     place_label: str | None = None,
 ) -> Image.Image:
-    provider = resolve_tile_provider(tile_provider)
+    provider_key = (tile_provider or os.environ.get('FIGURA_MAP_TILE') or DEFAULT_TILE_PROVIDER).strip().lower()
+    try:
+        from app_settings import get_figura_settings
+        provider_key = get_figura_settings().get('tile_provider') or provider_key
+        tiles_radius = get_figura_settings().get('tiles_radius') or tiles_radius
+    except ImportError:
+        pass
+
     center_x, center_y = latlon_to_tile(lat, lon, zoom)
     origin_x = center_x - tiles_radius
     origin_y = center_y - tiles_radius
@@ -321,11 +359,9 @@ def build_map_tiles(
     for dy in range(grid):
         for dx in range(grid):
             tx, ty = origin_x + dx, origin_y + dy
-            try:
-                tile = _fetch_tile(session, provider, zoom, tx, ty)
-            except requests.RequestException:
-                continue
-            canvas.paste(tile, (dx * TILE_SIZE, dy * TILE_SIZE))
+            tile = _fetch_tile_with_fallback(session, zoom, tx, ty, provider_key)
+            if tile is not None:
+                canvas.paste(tile, (dx * TILE_SIZE, dy * TILE_SIZE))
 
     pin_x, pin_y = latlon_to_pixel(lat, lon, zoom, origin_x, origin_y)
     draw = ImageDraw.Draw(canvas)
@@ -335,7 +371,7 @@ def build_map_tiles(
     left = max(0, min(int(pin_x - tw // 2), canvas.width - tw))
     top = max(0, min(int(pin_y - th // 2), canvas.height - th))
     canvas = canvas.crop((left, top, left + tw, top + th))
-    return _add_caption(canvas, lat, lon, provider['attribution'], place_label=place_label)
+    return _add_caption(canvas, lat, lon, TILE_PROVIDERS.get(provider_key, TILE_PROVIDERS[DEFAULT_TILE_PROVIDER])['attribution'], place_label=place_label)
 
 
 def build_map_osm(
@@ -426,14 +462,17 @@ def try_embed_figura_localizacao(
     output_dir: Path,
     *,
     zoom: int | None = None,
-) -> bool:
+) -> tuple[bool, str]:
     """
     Gera PNG a partir das coordenadas e insere no memorial já preenchido.
-    Retorna True se a figura foi embutida com sucesso.
+    Retorna (sucesso, mensagem para relatório).
     """
     coords = resolve_lat_lon_from_values(values)
     if not coords:
-        return False
+        return False, (
+            'Figura do mapa não inserida — informe Coordenada UTM X/Y + Fuso '
+            'ou Latitude/Longitude no formulário.'
+        )
 
     lat, lon = coords
     png_path = output_dir / 'figura_localizacao.png'
@@ -441,8 +480,10 @@ def try_embed_figura_localizacao(
     try:
         generate_figura_png(lat, lon, png_path, zoom=effective_zoom)
         if not insert_figura_into_docx(memorial_docx, png_path):
-            return False
-        values[FIGURA_TOKEN] = ''
-        return True
-    except Exception:
-        return False
+            return False, (
+                'Figura do mapa gerada, mas o marcador não foi encontrado no memorial '
+                '(verifique {{FIGURA_LOCALIZACAO}} no template).'
+            )
+        return True, 'Figura do mapa inserida no memorial.'
+    except Exception as exc:
+        return False, f'Figura do mapa não inserida — {exc}'

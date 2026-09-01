@@ -19,6 +19,9 @@ if not exist ".venv\Scripts\python.exe" (
     ".venv\Scripts\python.exe" -m pip install -q -r requirements_api.txt >nul 2>&1
 )
 
+REM Configs sigilosas do Google Drive (gitignored)
+".venv\Scripts\python.exe" local_secrets_sync.py pull >nul 2>&1
+
 REM Iniciar servidor
 echo.
 echo ============================================

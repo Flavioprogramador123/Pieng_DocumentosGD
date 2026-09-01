@@ -263,6 +263,62 @@ def get_bitola_padrao(disjuntor_a: float | int) -> str:
     return _pick_from_table(table, disjuntor= float(disjuntor_a)) or '10 mm²'
 
 
+def _pd_tensoes_go(
+    uf: str | None,
+    tipo_ligacao: str | None,
+) -> tuple[float, float]:
+    """Retorna (VN fase-neutro, V linha-linha) para cálculo de PD."""
+    uf_k = _norm_uf(uf)
+    lig = _norm_ligacao(tipo_ligacao)
+    padrao = get_padrao_entrada(uf_k, lig)
+    v_ln, v_ll = 220.0, 380.0
+    if padrao:
+        nums = [float(n) for n in re.findall(r'\d+', str(padrao.get('tensao_v', '220')))]
+        if len(nums) >= 2:
+            v_ln, v_ll = min(nums), max(nums)
+        elif nums:
+            v_ln = nums[0]
+    return v_ln, v_ll
+
+
+def calc_pd_kva_kw(
+    uf: str | None,
+    tipo_ligacao: str | None,
+    disjuntor_a: float | int,
+    fp: float | None = None,
+) -> tuple[float, float]:
+    """
+    Potência disponibilizada (PD) — kVA e kW.
+
+    GO monofásico: P = V_FN × IDG × FP.
+    GO trifásico equilibrado 220/380 V (preferencial):
+      P = √3 × V_FF × IDG × FP  — equivalente a 3 × V_FN × IDG × FP.
+    Demais UF/ligações: fallback VN × IDG × NF × FP (legado).
+    """
+    import math
+
+    normas = load_normas()
+    uf_k = _norm_uf(uf)
+    lig = _norm_ligacao(tipo_ligacao)
+    idg = float(disjuntor_a)
+    fp_val = fp or float((normas.get('demanda_fornecida') or {}).get('fator_potencia_padrao') or 0.92)
+    v_ln, v_ll = _pd_tensoes_go(uf_k, lig)
+
+    if uf_k == 'GO' and lig == 'TRIFASICO':
+        kva = math.sqrt(3) * v_ll * idg / 1000
+        kw = kva * fp_val
+    elif uf_k == 'GO' and lig == 'MONOFASICO':
+        kw = v_ln * idg * fp_val / 1000
+        kva = v_ln * idg / 1000
+    else:
+        nf_map = (normas.get('demanda_fornecida') or {}).get('nf_por_tipo_ligacao') or {}
+        nf = int(nf_map.get(lig, 1))
+        kva = v_ln * idg * nf / 1000
+        kw = kva * fp_val
+
+    return round(kva, 3), round(kw, 3)
+
+
 def calc_pd_max_kw(
     uf: str | None,
     tipo_ligacao: str | None,
@@ -283,16 +339,8 @@ def calc_pd_max_kw(
         ):
             return float(row['pd_kw'])
 
-    fp_val = fp or float((normas.get('demanda_fornecida') or {}).get('fator_potencia_padrao') or 0.92)
-    nf_map = (normas.get('demanda_fornecida') or {}).get('nf_por_tipo_ligacao') or {}
-    nf = int(nf_map.get(lig, 1))
-    padrao = get_padrao_entrada(uf_k, lig)
-    vn = 220.0
-    if padrao:
-        nums = [float(n) for n in re.findall(r'\d+', str(padrao.get('tensao_v', '220')))]
-        if nums:
-            vn = nums[0]
-    return round(vn * idg * nf * fp_val / 1000, 3)
+    _, kw = calc_pd_kva_kw(uf_k, lig, idg, fp)
+    return kw
 
 
 def suggest_demanda_alvo_kw(

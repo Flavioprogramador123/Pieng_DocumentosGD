@@ -14,13 +14,11 @@ from advanced_calculations import (
     calculate_protection_devices_advanced,
 )
 from demand_table import generate_demand_table
-from grid_voltage import resolve_ac_voltage
+from grid_voltage import resolve_ac_voltage, map_inverter_fase, resolve_ligacao_config
 from nbr5410_calculations import (
-    calculate_ac_current_nbr5410,
+    calculate_inverter_ac_current,
     validate_inverter_network_compatibility,
     validate_network_power_limit,
-    calculate_breaker_per_phase,
-    analyze_microinverter_distribution,
     calculate_breaker_groups_microinverters,
 )
 from string_calculations import ac_current_a, analyze_dc_strings
@@ -107,6 +105,20 @@ def _validate_user_cables(
     return warnings
 
 
+def _resolve_inverter_fase(inverters, technical, topology: str) -> str:
+    """Fase CA do inversor (monofasico/bifasico/trifasico). Micro → monofásico."""
+    if topology == 'micro':
+        return 'monofasico'
+    for inv in (inverters or []):
+        fc = inv.get('fase_ca')
+        if fc:
+            return map_inverter_fase(fc)
+    fc_tech = (technical or {}).get('fase_ca')
+    if fc_tech:
+        return map_inverter_fase(fc_tech)
+    return 'monofasico'
+
+
 def calculate_technical_parameters(modules, inverters, context: dict | None = None) -> dict[str, Any]:
     """
     Calcula parâmetros técnicos completos.
@@ -134,17 +146,37 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
     )
 
     hsp = float(context.get('hsp') or 0)
-    if hsp <= 0:
-        try:
-            from normas_loader import get_hsp
-            hsp = get_hsp(client.get('uf'))
-        except Exception:
-            hsp = 5.2
-    efficiency = 0.80
-    days_per_month = 30.4
-    estimated_monthly = total_module_power_kw * hsp * efficiency * days_per_month
-    estimated_annual = estimated_monthly * 12
-    estimated_daily = estimated_monthly / days_per_month
+    gen_params = None
+    try:
+        from app_settings import compute_monthly_generation_kwh, get_generation_params
+        gen_params = get_generation_params(client.get('uf'))
+        if hsp <= 0:
+            hsp = gen_params['hsp']
+    except ImportError:
+        if hsp <= 0:
+            try:
+                from normas_loader import get_hsp
+                hsp = get_hsp(client.get('uf'))
+            except Exception:
+                hsp = 5.30
+    efficiency = gen_params['eficiencia_sistema'] if gen_params else 0.80
+    days_per_month = gen_params['dias_por_mes'] if gen_params else 30.4
+    tarifa = gen_params['tarifa_kwh'] if gen_params else 1.10
+
+    if gen_params and total_module_power_kw > 0:
+        gen_calc = compute_monthly_generation_kwh(total_module_power_kw, client.get('uf'))
+        estimated_monthly = gen_calc['monthly_kwh']
+        estimated_annual = gen_calc['annual_kwh']
+        estimated_daily = gen_calc['daily_kwh']
+        generation_formula = gen_calc['formula_expanded']
+    else:
+        estimated_monthly = total_module_power_kw * hsp * efficiency * days_per_month
+        estimated_annual = estimated_monthly * 12
+        estimated_daily = estimated_monthly / days_per_month
+        generation_formula = (
+            f'E_mês = {total_module_power_kw:g} kWp × {hsp:g} h/dia × '
+            f'{efficiency:g} × {days_per_month:g} dias = {estimated_monthly:.0f} kWh/mês'
+        )
 
     relacao = (
         total_module_power_kw / total_inverter_power_kw
@@ -172,34 +204,39 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
         tipo_ligacao=client.get('tipo_ligacao'),
         tensao_atendimento=client.get('tensao_atendimento') or technical.get('tensao_atendimento'),
     )
-    voltage = voltage_info['voltage_v']
+    voltage_ll = voltage_info['voltage_ll_v']
     voltage_ln = voltage_info['voltage_ln_v']
     system_type = voltage_info['system_type']
+    ligacao_rede = resolve_ligacao_config(client.get('tipo_ligacao'))
     power_w = max(total_inverter_power_kw, total_module_power_kw) * 1000
+
+    disjuntor_padrao_a = _safe_float(
+        technical.get('disjuntor_entrada') or client.get('disjuntor_entrada'),
+        40.0,
+    )
 
     dc_strings = analyze_dc_strings(modules or [], inverters or [], technical)
 
     topology = dc_strings.get('topology', 'string')
     num_inverters = dc_strings.get('inverter_quantity', 1)
+    inverter_fase = _resolve_inverter_fase(inverters, technical, topology)
 
-    v_calc = voltage_ln if (topology == 'micro' and system_type == 'trifasico') else voltage
-
-    ac_current_result = calculate_ac_current_nbr5410(
+    inverter_ac = calculate_inverter_ac_current(
         power_kw=total_inverter_power_kw,
-        voltage_v=voltage,
-        system_type=system_type,
+        inverter_fase=inverter_fase,
+        voltage_ln_v=voltage_ln,
+        voltage_ll_v=voltage_ll,
         topology=topology,
         num_devices=num_inverters,
-        voltage_ln_v=voltage_ln,
     )
 
-    corrente_ac = ac_current_result['current_total_a']
-    corrente_por_fase = ac_current_result['current_per_phase_a']
+    corrente_inversor_a = inverter_ac['current_nominal_a']
+    disjuntor_inversor_a = inverter_ac['breaker_rated_a']
+    v_calc = voltage_ln if inverter_fase == 'monofasico' or topology == 'micro' else voltage_ll
 
     # Validar compatibilidade inversor × rede
-    inverter_type = (inverters[0].get('tipo_inversor') or technical.get('tipo_inversor') or '').lower() if inverters else ''
     network_compatibility = validate_inverter_network_compatibility(
-        inverter_type=inverter_type or system_type,
+        inverter_type=inverter_fase,
         network_type=system_type,
         topology=topology,
     )
@@ -207,7 +244,7 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
     # Validar limite de potência da rede
     power_limit = validate_network_power_limit(
         power_kw=total_inverter_power_kw,
-        voltage_v=voltage,
+        voltage_v=voltage_ll,
         system_type=system_type,
     )
 
@@ -240,14 +277,14 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
             'total_breakers_detail': f'{num_inverters} disjuntor(es) CA (1 por inversor string)',
         }
 
-    breaker_result = calculate_breaker_per_phase(corrente_por_fase)
-    disjuntor_recomendado = breaker_result['breaker_rated_a']
-    tarifa = 1.10
+    breaker_result = {'breaker_rated_a': disjuntor_inversor_a}
+    disjuntor_recomendado = disjuntor_inversor_a
+    tarifa = tarifa if gen_params else 1.10
     economia_mensal = estimated_monthly * tarifa
 
     generation_detail = calculate_energy_generation(modules or [])
-    cables_detail = calculate_cable_section_advanced(power_w, voltage)
-    protection_detail = calculate_protection_devices_advanced(power_w, voltage, system_type)
+    cables_detail = calculate_cable_section_advanced(power_w, v_calc)
+    protection_detail = calculate_protection_devices_advanced(power_w, v_calc, system_type)
 
     # Cabo CC: preferir Isc de projeto das strings (paralelo), não soma errada de módulos
     if dc_strings.get('isc_design_a'):
@@ -280,9 +317,9 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
     if dc_strings.get('status') == 'ERRO':
         compatibility_status = 'ERRO'
 
-    # Adicionar avisos NBR 5410
-    compatibility_messages.extend(ac_current_result.get('warnings') or [])
-    if ac_current_result.get('warnings') and compatibility_status == 'OK':
+    # Adicionar avisos do inversor
+    compatibility_messages.extend(inverter_ac.get('warnings') or [])
+    if inverter_ac.get('warnings') and compatibility_status == 'OK':
         compatibility_status = 'ATENÇÃO'
 
     # Adicionar compatibilidade de rede
@@ -321,6 +358,18 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
         if compatibility_status == 'OK':
             compatibility_status = 'ATENÇÃO'
 
+    grid_padrao = {
+        'tipo_rede': ligacao_rede['tipo_rede'],
+        'system_type': system_type,
+        'voltage_ln_v': voltage_ln,
+        'voltage_ll_v': voltage_ll,
+        'disjuntor_entrada_a': int(disjuntor_padrao_a) if disjuntor_padrao_a else 40,
+        'num_polos_disjuntor': ligacao_rede['num_polos_disjuntor'],
+        'descricao_polos': ligacao_rede['descricao_polos'],
+        'descricao_disjuntor_padrao': ligacao_rede['descricao_disjuntor_padrao'],
+        'note': voltage_info.get('note', ''),
+    }
+
     result: dict[str, Any] = {
         'total_module_power_kw': round(total_module_power_kw, 2),
         'total_inverter_power_kw': round(total_inverter_power_kw, 2),
@@ -329,13 +378,19 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
         'estimated_annual_generation': round(estimated_annual, 0),
         'estimated_daily_generation': round(estimated_daily, 1),
         'hsp_used': hsp,
+        'generation_formula': generation_formula,
         'system_efficiency_pct': round(efficiency * 100, 0),
-        'voltage_v': voltage,
+        'voltage_v': voltage_ll,
         'voltage_info': voltage_info,
         'system_type': system_type,
-        'corrente_ac_a': round(corrente_ac, 2),
-        'corrente_por_fase_a': round(corrente_por_fase, 2),
-        'ac_current_nbr5410': ac_current_result,
+        'inverter_fase': inverter_fase,
+        'inverter_ac': inverter_ac,
+        'grid_padrao': grid_padrao,
+        'corrente_inversor_a': round(corrente_inversor_a, 2),
+        'disjuntor_inversor_ca_a': disjuntor_inversor_a,
+        'corrente_ac_a': round(corrente_inversor_a, 2),
+        'corrente_por_fase_a': round(inverter_ac['current_per_phase_a'], 2),
+        'ac_current_nbr5410': inverter_ac,
         'network_compatibility': network_compatibility,
         'power_limit': power_limit,
         'num_breakers_ca': num_breakers_ca,
@@ -416,6 +471,10 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
 
 def _build_all_items(calc: dict) -> list[dict]:
     """Lista plana de todos os cálculos para exibição na UI."""
+    inv = calc.get('inverter_ac') or {}
+    grid = calc.get('grid_padrao') or {}
+    inv_fase = calc.get('inverter_fase', 'monofasico')
+
     items = [
         {'grupo': 'Potência', 'rotulo': 'Potência total módulos', 'valor': f"{calc['total_module_power_kw']} kWp", 'token': 'POTENCIA_TOTAL_INSTALADA'},
         {'grupo': 'Potência', 'rotulo': 'Potência total inversores', 'valor': f"{calc['total_inverter_power_kw']} kW", 'token': 'POTENCIA_INVERSOR_TOTAL'},
@@ -423,18 +482,40 @@ def _build_all_items(calc: dict) -> list[dict]:
         {'grupo': 'Geração', 'rotulo': 'Geração mensal estimada', 'valor': f"{calc['estimated_monthly_generation']} kWh/mês", 'token': None},
         {'grupo': 'Geração', 'rotulo': 'Geração anual estimada', 'valor': f"{calc['estimated_annual_generation']} kWh/ano", 'token': None},
         {'grupo': 'Geração', 'rotulo': 'HSP utilizado', 'valor': f"{calc['hsp_used']} h/dia", 'token': None},
-        {'grupo': 'Elétrico', 'rotulo': 'Tensão de cálculo', 'valor': f"{calc['voltage_v']} V ({calc.get('voltage_info', {}).get('note', '')})", 'token': 'TENSAO_ATENDIMENTO'},
-        {'grupo': 'Elétrico', 'rotulo': 'Fórmula corrente AC', 'valor': calc.get('voltage_info', {}).get('formula', '—'), 'token': None},
-        {'grupo': 'Elétrico', 'rotulo': 'Corrente AC estimada', 'valor': f"{calc['corrente_ac_a']} A", 'token': 'CORRENTE_ENTRADA'},
-        {'grupo': 'Elétrico', 'rotulo': 'Corrente por fase', 'valor': f"{calc.get('corrente_por_fase_a', '—')} A", 'token': None},
-        {'grupo': 'Elétrico', 'rotulo': 'Fórmula NBR 5410', 'valor': (calc.get('ac_current_nbr5410') or {}).get('formula', '—'), 'token': None},
-        {'grupo': 'Elétrico', 'rotulo': 'Distribuição CA', 'valor': (calc.get('ac_current_nbr5410') or {}).get('distribution', '—'), 'token': None},
-        {'grupo': 'Elétrico', 'rotulo': 'Disjuntor recomendado', 'valor': f"{calc['disjuntor_recomendado_a']} A", 'token': 'DISJUNTOR_ENTRADA'},
-        {'grupo': 'Elétrico', 'rotulo': 'Qtd disjuntores CA', 'valor': str(calc.get('num_breakers_ca', '—')), 'token': None},
-        {'grupo': 'Cabos', 'rotulo': 'Bitola CC recomendada', 'valor': calc['cable_section_cc'], 'token': 'BITOLA_CABO_CC'},
-        {'grupo': 'Cabos', 'rotulo': 'Bitola CA recomendada', 'valor': calc['cable_section_ca'], 'token': 'BITOLA_CABO_CA'},
-        {'grupo': 'Economia', 'rotulo': 'Economia mensal estimada', 'valor': f"R$ {calc['economia_mensal_estimada']}", 'token': None},
+        {'grupo': 'Geração', 'rotulo': 'Fórmula geração mensal', 'valor': calc.get('generation_formula', '—'), 'token': None},
+        {'grupo': 'Geração', 'rotulo': 'Eficiência do sistema (η)', 'valor': f"{calc.get('system_efficiency_pct', 80)} %", 'token': None},
     ]
+
+    # —— Padrão de entrada (rede concessionária — não depende do inversor) ——
+    if grid:
+        tensao_padrao = (
+            f"VN = {grid.get('voltage_ln_v', '—')} V, V_LL = {grid.get('voltage_ll_v', '—')} V "
+            f"({grid.get('note', '')})"
+            if grid.get('system_type') == 'trifasico'
+            else f"{grid.get('voltage_ln_v', '—')} V ({grid.get('note', '')})"
+        )
+        items.extend([
+            {'grupo': 'Padrão de entrada', 'rotulo': 'Tipo de rede (UC)', 'valor': grid.get('tipo_rede', '—'), 'token': 'TIPO_REDE'},
+            {'grupo': 'Padrão de entrada', 'rotulo': 'Tensão concessionária', 'valor': tensao_padrao, 'token': 'TENSAO_ATENDIMENTO'},
+            {'grupo': 'Padrão de entrada', 'rotulo': 'Disjuntor geral (informado)', 'valor': f"{grid.get('disjuntor_entrada_a', '—')} A", 'token': 'DISJUNTOR_ENTRADA'},
+            {'grupo': 'Padrão de entrada', 'rotulo': 'Disjuntor padrão (polos)', 'valor': f"{grid.get('descricao_polos', '—')} ({grid.get('num_polos_disjuntor', '—')} polos)", 'token': 'DESCRICAO_POLOS_DISJUNTOR'},
+        ])
+
+    # —— Inversor CA (potência nominal × fase do equipamento) ——
+    fase_label = {'monofasico': 'Monofásico', 'trifasico': 'Trifásico', 'bifasico': 'Bifásico'}.get(inv_fase, inv_fase)
+    items.extend([
+        {'grupo': 'Inversor CA', 'rotulo': 'Fase CA do inversor', 'valor': fase_label, 'token': 'FASE_CA'},
+        {'grupo': 'Inversor CA', 'rotulo': 'Potência nominal CA', 'valor': f"{calc['total_inverter_power_kw']} kW", 'token': 'POTENCIA_INVERSOR_TOTAL'},
+        {'grupo': 'Inversor CA', 'rotulo': 'Fórmula corrente', 'valor': inv.get('formula', '—'), 'token': None},
+        {'grupo': 'Inversor CA', 'rotulo': 'Corrente nominal inversor', 'valor': f"{calc.get('corrente_inversor_a', '—')} A", 'token': None},
+        {'grupo': 'Inversor CA', 'rotulo': 'Corrente projeto (×1,25)', 'valor': f"{inv.get('current_design_a', '—')} A", 'token': None},
+        {'grupo': 'Inversor CA', 'rotulo': 'Disjuntor CA inversor', 'valor': f"{calc.get('disjuntor_inversor_ca_a', '—')} A {inv.get('descricao_polos_disjuntor', '')}", 'token': 'DISJUNTOR_CA_INVERSOR_A'},
+        {'grupo': 'Inversor CA', 'rotulo': 'Conexão', 'valor': inv.get('distribution', '—'), 'token': None},
+        {'grupo': 'Inversor CA', 'rotulo': 'Qtd disjuntores CA', 'valor': str(calc.get('num_breakers_ca', '—')), 'token': None},
+        {'grupo': 'Cabos', 'rotulo': 'Bitola CC recomendada', 'valor': calc['cable_section_cc'], 'token': 'BITOLA_CABO_CC'},
+        {'grupo': 'Cabos', 'rotulo': 'Bitola CA inversor', 'valor': calc['cable_section_ca'], 'token': 'BITOLA_CABO_CA'},
+        {'grupo': 'Economia', 'rotulo': 'Economia mensal estimada', 'valor': f"R$ {calc['economia_mensal_estimada']}", 'token': None},
+    ])
     dc = calc.get('dc_strings') or {}
     if dc:
         items.extend([

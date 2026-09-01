@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/select.jsx'
 import { apiFetch } from '@/utils/api.js'
 
-const ZOOM_OPTIONS = ['16', '17', '18']
+const ZOOM_OPTIONS = ['auto', '16', '17', '18', '19']
 
 export function FiguraLocalizacaoPreview({ technicalData, onTechnicalChange }) {
   const [previewUrl, setPreviewUrl] = useState('')
@@ -27,7 +27,7 @@ export function FiguraLocalizacaoPreview({ technicalData, onTechnicalChange }) {
     || (technicalData.coordenadas_raw && String(technicalData.coordenadas_raw).trim())
   )
 
-  const currentZoom = technicalData.figura_map_zoom || suggestedZoom || '18'
+  const currentZoom = technicalData.figura_map_zoom || '18'
 
   const loadPreview = useCallback(async (zoomOverride) => {
     if (!hasCoords) return
@@ -35,13 +35,14 @@ export function FiguraLocalizacaoPreview({ technicalData, onTechnicalChange }) {
     setLoading(true)
     setError('')
     try {
-      const zoomArg = zoomOverride ?? (zoomTouchedRef.current ? technicalData.figura_map_zoom : null)
+      const rawZoom = zoomOverride ?? (zoomTouchedRef.current ? technicalData.figura_map_zoom : '18')
+      const zoomArg = rawZoom === 'auto' ? null : rawZoom
       const response = await apiFetch('/figura-localizacao/preview', {
         method: 'POST',
         body: JSON.stringify({
           technical: technicalData,
           ...technicalData,
-          figura_map_zoom: zoomArg || null,
+          figura_map_zoom: zoomArg,
         }),
       })
       const data = await response.json()
@@ -53,11 +54,7 @@ export function FiguraLocalizacaoPreview({ technicalData, onTechnicalChange }) {
 
       setPreviewUrl(`data:image/png;base64,${data.image_base64}`)
       setPlaceLabel(data.place_label || '')
-      setSuggestedZoom(String(data.suggested_zoom))
-
-      if (!zoomTouchedRef.current && data.suggested_zoom) {
-        onTechnicalChange({ figura_map_zoom: String(data.suggested_zoom) })
-      }
+      setSuggestedZoom(String(data.zoom_used ?? data.suggested_zoom ?? 18))
     } catch (err) {
       setError(err.message || 'Erro ao carregar mapa.')
       setPreviewUrl('')
@@ -76,7 +73,7 @@ export function FiguraLocalizacaoPreview({ technicalData, onTechnicalChange }) {
     }
 
     const timer = setTimeout(() => {
-      loadPreview(zoomTouchedRef.current ? technicalData.figura_map_zoom : null)
+      loadPreview(zoomTouchedRef.current ? technicalData.figura_map_zoom : '18')
     }, 700)
 
     return () => clearTimeout(timer)

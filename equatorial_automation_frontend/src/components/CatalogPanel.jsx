@@ -51,6 +51,59 @@ const TABLES = {
   },
 }
 
+const STICKY_LEFT_FIELDS = {
+  modules: ['fabricante', 'modelo'],
+  inverters: ['fabricante', 'modelo'],
+  padrao: ['uf', 'tipo_ligacao'],
+}
+
+/** Larguras fixas para colunas sticky à esquerda (px). */
+const STICKY_COL_WIDTH = {
+  fabricante: 112,
+  modelo: 128,
+  uf: 64,
+  tipo_ligacao: 120,
+}
+
+function stickyLeftPx(tableKey, field) {
+  const fields = STICKY_LEFT_FIELDS[tableKey] || []
+  const idx = fields.indexOf(field)
+  if (idx < 0) return null
+  let left = 0
+  for (let i = 0; i < idx; i += 1) {
+    left += STICKY_COL_WIDTH[fields[i]] || 100
+  }
+  return left
+}
+
+function isStickyLeft(tableKey, field) {
+  return (STICKY_LEFT_FIELDS[tableKey] || []).includes(field)
+}
+
+function stickyLeftStyle(tableKey, field, bg, zIndex = 10) {
+  const left = stickyLeftPx(tableKey, field)
+  if (left == null) return undefined
+  const fields = STICKY_LEFT_FIELDS[tableKey] || []
+  const idx = fields.indexOf(field)
+  return {
+    position: 'sticky',
+    left: `${left}px`,
+    zIndex,
+    minWidth: STICKY_COL_WIDTH[field] || 100,
+    maxWidth: STICKY_COL_WIDTH[field] || 100,
+    backgroundColor: bg,
+    boxShadow: idx > 0 ? '-3px 0 6px -4px rgba(0,0,0,0.12)' : '2px 0 6px -4px rgba(0,0,0,0.08)',
+  }
+}
+
+const stickyActionsStyle = (bg, zIndex = 10) => ({
+  position: 'sticky',
+  right: 0,
+  zIndex,
+  backgroundColor: bg,
+  boxShadow: '-4px 0 8px -4px rgba(0,0,0,0.12)',
+})
+
 function CatalogTable({ tableKey, reloadKey = 0 }) {
   const config = TABLES[tableKey]
   const [rows, setRows] = useState([])
@@ -126,21 +179,47 @@ function CatalogTable({ tableKey, reloadKey = 0 }) {
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="overflow-x-auto border rounded-lg">
-        <table className="w-full text-xs">
-          <thead className="bg-gray-100">
+      <div className="overflow-x-auto border rounded-lg max-h-[min(70vh,720px)] overflow-y-auto">
+        <table className="w-full text-xs border-separate border-spacing-0">
+          <thead>
             <tr>
-              {config.fields.map((f) => (
-                <th key={f} className="p-2 text-left whitespace-nowrap">{f}</th>
-              ))}
-              <th className="p-2">Ações</th>
+              {config.fields.map((f) => {
+                const stickyLeft = isStickyLeft(tableKey, f)
+                return (
+                  <th
+                    key={f}
+                    className={`p-2 text-left whitespace-nowrap sticky top-0 bg-gray-100 ${stickyLeft ? '' : 'z-20'}`}
+                    style={
+                      stickyLeft
+                        ? stickyLeftStyle(tableKey, f, '#f3f4f6', f === STICKY_LEFT_FIELDS[tableKey]?.[0] ? 40 : 35)
+                        : undefined
+                    }
+                  >
+                    {f}
+                  </th>
+                )
+              })}
+              <th
+                className="p-2 whitespace-nowrap sticky top-0 bg-gray-100"
+                style={stickyActionsStyle('#f3f4f6', 40)}
+              >
+                Ações
+              </th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className="border-t hover:bg-blue-50/20">
+              <tr key={row.id} className="group border-t hover:bg-blue-50/20">
                 {config.fields.map((f) => (
-                  <td key={f} className="p-1">
+                  <td
+                    key={f}
+                    className="p-1"
+                    style={
+                      isStickyLeft(tableKey, f)
+                        ? stickyLeftStyle(tableKey, f, '#ffffff', 11)
+                        : undefined
+                    }
+                  >
                     <Input
                       className="h-8 text-xs min-w-[80px]"
                       value={row[f] ?? ''}
@@ -148,7 +227,7 @@ function CatalogTable({ tableKey, reloadKey = 0 }) {
                     />
                   </td>
                 ))}
-                <td className="p-1 whitespace-nowrap">
+                <td className="p-1 whitespace-nowrap" style={stickyActionsStyle('#ffffff', 11)}>
                   <Button type="button" size="sm" variant="ghost" onClick={() => saveRow(row)}>
                     <Save className="h-4 w-4" />
                   </Button>
@@ -158,9 +237,17 @@ function CatalogTable({ tableKey, reloadKey = 0 }) {
                 </td>
               </tr>
             ))}
-            <tr className="border-t bg-green-50/40">
+            <tr className="group border-t bg-green-50/40">
               {config.fields.map((f) => (
-                <td key={f} className="p-1">
+                <td
+                  key={f}
+                  className="p-1"
+                  style={
+                    isStickyLeft(tableKey, f)
+                      ? stickyLeftStyle(tableKey, f, '#f0fdf4', 11)
+                      : undefined
+                  }
+                >
                   <Input
                     className="h-8 text-xs"
                     placeholder="novo"
@@ -169,7 +256,7 @@ function CatalogTable({ tableKey, reloadKey = 0 }) {
                   />
                 </td>
               ))}
-              <td className="p-1">
+              <td className="p-1" style={stickyActionsStyle('#f0fdf4', 11)}>
                 <Button type="button" size="sm" onClick={saveDraft}>
                   <Plus className="h-4 w-4" />
                 </Button>

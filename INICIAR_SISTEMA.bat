@@ -9,10 +9,18 @@ color 0A
 REM Muda para o diretório do script
 cd /d "%~dp0"
 
-REM Verifica se já está rodando
+REM Verifica se já está rodando (frontend + backend atualizado)
 echo [*] Verificando se sistema ja esta rodando...
+set "SYS_OK=0"
 netstat -ano | findstr ":5173" | findstr "LISTENING" >nul 2>&1
 if %errorlevel%==0 (
+    netstat -ano | findstr ":5000" | findstr "LISTENING" >nul 2>&1
+    if not errorlevel 1 (
+        powershell -NoProfile -Command "try { $r = Invoke-RestMethod -Uri 'http://127.0.0.1:5000/api/health' -TimeoutSec 2; if ($r.capabilities.output_open) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+        if not errorlevel 1 set "SYS_OK=1"
+    )
+)
+if "%SYS_OK%"=="1" (
     echo [OK] Sistema ja esta rodando!
     echo [*] Abrindo navegador...
     start http://127.0.0.1:5173
@@ -22,15 +30,15 @@ if %errorlevel%==0 (
 
 netstat -ano | findstr ":5000" | findstr "LISTENING" >nul 2>&1
 if %errorlevel%==0 (
-    echo [*] Backend rodando, iniciando frontend...
-    start /min "" cmd /k "%~dp0start_frontend.bat"
-    timeout /t 3 /nobreak >nul
-    start http://127.0.0.1:5173
-    timeout /t 2 /nobreak >nul
-    exit
+    echo [!] Backend antigo detectado — reiniciando pilha completa...
+    call "%~dp0kill_port_5000.bat" >nul 2>&1
+)
+netstat -ano | findstr ":5173" | findstr "LISTENING" >nul 2>&1
+if %errorlevel%==0 (
+    call "%~dp0kill_port_5173.bat" >nul 2>&1
 )
 
-REM Sistema não está rodando, iniciar tudo
+REM Sistema não está rodando (ou foi reiniciado), iniciar tudo
 echo.
 echo ========================================
 echo   PIENG - Automacao Equatorial
@@ -41,6 +49,10 @@ echo.
 REM Mata processos antigos se existirem
 call "%~dp0kill_port_5000.bat" >nul 2>&1
 call "%~dp0kill_port_5173.bat" >nul 2>&1
+
+REM Configs sigilosas: puxa do Google Drive (se montado) antes do backend
+echo [0/2] Sincronizando configs do Google Drive...
+call "%~dp0SYNC_SECRETS_DRIVE.bat" pull >nul 2>&1
 
 REM Inicia backend em janela minimizada
 echo [1/2] Iniciando backend Python...

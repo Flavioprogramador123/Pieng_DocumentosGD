@@ -43,10 +43,28 @@
     "area_modulo_m2": 2.5
   },
   "testemunhas": {
-    "nome_1": "TESTEMUNHA 01",
+    "nome_1": "",
     "cpf_1": "",
-    "nome_2": "TESTEMUNHA 02",
+    "nome_2": "",
     "cpf_2": ""
+  },
+  "app": {
+    "geracao": {
+      "hsp_por_uf": {
+        "GO": 5.30,
+        "DEFAULT": 5.30
+      },
+      "eficiencia_sistema": 0.80,
+      "dias_por_mes": 30.4,
+      "tarifa_kwh": 1.10,
+      "formula_descricao": "E_mês (kWh) = P_kWp × HSP (h/dia) × η × dias/mês"
+    },
+    "figura_localizacao": {
+      "zoom_padrao": 18,
+      "zoom_modo": "fixo",
+      "tile_provider": "osmde",
+      "tiles_radius": 2
+    }
   },
   "pagamento_integrador": {
     "forma_pagamento": "Pagamento do restante à PIENG — PIX ou transferência bancária",

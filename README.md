@@ -98,4 +98,9 @@ python gerar_documentos.py --input ..\dados\cliente_fabrica_doces.txt --template
 ## Pastas que não usar
 
 Tudo em `obsoleto/` ficou de fora do fluxo (backend Flask antigo, pastas aninhadas, templates sem marcadores, manuais duplicados). Leia `obsoleto/LEIA-ME.md` antes de apagar.
-# Pieng_DocumentosGD
+
+### Configs sigilosas (Google Drive)
+
+Dados com PII, chaves de API e pasta de saída **não vão no GitHub**. Use `PUSH_SECRETS_DRIVE.bat` nesta máquina e, na outra, `git pull` + `INICIAR_SISTEMA.bat` (pull automático do Drive).
+
+Pasta padrão no Drive: `Meu Drive/Pieng Soluções Energéticas/pieng/Automacao_Equatorial/config/`

@@ -9,6 +9,13 @@ function formatSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+function staleBackendHint(status) {
+  if (status === 404) {
+    return ' Backend desatualizado — execute FECHAR_SISTEMA.bat e INICIAR_SISTEMA.bat.'
+  }
+  return ''
+}
+
 function FileRow({ label, file, folderName, onError }) {
   if (!file) return null
 
@@ -19,7 +26,7 @@ function FileRow({ label, file, folderName, onError }) {
         body: JSON.stringify({ folder_name: folderName, file_name: file.name }),
       })
       if (!response.ok || !data.success) {
-        onError?.(data.error || 'Não foi possível abrir o arquivo.')
+        onError?.((data.error || 'Não foi possível abrir o arquivo.') + staleBackendHint(response.status))
       }
     } catch {
       onError?.('Erro ao contactar o servidor.')
@@ -74,7 +81,7 @@ export function GeneratedFilesPanel({
         body: JSON.stringify({ folder_name: outputFolderName || '' }),
       })
       if (!response.ok || !data.success) {
-        onOpenFolderError?.(data.error || 'Não foi possível abrir a pasta.')
+        onOpenFolderError?.((data.error || 'Não foi possível abrir a pasta.') + staleBackendHint(response.status))
       }
     } catch {
       onOpenFolderError?.('Erro ao contactar o servidor.')

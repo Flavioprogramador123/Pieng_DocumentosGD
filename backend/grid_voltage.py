@@ -95,15 +95,26 @@ def resolve_ligacao_config(tipo_ligacao: str | None = None) -> dict[str, Any]:
 
 
 def _parse_dual_voltage(text: str | None) -> tuple[float | None, float | None]:
-    """Extrai par mono/bi e trifásico de textos como 127/220V ou 220/380V."""
+    """Extrai VN (menor) e V_LL (maior) de textos como 127/220V ou 220/380V."""
     if not text:
         return None, None
     nums = [float(n) for n in re.findall(r'\d{2,3}', str(text))]
     if len(nums) >= 2:
         return min(nums), max(nums)
     if len(nums) == 1:
-        return nums[0], nums[0]
+        # Valor único (ex.: 220V) = tensão fase-neutro, não linha-linha
+        return nums[0], None
     return None, None
+
+
+def map_inverter_fase(fase_ca: str | None = None) -> str:
+    """Fase CA do inversor: monofasico | bifasico | trifasico."""
+    t = (fase_ca or '').upper()
+    if 'TRIF' in t:
+        return 'trifasico'
+    if 'BIF' in t:
+        return 'bifasico'
+    return 'monofasico'
 
 
 def resolve_ac_voltage(
@@ -120,25 +131,28 @@ def resolve_ac_voltage(
     defaults = UF_VOLTAGE.get(uf_key, UF_VOLTAGE['DEFAULT'])
 
     v_mono, v_tri = _parse_dual_voltage(tensao_atendimento)
+    v_ln = v_mono or defaults['monofasico']
+    v_ll = v_tri or defaults['trifasico']
+
     if system_type == 'trifasico':
-        voltage = v_tri or defaults['trifasico']
-        v_ln = v_mono or defaults['monofasico']
-        formula = 'I = P / V (micro fase-neutro) ou I = P / (√3 × V_LL) (inversor string)'
-        note = f'Trifásico 120° — V fase-neutro = {v_ln:.0f} V, V_LL = {voltage:.0f} V'
+        voltage = v_ll
+        formula = 'Rede concessionária (tensão de atendimento da UC)'
+        note = f'Trifásico 120° — VN = {v_ln:.0f} V, V_LL = {v_ll:.0f} V'
     elif system_type == 'bifasico':
         voltage = v_mono or defaults['bifasico']
+        v_ln = voltage
         formula = 'I = P / V_fase'
         note = f'Bifásico — V = {voltage:.0f} V'
     else:
-        voltage = v_mono or defaults['monofasico']
+        voltage = v_ln
         formula = 'I = P / V'
         note = f'Monofásico — V = {voltage:.0f} V'
 
     return {
         'system_type': system_type,
         'voltage_v': voltage,
-        'voltage_ll_v': v_tri or defaults['trifasico'],
-        'voltage_ln_v': v_mono or defaults['monofasico'],
+        'voltage_ll_v': v_ll,
+        'voltage_ln_v': v_ln,
         'uf': uf_key,
         'formula': formula,
         'note': note,

@@ -122,10 +122,10 @@ inversores:
       tensao_rastreamento_mppt_v: "90 - 550"
       faixa_tensao_operacao_v: "80 - 550"
       tensao_entrada_max_v: 600
-      corrente_entrada_cc_max_a_por_mppt: [16, 16, 16]
-      numero_mppts: 3
-      strings_por_mppt: [1, 1, 1]
-      topologia_tipica: "2-3 strings (1 por MPPT)"
+      corrente_entrada_cc_max_a_por_mppt: [16, 16]
+      numero_mppts: 2
+      strings_por_mppt: [1, 1]
+      topologia_tipica: "2 strings independentes (1 por MPPT)"
     saida_ca:
       potencia_max_saida_w: 6000
       corrente_saida_max_a: 26.1

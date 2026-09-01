@@ -28,7 +28,11 @@ const FIELD_MAPPING_RAW = {
   'telefone': 'telefone',
   'telefone celular': 'telefone',
   'celular': 'telefone',
+  'fone': 'telefone',
+  'fone celular': 'telefone',
   'tel': 'telefone',
+  'whatsapp': 'telefone',
+  'whats': 'telefone',
 
   'email': 'email',
   'e mail': 'email',
@@ -71,6 +75,7 @@ const FIELD_MAPPING_RAW = {
   'tensao da rede': 'tensao_atendimento',
   'padrao de conexao': 'padrao_conexao',
   'padrao de ligacao': 'padrao_conexao',
+  'ligacao existente': 'padrao_conexao',
 
   'tipo de ligacao': 'tipo_ligacao',
   'conexao da rede': 'tipo_ligacao',
@@ -258,25 +263,51 @@ export function formatCep(value) {
   return digits.replace(/(\d{5})(\d{3})/, '$1-$2')
 }
 
-export function mapTensao(value) {
-  const v = String(value || '').toUpperCase().replace(/\s/g, '')
+/** Celular BR: 062991827090, 62991827090 → (62) 99182-7090 */
+export function formatTelefone(value) {
+  const raw = String(value || '').trim()
+  let digits = raw.replace(/\D/g, '')
+  if (!digits) return raw
+  if (digits.startsWith('55') && digits.length >= 12) digits = digits.slice(2)
+  while (digits.startsWith('0') && digits.length > 10) digits = digits.slice(1)
+  if (digits.length === 11) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
+  }
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
+  }
+  return raw
+}
+
+export function mapTensao(value, options = {}) {
+  const raw = String(value || '')
+  const v = raw.toUpperCase().replace(/\s/g, '')
   if (!v) return ''
   if (v.includes('13.8') || v.includes('13800') || v.includes('13,8')) return '13.8kV'
   if (v.includes('127')) return '127V'
-  if (v.includes('220') || v.includes('380') || v.includes('220380') || v.includes('220/380')) return '220V'
-  return String(value).trim()
+  if (v.includes('220/380') || v.includes('220380') || (v.includes('220') && v.includes('380'))) {
+    return '220/380V'
+  }
+  const isTri = options.tri
+    || mapLigacao(raw) === 'TRIFASICO'
+    || /\bTRI\b/.test(raw.toUpperCase())
+    || raw.toLowerCase().includes('trifas')
+  if (v.includes('380') && isTri) return '220/380V'
+  if (v.includes('220') || v.includes('380')) return '220V'
+  return raw.trim()
 }
 
 export function mapLigacao(value) {
   const v = normalizeKey(value)
-  if (v.includes('trifas')) return 'TRIFASICO'
-  if (v.includes('bifas')) return 'BIFASICO'
-  if (v.includes('monofas')) return 'MONOFASICO'
+  if (v.includes('trifas') || /\btri\b/.test(v)) return 'TRIFASICO'
+  if (v.includes('bifas') || /\bbi\b/.test(v)) return 'BIFASICO'
+  if (v.includes('monofas') || /\bmono\b/.test(v)) return 'MONOFASICO'
   return String(value || '').trim().toUpperCase()
 }
 
 export function mapClasse(value) {
   const v = normalizeKey(value)
+  if (/\bb1\b/.test(v) || v.includes('convencional b1')) return 'RESIDENCIAL'
   if (v.includes('industr')) return 'INDUSTRIAL'
   if (v.includes('comerc')) return 'COMERCIAL'
   if (v.includes('rural')) return 'RURAL'
@@ -432,8 +463,12 @@ function applyPadraoConexao(value, client) {
   if (ligacao === 'TRIFASICO' || ligacao === 'BIFASICO' || ligacao === 'MONOFASICO') {
     client.tipo_ligacao = ligacao
   }
-  const tensao = mapTensao(value)
+  const tensao = mapTensao(value, { tri: ligacao === 'TRIFASICO' })
   if (tensao) client.tensao_atendimento = tensao
+  const classe = mapClasse(value)
+  if (['RESIDENCIAL', 'COMERCIAL', 'INDUSTRIAL', 'RURAL'].includes(classe)) {
+    client.classe = classe
+  }
 }
 
 function parseGoogleEarthCoordinates(text) {
@@ -532,6 +567,22 @@ function harvestFromRawText(text, client, technical) {
     const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
     if (email) client.email = email[0]
   }
+
+  if (!client.tipo_ligacao || !client.tensao_atendimento) {
+    const ligacao = text.match(/ligac[aã]o\s+existente\s*:?\s*([^\n]+)/i)
+    if (ligacao) applyPadraoConexao(ligacao[1].trim(), client)
+  }
+
+  if (!technical.disjuntor_entrada) {
+    const disj = text.match(/disjuntor\s+de\s+prote[cç][aã]o\s+ac\s*:?\s*([^\n]+)/i)
+    if (disj) {
+      technical.disjuntor_entrada = extractAmperes(disj[1])
+      const lig = mapLigacao(disj[1])
+      if (lig === 'TRIFASICO' || lig === 'BIFASICO' || lig === 'MONOFASICO') {
+        client.tipo_ligacao = lig
+      }
+    }
+  }
 }
 
 function harvestContractFromRawText(text, contract) {
@@ -598,7 +649,19 @@ export function parseTxtData(txtContent) {
       if (cepLoose) {
         parsed = { key: 'CEP', normalizedKey: 'cep', mappedField: 'cep', value: cepLoose[1] }
       } else {
-        continue
+        const phoneLoose = cleaned?.match(
+          /^(?:fone|telefone|celular|tel|whatsapp|whats)\s*:?\s*(.+)$/i,
+        )
+        if (phoneLoose?.[1]?.trim()) {
+          parsed = {
+            key: 'Telefone',
+            normalizedKey: 'telefone',
+            mappedField: 'telefone',
+            value: phoneLoose[1].trim(),
+          }
+        } else {
+          continue
+        }
       }
     }
 
@@ -706,6 +769,11 @@ export function parseTxtData(txtContent) {
       continue
     }
 
+    if (mappedField === 'telefone') {
+      client.telefone = formatTelefone(value)
+      continue
+    }
+
     if (mappedField === 'consumer_unit') {
       client.consumer_unit = value.replace(/[^\d]/g, '') || value.trim()
       continue
@@ -729,6 +797,10 @@ export function parseTxtData(txtContent) {
 
     if (mappedField === 'disjuntor_entrada') {
       technical.disjuntor_entrada = extractAmperes(value)
+      const lig = mapLigacao(value)
+      if (lig === 'TRIFASICO' || lig === 'BIFASICO' || lig === 'MONOFASICO') {
+        client.tipo_ligacao = lig
+      }
       continue
     }
 
@@ -741,7 +813,7 @@ export function parseTxtData(txtContent) {
     }
 
     const clientFields = [
-      'client_name', 'telefone', 'email', 'logradouro', 'numero',
+      'client_name', 'email', 'logradouro', 'numero',
       'complemento', 'bairro', 'cidade', 'uf',
     ]
     if (clientFields.includes(mappedField)) {

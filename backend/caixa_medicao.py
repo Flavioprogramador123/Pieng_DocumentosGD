@@ -81,11 +81,14 @@ def enrich_caixa_medicao_values(values: dict[str, str]) -> None:
     values.setdefault(FIGURA_TOKEN, FIGURA_PLACEHOLDER)
 
 
-def try_embed_caixa_medicao(memorial_docx: Path, values: dict[str, str]) -> bool:
+def try_embed_caixa_medicao(memorial_docx: Path, values: dict[str, str]) -> tuple[bool, str]:
     assets = resolve_caixa_assets(values.get('TIPO_LIGACAO'))
     imagem = assets['imagem']
     if not imagem.is_file():
-        return False
+        return False, (
+            f'Figura da caixa de medição não encontrada em {imagem} '
+            f'(variante {assets["variante"]}).'
+        )
     ok = insert_image_at_placeholders(
         memorial_docx,
         imagem,
@@ -93,5 +96,8 @@ def try_embed_caixa_medicao(memorial_docx: Path, values: dict[str, str]) -> bool
         width_cm=12.0,
     )
     if ok:
-        values[FIGURA_TOKEN] = ''
-    return ok
+        return True, f'Figura da caixa de medição inserida ({assets["variante"]}).'
+    return False, (
+        'Figura da caixa não inserida — marcador {{figura_caixa}} / '
+        '[Figura caixa de medição] ausente no memorial.'
+    )

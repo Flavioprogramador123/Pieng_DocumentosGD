@@ -114,6 +114,11 @@ try:
 except Exception:
     pass
 patch_memorial_template(TEMPLATES_DIR / 'MEMORIAL_DESCRITIVO_marcadores.docx')
+try:
+    from patch_memorial_inversor_text import patch_memorial_inversor_text
+    patch_memorial_inversor_text(TEMPLATES_DIR / 'MEMORIAL_DESCRITIVO_marcadores.docx')
+except Exception:
+    pass
 
 
 def _safe_error_message(exc):
@@ -157,8 +162,8 @@ def create_txt_data(data):
     # Endereço fragmentado
     if cliente.get('logradouro'):
         lines.append(f"Endereço: {cliente['logradouro']}")
-    if cliente.get('numero'):
-        lines.append(f"Número: {cliente['numero']}")
+        numero = str(cliente.get('numero') or '').strip() or 'S/N'
+        lines.append(f"Número: {numero}")
     if cliente.get('complemento'):
         lines.append(f"Complemento: {cliente['complemento']}")
     if cliente.get('bairro'):
@@ -619,7 +624,7 @@ def parse_text_with_ai(text):
             parsed_data['cliente']['validade_cnh'] = value
         elif 'nascimento' in label:
             parsed_data['cliente']['data_nascimento'] = value
-        elif 'telefone' in label or 'celular' in label:
+        elif 'telefone' in label or 'celular' in label or label.strip() == 'fone' or label.startswith('fone '):
             parsed_data['cliente']['telefone'] = value
         elif 'email' in label or 'e-mail' in label:
             parsed_data['cliente']['email'] = value
@@ -681,8 +686,34 @@ def parse_text_with_ai(text):
                 parsed_data['unidade_consumidora']['numero_uc'] = uc_match.group(1)
         elif 'tensao' in label or 'tensão' in label:
             parsed_data['unidade_consumidora']['tensao_atendimento'] = value
+        elif 'ligacao existente' in label or 'ligação existente' in label:
+            parsed_data['unidade_consumidora']['ligacao_existente'] = value
+            if re.search(r'\btrif\b|\btrifas', value, re.I):
+                parsed_data['unidade_consumidora']['tipo_ligacao'] = 'TRIFASICO'
+            elif re.search(r'\bbif\b|\bbifas', value, re.I):
+                parsed_data['unidade_consumidora']['tipo_ligacao'] = 'BIFASICO'
+            elif re.search(r'\bmono\b|\bmonofas', value, re.I):
+                parsed_data['unidade_consumidora']['tipo_ligacao'] = 'MONOFASICO'
+            if '380' in value and (
+                parsed_data['unidade_consumidora'].get('tipo_ligacao') == 'TRIFASICO'
+                or re.search(r'\btri\b', value, re.I)
+            ):
+                parsed_data['unidade_consumidora']['tensao_atendimento'] = '220/380V'
+            elif '220' in value and '380' in value:
+                parsed_data['unidade_consumidora']['tensao_atendimento'] = '220/380V'
+            if re.search(r'\bb1\b', value, re.I):
+                parsed_data['unidade_consumidora']['classe'] = 'Residencial'
         elif 'tipo de ligacao' in label or 'tipo de ligação' in label:
             parsed_data['unidade_consumidora']['tipo_ligacao'] = value
+        elif 'disjuntor' in label and (
+            'protecao' in label or 'proteção' in label or 'prote' in label
+            or 'entrada' in label or 'geral' in label or label.endswith(' ac')
+        ):
+            match = re.search(r'(\d+(?:[.,]\d+)?)\s*a\b', value, re.I)
+            if match:
+                parsed_data['unidade_consumidora']['disjuntor_entrada'] = match.group(1).replace(',', '.')
+            if re.search(r'\btrif\b|\btrifas', value, re.I):
+                parsed_data['unidade_consumidora']['tipo_ligacao'] = 'TRIFASICO'
         elif 'modalidade' in label:
             parsed_data['unidade_consumidora']['modalidade_compensacao'] = value
         elif 'coordenada utm x' in label:
@@ -929,7 +960,12 @@ def health_check():
     return jsonify({
         'status': 'ok',
         'message': 'API Equatorial Automation está funcionando',
-        'timestamp': datetime.now().isoformat()
+        'timestamp': datetime.now().isoformat(),
+        'capabilities': {
+            'output_open': True,
+            'output_config': True,
+            'planta_dwg': True,
+        },
     })
 
 
@@ -1575,6 +1611,28 @@ def output_config():
             })
 
         return jsonify({'success': True, **output_config_status()})
+    except Exception as e:
+        return jsonify({'success': False, 'error': _safe_error_message(e)}), 500
+
+
+@app.route('/api/app-settings', methods=['GET', 'POST'])
+def app_settings_endpoint():
+    """Parâmetros globais: HSP, geração, mapa de localização (app_settings.local.json)."""
+    try:
+        from app_settings import load_app_settings, save_app_settings, reset_app_settings
+
+        if request.method == 'POST':
+            if session.get('role') != 'master':
+                return jsonify({'success': False, 'error': 'Somente administrador pode alterar configurações.'}), 403
+            data = request.get_json(silent=True) or {}
+            if data.get('reset'):
+                settings = reset_app_settings()
+            else:
+                patch = data.get('settings') if isinstance(data.get('settings'), dict) else data
+                settings = save_app_settings(patch)
+            return jsonify({'success': True, 'settings': settings, 'message': 'Configurações salvas.'})
+
+        return jsonify({'success': True, 'settings': load_app_settings()})
     except Exception as e:
         return jsonify({'success': False, 'error': _safe_error_message(e)}), 500
 

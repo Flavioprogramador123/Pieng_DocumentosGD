@@ -46,6 +46,32 @@ Não é necessário no fluxo normal (a web já gera o `planta.dxf` preenchido).
 {{QTD_MODULOS}}  {{POTENCIA_MODULO}}  {{FABRICANTE_MODULO}}
 {{QTD_INVERSORES}}  {{FABRICANTE_INVERSOR}}  {{POTENCIA_INVERSOR_UNITARIO}}
 {{POTENCIA_INVERSOR_TOTAL}}  {{CONTA_CONTRATO_DIGITOS}}  {{NOME_CLIENTE}}  {{CPF}}
+{{DATA}}  (dd/mm/aaaa — dia da geração ou campo Data do Documento; alias: {{DATA_DOCUMENTO}})
+
+Diagrama de bloco (texto pronto ou monte com tokens granulares):
+{{TEXTO_DIAGRAMA_MODULOS}}
+{{TEXTO_DIAGRAMA_INVERSOR}}
+{{TEXTO_DISJUNTOR_CA_INVERSOR}}   — disjuntor CA do inversor (QDCA)
+{{TEXTO_DISJUNTOR_CA_PADRAO}}     — disjuntor CA do padrão de entrada
+
+Granular (alternativa):
+{{QTD_MODULOS_2D}} x Módulos Fotovoltaicos de {{POTENCIA_MODULO}} Wp, marca {{FABRICANTE_MODULO}} POT UNIT: {{POTENCIA_MODULO_KWP}} {{POTENCIA_PAINEL_KWP}} KWp;
+{{QTD_INVERSORES_2D}} - {{TIPO_EQUIPAMENTO_INVERSOR}} {{FABRICANTE_INVERSOR}} {{MODELO_INVERSOR}} X {{POTENCIA_INVERSOR_UNITARIO}} KW
+Disjuntor {{DISJUNTOR_CA_INVERSOR_A}}A
+Disjuntor {{DISJUNTOR_CA_PADRAO_A}}A
+```
+
+**Diagrama unifilar** (MTEXT — use `\{\{TOKEN\}\}` se tiver formatação Arial):
+
+```
+\{\{TEXTO_UNIFILAR_STRING_1\}\}
+\{\{TEXTO_UNIFILAR_STRING_2\}\}
+\{\{TEXTO_UNIFILAR_STRING_3\}\}
+\{\{TEXTO_UNIFILAR_STRING_4\}\}
+\{\{TEXTO_UNIFILAR_INVERSOR\}\}      — inversor string
+\{\{TEXTO_UNIFILAR_MICRO\}\}         — micro-inversor (topologia micro)
+\{\{TEXTO_UNIFILAR_MPPT_1\}\}        — rótulo MPPT colorido
+\{\{TEXTO_UNIFILAR_ARRANJO_1\}\}     — arranjo CC (micro, todos os módulos)
 ```
 
 **UC / conta contrato:** use `{{CONTA_CONTRATO_DIGITOS}}` no DXF (só números, ex.: `000068889901235`).

@@ -23,6 +23,7 @@ def normalize_token(key: str) -> str:
 
 SKIP_TEMPLATE_FILENAMES = frozenset({
     'ModeloContrato_marcadores.docx',
+    'MEMORIAL_DESCRITIVO_marcadores_patched.docx',
     'NT.00020-05-Anexo-I-Formulario-de-Solicitacao-Grupo-B-templates.xltx',
     'NT.00020-05-Anexo-I-Formulario-de-Solicitacao-Grupo-B-templates00.xltx',
 })
@@ -77,8 +78,14 @@ LABEL_ALIASES = {
     'unidade consumidora': 'CONTA_CONTRATO',
     'uc': 'CONTA_CONTRATO',
     'conta contrato': 'CONTA_CONTRATO',
-    'telefone': 'TELEFONE_CELULAR',
-    'telefone celular': 'TELEFONE_CELULAR',
+  'telefone': 'TELEFONE_CELULAR',
+  'telefone celular': 'TELEFONE_CELULAR',
+  'celular': 'TELEFONE_CELULAR',
+  'fone': 'TELEFONE_CELULAR',
+  'fone celular': 'TELEFONE_CELULAR',
+  'tel': 'TELEFONE_CELULAR',
+  'whatsapp': 'TELEFONE_CELULAR',
+  'whats': 'TELEFONE_CELULAR',
     'email': 'EMAIL',
     'e-mail': 'EMAIL',
     'e mail': 'EMAIL',
@@ -92,9 +99,16 @@ LABEL_ALIASES = {
     'classe': 'CLASSE',
     'tipo de ligacao': 'TIPO_LIGACAO',
     'tipo de ligação': 'TIPO_LIGACAO',
+    'ligação existente': 'LIGACAO_EXISTENTE',
+    'ligacao existente': 'LIGACAO_EXISTENTE',
     'tensao de atendimento (v)': 'TENSAO_ATENDIMENTO',
     'tensão de atendimento (v)': 'TENSAO_ATENDIMENTO',
     'disjuntor de entrada (a)': 'DISJUNTOR_ENTRADA',
+    'disjuntor de proteção ac': 'DISJUNTOR_ENTRADA',
+    'disjuntor de protecao ac': 'DISJUNTOR_ENTRADA',
+    'disjuntor de proteção': 'DISJUNTOR_ENTRADA',
+    'disjuntor de protecao': 'DISJUNTOR_ENTRADA',
+    'disjuntor geral': 'DISJUNTOR_ENTRADA',
     'nº poste/transformador': 'NUM_POSTE',
     'n° poste/transformador': 'NUM_POSTE',
     'coordenada utm x': 'COORDENADA_UTM_X',
@@ -279,7 +293,7 @@ OPTIONAL_KEYS = {
     'CNPJ_INTEGRADOR', 'PIX_INTEGRADOR',
     'NOME_INTEGRADOR', 'ENDERECO_INTEGRADOR', 'TELEFONE_INTEGRADOR', 'EMAIL_INTEGRADOR',
     'NOME_CONTRATANTE',
-    'FIGURA_LOCALIZACAO', 'FIGURA_CAIXA', 'TEXTO_CAIXA', 'BIFACIALIDADE_MODULO',
+    'FIGURA_LOCALIZACAO', 'FIGURA_CAIXA', 'TEXTO_CAIXA',
     'CALCULO_CORRENTE_SISTEMA', 'CALCULO_CORRENTE_INVERSOR',
     'CALCULO_CORRENTE_INVERSORES_TOTAL', 'CALCULO_IMAX_CA', 'CALCULO_CORRENTE_CA',
     'DISJUNTOR_RECOMENDADO_QDCA', 'COMPARATIVO_CORRENTE_DISJUNTOR',
@@ -289,6 +303,7 @@ OPTIONAL_KEYS = {
     'CONFIGURACAO_STRINGS_CC', 'PROTECAO_CC_DESCRICAO', 'PROTECAO_CA_DESCRICAO',
     'POTENCIA_DISP_KW_W', 'CORRENTE_PROTECAO_CA', 'TENSAO_DPS',
     'POTENCIA_MAX_INJETAVEL', 'DT_EXP',
+    'FORMULA_PD', 'TEXTO_PD_PARAMETROS', 'CALCULO_PD',
 }
 
 NUMERIC_KEYS = {
@@ -385,6 +400,13 @@ def parse_txt_content(content: str) -> dict[str, str]:
     while i < len(lines):
         parsed = _parse_label_line(lines[i])
         if not parsed:
+            loose = re.match(
+                r'^(?:fone|telefone|celular|tel|whatsapp|whats)\s*:?\s*(.+)$',
+                re.sub(r'^[-*#]\s*', '', lines[i].strip()),
+                re.I,
+            )
+            if loose and loose.group(1).strip():
+                values['TELEFONE_CELULAR'] = clean_value(loose.group(1))
             i += 1
             continue
         label_key, value, target = parsed
@@ -556,6 +578,23 @@ def format_cep(value: str) -> str:
     if len(digits) == 8:
         return f'{digits[:5]}-{digits[5:]}'
     return value.strip()
+
+
+def format_telefone_celular(value: str) -> str:
+    """Normaliza celular BR: 062991827090, 62991827090, (62) 99182-7090 → (62) 99182-7090."""
+    raw = str(value or '').strip()
+    digits = only_digits(raw)
+    if not digits:
+        return raw
+    if digits.startswith('55') and len(digits) >= 12:
+        digits = digits[2:]
+    while digits.startswith('0') and len(digits) > 10:
+        digits = digits[1:]
+    if len(digits) == 11:
+        return f'({digits[:2]}) {digits[2:7]}-{digits[7:]}'
+    if len(digits) == 10:
+        return f'({digits[:2]}) {digits[2:6]}-{digits[6:]}'
+    return raw
 
 
 def parse_city_uf(value: str) -> tuple[str, str]:
@@ -741,6 +780,77 @@ def vn_fase_neutro(value, default: float = 220.0) -> float:
 
 # Área unitária típica de módulo FV (m²) — memorial + NT.00020-05 quando não informada
 DEFAULT_AREA_MODULO_M2 = 2.5
+DEFAULT_NUMERO_ENDERECO = 'S/N'
+
+
+def ensure_numero_endereco(values: dict[str, str]) -> None:
+    """Endereço sem número explícito → S/N (padrão Equatorial)."""
+    if not str(values.get('ENDERECO') or values.get('LOGRADOURO') or '').strip():
+        return
+    if not str(values.get('NUMERO') or '').strip():
+        values['NUMERO'] = DEFAULT_NUMERO_ENDERECO
+
+
+def _parse_tipo_ligacao_from_text(text: str) -> str | None:
+    v = normalize_label(text)
+    if 'trifas' in v or re.search(r'\btri\b', v):
+        return 'TRIFASICO'
+    if 'bifas' in v or re.search(r'\bbi\b', v):
+        return 'BIFASICO'
+    if 'monofas' in v or re.search(r'\bmono\b', v):
+        return 'MONOFASICO'
+    return None
+
+
+def _parse_tensao_atendimento_from_text(text: str, tipo_ligacao: str | None = None) -> str | None:
+    raw = str(text or '')
+    v = raw.upper().replace(' ', '')
+    if '220/380' in v or ('220' in v and '380' in v):
+        return '220/380V'
+    tipo = (tipo_ligacao or _parse_tipo_ligacao_from_text(raw) or '').upper()
+    if '380' in v and tipo == 'TRIFASICO':
+        return '220/380V'
+    if '127' in v:
+        return '127V'
+    if '220' in v or '380' in v:
+        return '220V'
+    return None
+
+
+def _extract_disjuntor_a(value: str) -> str | None:
+    match = re.search(r'(\d+(?:[.,]\d+)?)\s*a\b', str(value or ''), re.I)
+    if match:
+        return match.group(1).replace(',', '.')
+    digits = re.sub(r'[^\d.,]', '', str(value or ''))
+    return digits or None
+
+
+def apply_ligacao_existente(values: dict[str, str]) -> None:
+    """Ligação Existente / Padrão de Conexão — TRI, 380 V, B1 residencial."""
+    raw = values.get('LIGACAO_EXISTENTE') or values.get('PADRAO_CONEXAO') or ''
+    if not raw:
+        return
+    tipo = _parse_tipo_ligacao_from_text(raw)
+    if tipo:
+        values.setdefault('TIPO_LIGACAO', tipo)
+    tensao = _parse_tensao_atendimento_from_text(raw, tipo)
+    if tensao:
+        values.setdefault('TENSAO_ATENDIMENTO', tensao)
+    if re.search(r'\bb1\b', raw, re.I):
+        values.setdefault('CLASSE', 'Residencial')
+
+
+def normalize_disjuntor_entrada(values: dict[str, str]) -> None:
+    raw = values.get('DISJUNTOR_ENTRADA')
+    if not raw:
+        return
+    tipo = _parse_tipo_ligacao_from_text(raw)
+    if tipo:
+        values.setdefault('TIPO_LIGACAO', tipo)
+    cleaned = _extract_disjuntor_a(raw)
+    if cleaned:
+        values['DISJUNTOR_ENTRADA'] = cleaned
+
 _AMPACITY_MM2_A: dict[str, int] = {
     '4': 35, '6': 45, '10': 55, '16': 70, '25': 95, '35': 120,
 }
@@ -766,6 +876,102 @@ def capacidade_conducao_tabela_ca(bitola: str) -> str:
     return f'~{amps} A (30°C, livre no ar)'
 
 
+def _memorial_num(value: float, decimals: int = 2) -> str:
+    """Formata número para memorial (vírgula decimal)."""
+    if decimals <= 0:
+        return str(int(round(value)))
+    fmt = f'{{:.{decimals}f}}'.format(value)
+    return fmt.rstrip('0').rstrip('.').replace('.', ',')
+
+
+def _apply_secao_54_pd_tokens(
+    values: dict[str, str],
+    *,
+    system_type: str,
+    v_ln: float,
+    v_ll: float,
+    uf: str | None,
+) -> None:
+    """Tokens narrativos da seção 5.4 — PD (GO: mono e trifásico)."""
+    from normas_loader import calc_pd_kva_kw
+
+    uf_k = (uf or 'GO').upper()[:2]
+    idg_txt = numeric_value(values.get('CORRENTE_ENTRADA') or values.get('DISJUNTOR_ENTRADA') or '')
+    if not idg_txt:
+        try:
+            from normas_loader import get_padrao_entrada
+
+            padrao = get_padrao_entrada(uf_k, values.get('TIPO_LIGACAO'))
+            if padrao and padrao.get('disjuntor_a'):
+                idg_txt = str(padrao['disjuntor_a'])
+                values.setdefault('DISJUNTOR_ENTRADA', idg_txt)
+                values.setdefault('CORRENTE_ENTRADA', idg_txt)
+        except ImportError:
+            pass
+    fp_txt = numeric_value(values.get('FATOR_POTENCIA') or '0.92')
+    if not idg_txt or not fp_txt:
+        return
+
+    idg = float(idg_txt)
+    fp = float(fp_txt)
+
+    kva, kw = calc_pd_kva_kw(uf_k, values.get('TIPO_LIGACAO'), idg, fp)
+    pd_w = kw * 1000
+
+    if system_type == 'trifasico' and uf_k == 'GO':
+        values.setdefault('FORMULA_PD', 'P = √3 × V_FF × IDG × FP')
+        values.setdefault(
+            'TEXTO_PD_PARAMETROS',
+            f'• V_FN (Tensão fase-neutro): {_memorial_num(v_ln, 0)} V\n'
+            f'• V_FF (Tensão fase-fase): {_memorial_num(v_ll, 0)} V\n'
+            f'• IDG (Corrente de linha / disjuntor geral): {_memorial_num(idg, 0)} A\n'
+            f'• FP (Fator de Potência): {_memorial_num(fp, 2)}\n'
+            f'• Sistema trifásico equilibrado',
+        )
+        values.setdefault(
+            'CALCULO_PD',
+            f'PD = √3 × {_memorial_num(v_ll, 0)} × {_memorial_num(idg, 0)} × '
+            f'{_memorial_num(fp, 2)} = {_memorial_num(pd_w, 0)} W '
+            f'({_memorial_num(kw, 2)} kW)',
+        )
+    else:
+        values.setdefault('FORMULA_PD', 'P = V × IDG × FP')
+        values.setdefault(
+            'TEXTO_PD_PARAMETROS',
+            f'• V (Tensão Nominal): {_memorial_num(v_ln, 0)} V fase/neutro\n'
+            f'• IDG (Corrente do Disjuntor Geral): {_memorial_num(idg, 0)} A\n'
+            f'• FP (Fator de Potência): {_memorial_num(fp, 2)}',
+        )
+        values.setdefault(
+            'CALCULO_PD',
+            f'PD = {_memorial_num(v_ln, 0)} × {_memorial_num(idg, 0)} × '
+            f'{_memorial_num(fp, 2)} = {_memorial_num(pd_w, 0)} W '
+            f'({_memorial_num(kw, 2)} kW)',
+        )
+
+    values.setdefault('POTENCIA_DISP_KVA', _memorial_num(kva, 2))
+    values.setdefault('POTENCIA_DISP_KW', _memorial_num(kw, 2))
+    values.setdefault('POTENCIA_DISPONIBILIZADA', _memorial_num(kw, 2))
+    values.setdefault('POTENCIA_DISPONIBILIZADA_FORMATADA', f"{_memorial_num(kw, 2)} kW")
+    values.setdefault('POTENCIA_DISP_KW_W', _memorial_num(pd_w, 0))
+
+
+def _recommend_qdca_breaker(i_sys: float, bitola_ca: str | None = None) -> int:
+    """Disjuntor QDCA: comercial ≥ corrente de projeto, respeitando ampacidade do cabo."""
+    from nbr5410_calculations import STANDARD_BREAKERS_A, standard_breaker_rating
+
+    disj = standard_breaker_rating(i_sys)
+    if bitola_ca:
+        match = re.search(r'(\d+)', str(bitola_ca))
+        if match:
+            amp = _AMPACITY_MM2_A.get(match.group(1), 999)
+            if disj > amp:
+                for rating in reversed(STANDARD_BREAKERS_A):
+                    if rating <= amp and rating >= i_sys:
+                        return rating
+    return disj
+
+
 def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
     values: dict[str, str] = dict(raw)
     if values.get('TABELA_DEMANDA'):
@@ -777,10 +983,15 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
     if values.get('TABELA_DEMANDA_JSON'):
         values['__DEMAND_TABLE_JSON__'] = values.pop('TABELA_DEMANDA_JSON')
 
+    apply_ligacao_existente(values)
+    normalize_disjuntor_entrada(values)
+
     if 'CPF' in values:
         values['CPF'] = format_cpf(values['CPF'])
     if 'CEP' in values:
         values['CEP'] = format_cep(values['CEP'])
+    if values.get('TELEFONE_CELULAR'):
+        values['TELEFONE_CELULAR'] = format_telefone_celular(values['TELEFONE_CELULAR'])
     if values.get('CONTA_CONTRATO'):
         uc_raw = values['CONTA_CONTRATO']
         digits = normalize_conta_contrato(uc_raw)
@@ -801,6 +1012,7 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
         number_match = re.search(r'\b(?:N[.º°]?|NÚMERO)\s*([0-9A-Za-z-]+)', values['ENDERECO'], re.I)
         if number_match:
             values['NUMERO'] = number_match.group(1)
+    ensure_numero_endereco(values)
     values.setdefault('COMPLEMENTO', '')
     values.setdefault('TELEFONE_FIXO', '')
 
@@ -842,8 +1054,10 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
     values.setdefault('DATA_DOCUMENTO', procuracao.get('data_documento', ''))
     values.setdefault('NUMERO_CONTRATO', procuracao.get('numero_contrato', ''))
 
-    values.setdefault('NOME_TESTEMUNHA_1', testemunhas.get('nome_1', 'TESTEMUNHA 01'))
-    values.setdefault('NOME_TESTEMUNHA_2', testemunhas.get('nome_2', 'TESTEMUNHA 02'))
+    values.setdefault('NOME_TESTEMUNHA_1', testemunhas.get('nome_1', ''))
+    values.setdefault('NOME_TESTEMUNHA_2', testemunhas.get('nome_2', ''))
+    values.setdefault('CPF_TESTEMUNHA_1', testemunhas.get('cpf_1', ''))
+    values.setdefault('CPF_TESTEMUNHA_2', testemunhas.get('cpf_2', ''))
 
     values.setdefault('FORMA_PAGAMENTO', pagamento.get('forma_pagamento', ''))
     values.setdefault('BANCO', pagamento.get('banco', ''))
@@ -870,6 +1084,7 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
         values['DATA_DOCUMENTO'] = datetime.now().strftime('%d/%m/%Y')
     if values.get('DATA_DOCUMENTO'):
         values.setdefault('DATA_DOCUMENTO_EXTENSO', date_extended(values.get('DATA_DOCUMENTO')))
+        values.setdefault('DATA', values['DATA_DOCUMENTO'])
     if values.get('DATA_DOCUMENTO') and not values.get('DATA_OPERACAO'):
         values['DATA_OPERACAO'] = values['DATA_DOCUMENTO']
 
@@ -937,6 +1152,10 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
 
     if values.get('DISJUNTOR_ENTRADA') and not values.get('CORRENTE_ENTRADA'):
         values['CORRENTE_ENTRADA'] = values['DISJUNTOR_ENTRADA']
+    if values.get('DISJUNTOR_ENTRADA'):
+        disj_pad = str(values['DISJUNTOR_ENTRADA']).strip().upper().removesuffix('A').strip()
+        values.setdefault('DISJUNTOR_CA_PADRAO_A', disj_pad)
+        values.setdefault('TEXTO_DISJUNTOR_CA_PADRAO', f'Disjuntor {disj_pad}A')
     if values.get('DISJUNTOR_ENTRADA') and not values.get('CORRENTE_NOMINAL_DISJUNTOR'):
         values.setdefault('CORRENTE_NOMINAL_DISJUNTOR', values['DISJUNTOR_ENTRADA'])
     if values.get('NUM_POLOS_DISJUNTOR') and not values.get('DESCRICAO_POLOS_DISJUNTOR'):
@@ -971,7 +1190,7 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
             values.setdefault('ANO_DOCUMENTO', str(parsed_document_date.year))
 
     # Tipo de Ligação → NF (PD), condutores e disjuntor de entrada
-    from grid_voltage import resolve_ac_voltage, resolve_ligacao_config
+    from grid_voltage import resolve_ac_voltage, resolve_ligacao_config, map_inverter_fase
 
     ligacao = resolve_ligacao_config(values.get('TIPO_LIGACAO'))
     values.setdefault('NUM_FASES', str(ligacao['num_fases']))
@@ -992,11 +1211,16 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
     v_ll = int(volt['voltage_ll_v'])
     values.setdefault('TENSAO_FASE_NEUTRO', str(v_ln))
     values.setdefault('TENSAO_ENTRE_FASES', str(v_ll))
-    ta_fmt = format_tensao_atendimento(
-        values.get('TENSAO_ATENDIMENTO_FORMATADA') or values.get('TENSAO_ATENDIMENTO')
-    )
-    if not ta_fmt:
-        ta_fmt = f'{v_ln}/{v_ll} V' if volt['system_type'] == 'trifasico' else f'{v_ln} V'
+    ta_raw = values.get('TENSAO_ATENDIMENTO') or ''
+    ta_dual = '/' in re.sub(r'(?i)\s*V+\s*$', '', str(ta_raw)).strip()
+    if volt['system_type'] == 'trifasico' and not ta_dual:
+        ta_fmt = f'{v_ln}/{v_ll} V'
+    else:
+        ta_fmt = format_tensao_atendimento(
+            values.get('TENSAO_ATENDIMENTO_FORMATADA') or ta_raw
+        )
+        if not ta_fmt:
+            ta_fmt = f'{v_ln}/{v_ll} V' if volt['system_type'] == 'trifasico' else f'{v_ln} V'
     values['TENSAO_ATENDIMENTO_FORMATADA'] = ta_fmt
     values.setdefault('TENSAO_NOMINAL_DISJUNTOR', ta_fmt)
     values['TENSAO_NOMINAL'] = str(v_ln)
@@ -1094,22 +1318,18 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
 
     # Calculate the available power only when all source values are provided.
     try:
-        vn = float(v_ln)
         corrente_text = numeric_value(
             values.get('CORRENTE_ENTRADA') or values.get('DISJUNTOR_ENTRADA') or ''
         )
-        fases_text = numeric_value(values.get('NUM_FASES') or '')
         fp_text = numeric_value(values.get('FATOR_POTENCIA') or '0.92')
-        if corrente_text and fases_text and fp_text:
-            corrente = float(corrente_text)
-            fases = float(fases_text)
-            fp = float(fp_text)
-            kva = vn * corrente * fases / 1000
-            kw = kva * fp
-            values.setdefault('POTENCIA_DISP_KVA', f'{kva:.2f}'.rstrip('0').rstrip('.'))
-            values.setdefault('POTENCIA_DISP_KW', f'{kw:.2f}'.rstrip('0').rstrip('.'))
-            values.setdefault('POTENCIA_DISPONIBILIZADA', f'{kw:.2f}'.rstrip('0').rstrip('.'))
-            values.setdefault('POTENCIA_DISPONIBILIZADA_FORMATADA', f'{kw:.2f}'.rstrip("0").rstrip(".") + ' kW')
+        if corrente_text and fp_text:
+            _apply_secao_54_pd_tokens(
+                values,
+                system_type=volt['system_type'],
+                v_ln=float(v_ln),
+                v_ll=float(v_ll),
+                uf=values.get('UF'),
+            )
     except (TypeError, ValueError):
         pass
 
@@ -1119,10 +1339,10 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
     values.setdefault('ARMAZENAMENTO', 'NÃO')
 
     # Memorial — tokens derivados (campos +...+ convertidos)
-    if values.get('POTENCIA_DISP_KW'):
+    if values.get('POTENCIA_DISP_KW') and not values.get('POTENCIA_DISP_KW_W'):
         try:
             kw_disp = float(str(values['POTENCIA_DISP_KW']).replace(',', '.'))
-            values.setdefault('POTENCIA_DISP_KW_W', f'{kw_disp * 1000:g}'.replace('.', ','))
+            values.setdefault('POTENCIA_DISP_KW_W', _memorial_num(kw_disp * 1000, 0))
         except (TypeError, ValueError):
             pass
 
@@ -1140,6 +1360,8 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
         qtd_inv = max(1, int(float(numeric_value(values.get('QTD_INVERSORES') or '1') or 1)))
         tipo_inv = (values.get('TIPO_INVERSOR') or '').upper()
         is_micro = 'MICRO' in tipo_inv
+        inv_fase = map_inverter_fase(values.get('FASE_CA'))
+        inv_trifasico = inv_fase == 'trifasico' and not is_micro
         curva = values.get('CURVA_ATUACAO_DISJUNTOR') or values.get('disjuntor_curva') or 'C'
         pot_w = pot_kw * 1000
         pot_inv_w = pot_w / qtd_inv
@@ -1148,36 +1370,67 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
             if system_type == 'trifasico' and is_micro:
                 i_sys = pot_w / v_ln_calc
                 i_inv = pot_inv_w / v_ln_calc
-                formula = f'I = {pot_w:g} W ÷ {v_ln_calc:g} V = {i_sys:.2f} A'
-                inv_note = f'I = {pot_inv_w:g} W ÷ {v_ln_calc:g} V = {i_inv:.2f} A por inversor'
-                tensao_saida_txt = f'{v_ln_calc:g} V (microinversores monofásicos, {ligacao["descricao_conexao_inversores"]})'
-            elif system_type == 'trifasico':
+                formula = (
+                    f'I = {_memorial_num(pot_w, 0)} W ÷ {_memorial_num(v_ln_calc, 0)} V = '
+                    f'{_memorial_num(i_sys, 2)} A'
+                )
+                inv_note = (
+                    f'I_inversor = {_memorial_num(i_inv, 2)} A por inversor '
+                    f'(microinversor monofásico — corrente por equipamento)'
+                )
+                tensao_saida_txt = (
+                    f'{v_ln_calc:g} V (microinversores monofásicos, '
+                    f'{ligacao["descricao_conexao_inversores"]})'
+                )
+            elif system_type == 'trifasico' and inv_trifasico:
                 fp_inv = float(numeric_value(values.get('FATOR_POTENCIA_INVERSOR') or '0.99') or 0.99)
                 i_sys = pot_w / (v_ll_calc * math.sqrt(3) * fp_inv)
                 formula = (
-                    f'I = {pot_kw:g} kW / ({v_ll_calc:g} V × √3 × {fp_inv:g}) = {i_sys:.2f} A'
+                    f'I = {_memorial_num(pot_kw, 1)} kW / ({_memorial_num(v_ll_calc, 0)} V × √3 × '
+                    f'{_memorial_num(fp_inv, 2)}) = {_memorial_num(i_sys, 2)} A'
                 )
                 inv_note = (
-                    f'I_inversor = {i_sys:.2f} A / {qtd_inv} = {i_sys / qtd_inv:.2f} A '
-                    f'(inversor string trifásico balanceado)'
+                    f'I_inversor = {_memorial_num(i_sys, 2)} A / {qtd_inv} = '
+                    f'{_memorial_num(i_sys / qtd_inv, 2)} A (inversor string trifásico balanceado)'
                 )
                 tensao_saida_txt = f'{v_ln_calc:g}/{v_ll_calc:g} V'
+            elif system_type == 'trifasico':
+                i_sys = pot_w / v_ln_calc
+                formula = (
+                    f'I = {_memorial_num(pot_w, 0)} W ÷ {_memorial_num(v_ln_calc, 0)} V = '
+                    f'{_memorial_num(i_sys, 2)} A'
+                )
+                inv_note = (
+                    f'I_inversor = {_memorial_num(i_sys, 2)} A / {qtd_inv} = '
+                    f'{_memorial_num(i_sys / qtd_inv, 2)} A '
+                    f'(inversor monofásico em 1 fase da rede trifásica)'
+                )
+                tensao_saida_txt = (
+                    f'{v_ln_calc:g} V (inversores string, conectados em fases distintas do '
+                    f'sistema trifásico para balanceamento de carga)'
+                )
             elif system_type == 'bifasico':
                 fp_inv = float(numeric_value(values.get('FATOR_POTENCIA_INVERSOR') or '0.99') or 0.99)
                 i_sys = pot_w / (v_ln_calc * fp_inv)
-                formula = f'I = {pot_kw:g} kW / ({v_ln_calc:g} V × {fp_inv:g}) = {i_sys:.2f} A'
+                formula = (
+                    f'I = {_memorial_num(pot_kw, 1)} kW / ({_memorial_num(v_ln_calc, 0)} V × '
+                    f'{_memorial_num(fp_inv, 2)}) = {_memorial_num(i_sys, 2)} A'
+                )
                 inv_note = (
-                    f'I_inversor = {i_sys:.2f} A / {qtd_inv} = {i_sys / qtd_inv:.2f} A '
-                    f'(fases distintas — balanceamento bifásico)'
+                    f'I_inversor = {_memorial_num(i_sys, 2)} A / {qtd_inv} = '
+                    f'{_memorial_num(i_sys / qtd_inv, 2)} A (fases distintas — balanceamento bifásico)'
                 )
                 tensao_saida_txt = f'{v_ln_calc:g} V'
             else:
                 fp_inv = float(numeric_value(values.get('FATOR_POTENCIA_INVERSOR') or '0.99') or 0.99)
                 i_sys = pot_w / (v_ln_calc * fp_inv)
-                formula = f'I = {pot_kw:g} kW / ({v_ln_calc:g} V × {fp_inv:g}) = {i_sys:.2f} A'
+                formula = (
+                    f'I = {_memorial_num(pot_kw, 1)} kW / ({_memorial_num(v_ln_calc, 0)} V × '
+                    f'{_memorial_num(fp_inv, 2)}) = {_memorial_num(i_sys, 2)} A'
+                )
                 inv_note = (
-                    f'I_inversor = {i_sys:.2f} A / {qtd_inv} = {i_sys / qtd_inv:.2f} A '
-                    f'(inversores em paralelo na mesma fase)'
+                    f'I_inversor = {_memorial_num(i_sys, 2)} A / {qtd_inv} = '
+                    f'{_memorial_num(i_sys / qtd_inv, 2)} A (inversores em paralelo na mesma fase)'
                 )
                 tensao_saida_txt = f'{v_ln_calc:g} V'
             i_inv = i_sys / qtd_inv if not (system_type == 'trifasico' and is_micro) else pot_inv_w / v_ln_calc
@@ -1202,25 +1455,25 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
                 f'{i_max_ca:g} A × {qtd_inv} = {i_max_total:.1f} A' if i_max_ca else f'{i_sys:.2f} A',
             )
 
-            from nbr5410_calculations import standard_breaker_rating
-
-            i_design = i_sys * 1.25
-            disj_rec = standard_breaker_rating(i_design)
+            bitola_ca = values.get('BITOLA_CABO_CA', '6 mm²')
+            disj_rec = _recommend_qdca_breaker(i_sys, bitola_ca)
+            values.setdefault('DISJUNTOR_CA_INVERSOR_A', str(disj_rec))
+            values.setdefault('TEXTO_DISJUNTOR_CA_INVERSOR', f'Disjuntor {disj_rec}A')
             values.setdefault(
                 'DISJUNTOR_RECOMENDADO_QDCA',
-                f'Disjuntor recomendado: {disj_rec} A (Curva {curva}) — dimensionado com '
-                f'fator de segurança de 125% sobre a corrente contínua '
-                f'({i_sys:.2f} A × 1,25 = {i_design:.2f} A → padronizado para {disj_rec} A, '
-                f'disjuntor comercial)',
+                f'Disjuntor recomendado: {disj_rec} A (Curva {curva}) — dimensionado conforme '
+                f'corrente de projeto ({_memorial_num(i_sys, 2)} A), compatível com cabo {bitola_ca} '
+                f'e padronizado para disjuntor comercial imediato.',
             )
             values.setdefault(
                 'COMPARATIVO_CORRENTE_DISJUNTOR',
-                f'Corrente total: {i_sys:.2f} A vs. disjuntor de {disj_rec} A',
+                f'• Corrente total: {_memorial_num(i_sys, 2)} A vs. disjuntor de {disj_rec} A',
             )
             margem = (1 - i_sys / disj_rec) * 100 if disj_rec else 0
             values.setdefault(
                 'MARGEM_SEGURANCA_DISJUNTOR',
-                f'{margem:.1f}% ({i_sys:.2f} A vs. {disj_rec} A)',
+                f'• Margem de segurança: {_memorial_num(margem, 1)}% '
+                f'({_memorial_num(i_sys, 2)} A vs. {disj_rec} A)',
             )
             values.setdefault('CORRENTE_DEMANDADA_CABO_CA', f"{int(round(i_sys))} A")
     except (TypeError, ValueError):
@@ -1266,9 +1519,11 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
         values['VALIDADE_CNH'] = values['DT_EXP']
 
     # Campos opcionais — default vazio (memorial + NT.00020-05)
-    values['BIFACIALIDADE_MODULO'] = ''
-    values['CPF_TESTEMUNHA_1'] = ''
-    values['CPF_TESTEMUNHA_2'] = ''
+    for _tk in (
+        'NOME_TESTEMUNHA_1', 'CPF_TESTEMUNHA_1',
+        'NOME_TESTEMUNHA_2', 'CPF_TESTEMUNHA_2',
+    ):
+        values.setdefault(_tk, '')
     values['POTENCIA_MAX_INJETAVEL'] = ''
     values['TELEFONE_FIXO'] = ''
     _valor_inv = str(values.get('VALOR_INVESTIMENTO') or '').strip()
@@ -1874,14 +2129,26 @@ def main() -> None:
         if template.suffix.lower() == '.xltx':
             destination = destination.with_suffix('.xlsx')
         if template.suffix.lower() == '.docx':
+            if 'memorial' in template.name.lower():
+                from caixa_medicao import enrich_caixa_medicao_values
+
+                values.setdefault(
+                    'FIGURA_LOCALIZACAO',
+                    '[Inserir figura / print do mapa da localização]',
+                )
+                enrich_caixa_medicao_values(values)
             unresolved = fill_docx(template, destination, values)
             if 'memorial' in template.name.lower():
                 from figura_localizacao import try_embed_figura_localizacao
                 from caixa_medicao import try_embed_caixa_medicao
 
-                if try_embed_figura_localizacao(destination, values, args.output_dir):
+                ok_mapa, msg_mapa = try_embed_figura_localizacao(destination, values, args.output_dir)
+                report_lines.append(msg_mapa)
+                if ok_mapa:
                     unresolved.discard('FIGURA_LOCALIZACAO')
-                if try_embed_caixa_medicao(destination, values):
+                ok_caixa, msg_caixa = try_embed_caixa_medicao(destination, values)
+                report_lines.append(msg_caixa)
+                if ok_caixa:
                     unresolved.discard('FIGURA_CAIXA')
                     unresolved.discard('figura_caixa')
                     unresolved.discard('TEXTO_CAIXA')
