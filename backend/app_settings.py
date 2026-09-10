@@ -60,13 +60,18 @@ def load_app_settings() -> dict[str, Any]:
 
 
 def save_app_settings(updates: dict[str, Any]) -> dict[str, Any]:
-    """Persiste override local (merge parcial)."""
+    """Persiste override local (merge parcial) e espelha no Google Drive se disponível."""
     current = load_app_settings()
     merged = _deep_merge(current, updates)
     APP_SETTINGS_LOCAL.write_text(
         json.dumps(merged, ensure_ascii=False, indent=2),
         encoding='utf-8',
     )
+    try:
+        from local_secrets_sync import push_secrets_to_drive
+        push_secrets_to_drive()
+    except Exception:
+        pass
     return merged
 
 

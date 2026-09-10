@@ -173,15 +173,23 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
         and _safe_float(i.get('potencia', i.get('power'))) > 0
     )
 
-    hsp = float(context.get('hsp') or 0)
+    hsp_override = 0.0
+    raw_hsp = context.get('hsp')
+    if raw_hsp not in (None, ''):
+        try:
+            hsp_override = float(str(raw_hsp).replace(',', '.'))
+        except (TypeError, ValueError):
+            hsp_override = 0.0
+
     gen_params = None
     try:
         from app_settings import compute_monthly_generation_kwh, get_generation_params
         gen_params = get_generation_params(client.get('uf'))
-        if hsp <= 0:
-            hsp = gen_params['hsp']
+        hsp = hsp_override if hsp_override > 0 else float(gen_params['hsp'])
     except ImportError:
-        if hsp <= 0:
+        if hsp_override > 0:
+            hsp = hsp_override
+        else:
             try:
                 from normas_loader import get_hsp
                 hsp = get_hsp(client.get('uf'))
@@ -192,11 +200,24 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
     tarifa = gen_params['tarifa_kwh'] if gen_params else 1.10
 
     if gen_params and total_module_power_kw > 0:
-        gen_calc = compute_monthly_generation_kwh(total_module_power_kw, client.get('uf'))
-        estimated_monthly = gen_calc['monthly_kwh']
-        estimated_annual = gen_calc['annual_kwh']
-        estimated_daily = gen_calc['daily_kwh']
-        generation_formula = gen_calc['formula_expanded']
+        if hsp_override > 0:
+            # Override pontual (API) — recalcula com HSP informado
+            monthly = total_module_power_kw * hsp * gen_params['eficiencia_sistema'] * gen_params['dias_por_mes']
+            estimated_monthly = monthly
+            estimated_annual = monthly * 12
+            estimated_daily = monthly / gen_params['dias_por_mes'] if gen_params['dias_por_mes'] else 0
+            generation_formula = (
+                f"{gen_params['formula_descricao']} → "
+                f"{total_module_power_kw:g} × {hsp:g} × {gen_params['eficiencia_sistema']:g} × "
+                f"{gen_params['dias_por_mes']:g} = {monthly:.0f} kWh/mês"
+            )
+        else:
+            gen_calc = compute_monthly_generation_kwh(total_module_power_kw, client.get('uf'))
+            estimated_monthly = gen_calc['monthly_kwh']
+            estimated_annual = gen_calc['annual_kwh']
+            estimated_daily = gen_calc['daily_kwh']
+            generation_formula = gen_calc['formula_expanded']
+            hsp = float(gen_calc['hsp'])
     else:
         estimated_monthly = total_module_power_kw * hsp * efficiency * days_per_month
         estimated_annual = estimated_monthly * 12
@@ -340,7 +361,14 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
     tarifa = tarifa if gen_params else 1.10
     economia_mensal = estimated_monthly * tarifa
 
-    generation_detail = calculate_energy_generation(modules or [])
+    generation_detail = calculate_energy_generation(
+        modules or [],
+        location_data={
+            'daily_irradiation_kwh_m2': hsp,
+            'performance_ratio': 0.85,
+            'degradation_rate': 0.005,
+        },
+    )
     cables_detail = calculate_cable_section_advanced(power_w, v_calc)
     protection_detail = calculate_protection_devices_advanced(power_w, v_calc, system_type)
 
@@ -435,7 +463,7 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
         'estimated_monthly_generation': round(estimated_monthly, 0),
         'estimated_annual_generation': round(estimated_annual, 0),
         'estimated_daily_generation': round(estimated_daily, 1),
-        'hsp_used': hsp,
+        'hsp_used': round(float(hsp), 2),
         'generation_formula': generation_formula,
         'system_efficiency_pct': round(efficiency * 100, 0),
         'voltage_v': voltage_ll,
@@ -543,7 +571,7 @@ def _build_all_items(calc: dict) -> list[dict]:
         {'grupo': 'Potência', 'rotulo': 'Relação DC/AC', 'valor': str(calc['relacao_modulo_inversor']), 'token': None},
         {'grupo': 'Geração', 'rotulo': 'Geração mensal estimada', 'valor': f"{calc['estimated_monthly_generation']} kWh/mês", 'token': None},
         {'grupo': 'Geração', 'rotulo': 'Geração anual estimada', 'valor': f"{calc['estimated_annual_generation']} kWh/ano", 'token': None},
-        {'grupo': 'Geração', 'rotulo': 'HSP utilizado', 'valor': f"{calc['hsp_used']} h/dia", 'token': None},
+        {'grupo': 'Geração', 'rotulo': 'HSP utilizado', 'valor': f"{str(calc['hsp_used']).replace('.', ',')} h/dia", 'token': None},
         {'grupo': 'Geração', 'rotulo': 'Fórmula geração mensal', 'valor': calc.get('generation_formula', '—'), 'token': None},
         {'grupo': 'Geração', 'rotulo': 'Eficiência do sistema (η)', 'valor': f"{calc.get('system_efficiency_pct', 80)} %", 'token': None},
     ]

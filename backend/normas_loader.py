@@ -378,6 +378,12 @@ def suggest_demanda_alvo_kw(
 
 
 def get_hsp(uf: str | None = None) -> float:
+    """HSP: prioriza app_settings (UI); fallback normas Equatorial / 5.2."""
+    try:
+        from app_settings import get_hsp_for_uf
+        return get_hsp_for_uf(uf)
+    except Exception:
+        pass
     normas = load_normas()
     uf_k = _norm_uf(uf)
     hsp_block = (normas.get('hsp') or {}).get(uf_k) or (normas.get('hsp') or {}).get('GO') or {}

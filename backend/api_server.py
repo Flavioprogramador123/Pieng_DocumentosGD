@@ -1578,7 +1578,7 @@ def export_calculations_endpoint():
         context = {
             'client': data.get('client') or data.get('cliente') or {},
             'technical': data.get('technical') or data.get('dados_tecnicos') or {},
-            'hsp': data.get('hsp') or 5.2,
+            'hsp': data.get('hsp'),
             'demand_table_ai': data.get('demand_table_ai', False),
         }
 

@@ -20,6 +20,34 @@ import {
 } from '@/components/ui/select.jsx'
 import { apiJson } from '@/utils/api.js'
 
+/** Aceita "5,5" / "5.5" / vazio sem forçar o default no meio da digitação. */
+function parseNumInput(raw, fallback) {
+  const text = String(raw ?? '').trim().replace(',', '.')
+  if (text === '' || text === '.' || text === '-') return raw
+  const n = Number(text)
+  return Number.isFinite(n) ? n : fallback
+}
+
+function toFiniteNumber(value, fallback) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  const n = Number(String(value ?? '').replace(',', '.'))
+  return Number.isFinite(n) ? n : fallback
+}
+
+function normalizeGeracaoForSave(geracao = {}) {
+  const hspMap = { ...(geracao.hsp_por_uf || {}) }
+  const hspGo = toFiniteNumber(hspMap.GO ?? hspMap.DEFAULT, 5.3)
+  hspMap.GO = hspGo
+  hspMap.DEFAULT = toFiniteNumber(hspMap.DEFAULT, hspGo)
+  return {
+    ...geracao,
+    hsp_por_uf: hspMap,
+    eficiencia_sistema: toFiniteNumber(geracao.eficiencia_sistema, 0.8),
+    dias_por_mes: toFiniteNumber(geracao.dias_por_mes, 30.4),
+    tarifa_kwh: toFiniteNumber(geracao.tarifa_kwh, 1.1),
+  }
+}
+
 export function AppSettingsDialog({ open, onClose, isMaster, onSaved }) {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -80,16 +108,20 @@ export function AppSettingsDialog({ open, onClose, isMaster, onSaved }) {
     setError('')
     setMessage('')
     try {
+      const payload = {
+        ...settings,
+        geracao: normalizeGeracaoForSave(settings.geracao || {}),
+      }
       const { response, data } = await apiJson('/app-settings', {
         method: 'POST',
-        body: JSON.stringify({ settings }),
+        body: JSON.stringify({ settings: payload }),
       })
       if (!response.ok || !data.success) {
         setError(data.error || 'Não foi possível salvar.')
         return
       }
       setSettings(data.settings)
-      setMessage(data.message || 'Configurações salvas.')
+      setMessage(data.message || 'Configurações salvas. Recalcule o sistema para atualizar a aba Cálculos.')
       onSaved?.(data.settings)
     } catch {
       setError('Erro ao salvar.')
@@ -126,9 +158,9 @@ export function AppSettingsDialog({ open, onClose, isMaster, onSaved }) {
   const hspGo = g.hsp_por_uf?.GO ?? g.hsp_por_uf?.DEFAULT ?? 5.3
 
   const exemploKwp = 5.5
-  const eta = parseFloat(g.eficiencia_sistema) || 0.8
-  const dias = parseFloat(g.dias_por_mes) || 30.4
-  const hsp = parseFloat(hspGo) || 5.3
+  const eta = toFiniteNumber(g.eficiencia_sistema, 0.8)
+  const dias = toFiniteNumber(g.dias_por_mes, 30.4)
+  const hsp = toFiniteNumber(hspGo, 5.3)
   const exemploMes = exemploKwp * hsp * eta * dias
 
   return (
@@ -170,8 +202,8 @@ export function AppSettingsDialog({ open, onClose, isMaster, onSaved }) {
                     min="4"
                     max="7"
                     disabled={!isMaster}
-                    value={hspGo}
-                    onChange={(e) => patchHspGo(parseFloat(e.target.value) || 5.3)}
+                    value={hspGo ?? ''}
+                    onChange={(e) => patchHspGo(parseNumInput(e.target.value, 5.3))}
                   />
                 </div>
                 <div>
@@ -182,8 +214,8 @@ export function AppSettingsDialog({ open, onClose, isMaster, onSaved }) {
                     min="0.5"
                     max="1"
                     disabled={!isMaster}
-                    value={g.eficiencia_sistema ?? 0.8}
-                    onChange={(e) => patchGeracao('eficiencia_sistema', parseFloat(e.target.value) || 0.8)}
+                    value={g.eficiencia_sistema ?? ''}
+                    onChange={(e) => patchGeracao('eficiencia_sistema', parseNumInput(e.target.value, 0.8))}
                   />
                 </div>
                 <div>
@@ -192,8 +224,8 @@ export function AppSettingsDialog({ open, onClose, isMaster, onSaved }) {
                     type="number"
                     step="0.1"
                     disabled={!isMaster}
-                    value={g.dias_por_mes ?? 30.4}
-                    onChange={(e) => patchGeracao('dias_por_mes', parseFloat(e.target.value) || 30.4)}
+                    value={g.dias_por_mes ?? ''}
+                    onChange={(e) => patchGeracao('dias_por_mes', parseNumInput(e.target.value, 30.4))}
                   />
                 </div>
                 <div>
@@ -202,8 +234,8 @@ export function AppSettingsDialog({ open, onClose, isMaster, onSaved }) {
                     type="number"
                     step="0.01"
                     disabled={!isMaster}
-                    value={g.tarifa_kwh ?? 1.1}
-                    onChange={(e) => patchGeracao('tarifa_kwh', parseFloat(e.target.value) || 1.1)}
+                    value={g.tarifa_kwh ?? ''}
+                    onChange={(e) => patchGeracao('tarifa_kwh', parseNumInput(e.target.value, 1.1))}
                   />
                 </div>
               </div>

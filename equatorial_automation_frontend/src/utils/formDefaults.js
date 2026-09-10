@@ -167,10 +167,17 @@ export const EXEMPLO_TEXTO_VALOR_PAGAMENTO_ENTRADA = `• O investimento objeto 
 
 - Saldo em 12 parcelas de R$ 1.458,33, via boleto bancário.`
 
+export const EXEMPLO_TEXTO_VALOR_PAGAMENTO_ENTRADA_MONTAGEM = `• O investimento objeto deste contrato é de R$ 24.000,00.
+
+- Entrada de 70% na assinatura do contrato no valor de R$ 16.800,00.
+
+- Restante no dia da montagem no valor de R$ 7.200,00.`
+
 export const EXEMPLOS_TEXTO_VALOR_PAGAMENTO = [
   { id: 'cartao', label: 'R$ 12.000 / 18× cartão', texto: EXEMPLO_TEXTO_VALOR_PAGAMENTO_CONTRATO },
   { id: 'avista', label: 'R$ 28.500 à vista', texto: EXEMPLO_TEXTO_VALOR_PAGAMENTO_AVISTA },
   { id: 'entrada', label: 'R$ 35.000 / 50% + 12× boleto', texto: EXEMPLO_TEXTO_VALOR_PAGAMENTO_ENTRADA },
+  { id: 'entrada_montagem', label: 'R$ 24.000 / 70% + montagem', texto: EXEMPLO_TEXTO_VALOR_PAGAMENTO_ENTRADA_MONTAGEM },
 ]
 
 
