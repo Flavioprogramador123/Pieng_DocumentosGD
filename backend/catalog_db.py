@@ -5,6 +5,7 @@ Consultado antes da IA; dados enriquecidos pela IA podem ser salvos para reuse.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -249,6 +250,17 @@ def _now() -> str:
 
 def _norm(s: str | None) -> str:
     return (s or '').strip().lower()
+
+
+def _norm_compact(s: str | None) -> str:
+    return re.sub(r'[^a-z0-9]', '', (s or '').lower())
+
+
+def _fabs_match(a: str | None, b: str | None) -> bool:
+    ca, cb = _norm_compact(a), _norm_compact(b)
+    if not ca or not cb:
+        return False
+    return ca == cb or ca in cb or cb in ca
 
 
 def _row_to_dict(row: sqlite3.Row | None) -> dict | None:
@@ -594,8 +606,8 @@ def _parse_wp_from_text(text: str) -> float:
 
 def find_module_by_name_or_power(fabricante: str = '', modelo: str = '', potencia_wp: float = 0) -> dict | None:
     """
-    Busca módulo no catálogo — somente match confiável (sem aproximar potência).
-    Retorna None se não houver entrada exata (±2 Wp no mesmo fabricante).
+    Busca módulo no catálogo SQLite.
+    Aceita fabricante abreviado (ex.: RENEPV → RENE PV) e modelo parcial do TXT.
     """
     init_db()
     try:
@@ -608,40 +620,53 @@ def find_module_by_name_or_power(fabricante: str = '', modelo: str = '', potenci
     if not fabricante and not modelo and potencia_wp <= 0:
         return None
 
-    fab_norm = fabricante.lower().strip() if fabricante else ''
-    mod_norm = modelo.lower().strip() if modelo else ''
+    fab_norm = _norm(fabricante)
+    mod_norm = _norm(modelo)
 
     with _connect() as conn:
+        rows = [_row_to_dict(r) for r in conn.execute('SELECT * FROM catalog_modules').fetchall()]
+
         # 1) fabricante + modelo exatos
         if fab_norm and mod_norm:
-            row = conn.execute(
-                'SELECT * FROM catalog_modules WHERE LOWER(fabricante) = ? AND LOWER(modelo) = ? LIMIT 1',
-                (fab_norm, mod_norm),
-            ).fetchone()
-            if row:
-                return _row_to_dict(row)
+            for row in rows:
+                if _norm(row.get('fabricante')) == fab_norm and _norm(row.get('modelo')) == mod_norm:
+                    return row
 
-        # 2) fabricante + potência exata (Wp)
-        if fab_norm and potencia_wp > 0:
-            row = conn.execute(
-                'SELECT * FROM catalog_modules WHERE LOWER(fabricante) = ? AND potencia_wp = ? LIMIT 1',
-                (fab_norm, int(potencia_wp)),
-            ).fetchone()
-            if row:
-                return _row_to_dict(row)
+        # 2) fabricante compacto + modelo contido (TXT traz descrição longa)
+        if mod_norm:
+            for row in rows:
+                row_mod = _norm(row.get('modelo'))
+                if not row_mod:
+                    continue
+                fab_ok = not fab_norm or _fabs_match(fabricante, row.get('fabricante'))
+                if fab_ok and (mod_norm in row_mod or row_mod in mod_norm):
+                    return row
 
-            # 3) mesma potência com tolerância mínima (arredondamento ±2 Wp)
-            row = conn.execute(
-                '''SELECT * FROM catalog_modules
-                   WHERE LOWER(fabricante) = ?
-                     AND ABS(potencia_wp - ?) <= ?
-                   ORDER BY ABS(potencia_wp - ?) ASC LIMIT 1''',
-                (fab_norm, potencia_wp, MODULE_POWER_TOLERANCE_WP, potencia_wp),
-            ).fetchone()
-            if row:
-                return _row_to_dict(row)
+        # 3) fabricante compacto + potência exata ou ±2 Wp
+        if potencia_wp > 0:
+            best = None
+            best_delta = float('inf')
+            for row in rows:
+                if fab_norm and not _fabs_match(fabricante, row.get('fabricante')):
+                    continue
+                row_pot = _parse_potencia(row.get('potencia_wp'))
+                if row_pot is None:
+                    continue
+                delta = abs(row_pot - potencia_wp)
+                if delta <= MODULE_POWER_TOLERANCE_WP and delta < best_delta:
+                    best_delta = delta
+                    best = row
+            if best:
+                return best
 
-    return None
+        # 4) só potência (fabricante ausente no TXT)
+        if potencia_wp > 0 and not fab_norm:
+            for row in rows:
+                row_pot = _parse_potencia(row.get('potencia_wp'))
+                if row_pot is not None and abs(row_pot - potencia_wp) <= MODULE_POWER_TOLERANCE_WP:
+                    return row
+
+    return lookup_module(fabricante, modelo, potencia_wp)
 
 
 

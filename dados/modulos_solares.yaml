@@ -1,102 +1,176 @@
-# Módulos solares — importado de Yamlmodulos.yaml
-# Usado para popular catalog.db (SQLite) — specs para memorial e cálculos de string
+# Modulos solares — catalogo PIENG
+# Usado para popular catalog.db (SQLite) — specs para memorial e calculos de string
+# Atualizado a partir de catalogo_modulos_para_ia_COMPLETO.json
+
 modulos_solares:
-  - marca: "RENE PV"
-    potencia_w: 600
-    eficiencia_pct: 21.20
-    tecnologia: "PERC Bifacial"
-    voc_v: 41.70
-    isc_a: 18.26
-    vmp_v: 34.80
-    imp_a: 17.25
-    dimensoes_mm: "2172x1303x35"
-    peso_kg: 37.0
-    notas: "Risen RSM120-8-600BMDG — Isc alto; conferir Icc 16 A SAJ R6"
-
-  - marca: "RENE PV"
-    potencia_w: 620
-    eficiencia_pct: 22.90
-    tecnologia: "Bifacial"
-    voc_v: 47.98
-    isc_a: 16.30
-    vmp_v: 40.39
-    imp_a: 15.35
-    dimensoes_mm: "2384x1134x30"
-    peso_kg: 33.0
-
-  - marca: "RENE PV"
-    potencia_w: 625
-    eficiencia_pct: 23.10
-    tecnologia: "Bifacial"
-    voc_v: 48.10
-    isc_a: 16.35
-    vmp_v: 40.50
-    imp_a: 15.43
-    dimensoes_mm: "2384x1134x30"
-    peso_kg: 33.0
-
-  - marca: "TSUN POWER"
-    potencia_w: 630
-    eficiencia_pct: 23.30
-    tecnologia: "N-Type Bifacial"
-    voc_v: 48.25
-    isc_a: 16.42
-    vmp_v: 40.65
-    imp_a: 15.50
-    dimensoes_mm: "2384x1134x30"
-    peso_kg: 33.5
-
-  - marca: "TSUN POWER"
-    potencia_w: 645
-    eficiencia_pct: 23.90
-    tecnologia: "N-Type Bifacial"
-    voc_v: 48.50
-    isc_a: 16.60
-    vmp_v: 40.90
-    imp_a: 15.77
-    dimensoes_mm: "2384x1134x30"
-    peso_kg: 33.5
-
-  - marca: "RENE PV"
-    potencia_w: 670
-    eficiencia_pct: 22.60
-    tecnologia: "Bifacial"
-    voc_v: 49.30
-    isc_a: 16.90
-    vmp_v: 41.60
-    imp_a: 16.10
-    dimensoes_mm: "2384x1303x33"
-    peso_kg: 38.0
-
-  - marca: "RENE PV"
-    potencia_w: 680
-    eficiencia_pct: 22.90
-    tecnologia: "Bifacial"
-    voc_v: 49.51
-    isc_a: 17.13
-    vmp_v: 42.08
-    imp_a: 16.16
-    dimensoes_mm: "2384x1303x33"
-    peso_kg: 38.3
-
-  - marca: "TSUN POWER"
-    potencia_w: 690
-    eficiencia_pct: 22.22
-    tecnologia: "N-Type Bifacial"
-    voc_v: 49.91
-    isc_a: 17.17
-    vmp_v: 42.55
-    imp_a: 16.22
-    dimensoes_mm: "2384x1303x33"
-    peso_kg: 38.3
-
-  - marca: "TSUN POWER"
-    potencia_w: 700
-    eficiencia_pct: 22.54
-    tecnologia: "N-Type Bifacial"
-    voc_v: 50.31
-    isc_a: 17.21
-    vmp_v: 43.00
-    imp_a: 16.28
-    dimensoes_mm: "2384x1303x33"
-    peso_kg: 38.3
+- marca: RENE PV
+  modelo_comercial: RSM120-8-600BMDG
+  fabricante_real: Risen
+  potencia_w: 600
+  bifacial: true
+  eficiencia_pct: 21.2
+  tecnologia: PERC Bifacial
+  voc_v: 41.7
+  isc_a: 18.26
+  vmp_v: 34.8
+  imp_a: 17.25
+  coef_temp_voc_pct_c: -0.25
+  coef_temp_isc_pct_c: 0.04
+  coef_temp_pmax_pct_c: -0.34
+  dimensoes_mm: 2172x1303x35
+  peso_kg: 37.0
+  fusivel_serie_a: 35
+  notas: "RSM120-8-600BMDG — Bifacial — Fusivel 35 A — Isc alto; conferir Icc inversor"
+  fonte_datasheet: https://en.risen.com/uploads/20240520/2024%20Risen%20Product%20Brochure.pdf
+- marca: RENE PV
+  modelo_comercial: RSM156-9-620BNDG
+  fabricante_real: Risen
+  potencia_w: 620
+  bifacial: true
+  eficiencia_pct: 22.9
+  tecnologia: N-Type TOPCon Bifacial
+  voc_v: 55.83
+  isc_a: 14.16
+  vmp_v: 46.67
+  imp_a: 13.3
+  coef_temp_voc_pct_c: -0.25
+  coef_temp_isc_pct_c: 0.046
+  coef_temp_pmax_pct_c: -0.29
+  dimensoes_mm: 2465x1134x30
+  peso_kg: 33.5
+  fusivel_serie_a: 35
+  notas: "RSM156-9-620BNDG — Bifacial — Fusivel 35 A — Specs corrigidas pelo datasheet Risen 620 Wp"
+  fonte_datasheet: https://en.risenenergy.com/uploads/20240905/Risen_TDS%20for%20n-type%20Dual%20Glass%20Modules-20240905.pdf
+- marca: RENE PV
+  modelo_comercial: RSM156-9-625BNDG
+  fabricante_real: Risen
+  potencia_w: 625
+  bifacial: true
+  eficiencia_pct: 23.1
+  tecnologia: N-Type TOPCon Bifacial
+  voc_v: 56.01
+  isc_a: 14.22
+  vmp_v: 46.82
+  imp_a: 13.36
+  coef_temp_voc_pct_c: -0.25
+  coef_temp_isc_pct_c: 0.046
+  coef_temp_pmax_pct_c: -0.29
+  dimensoes_mm: 2465x1134x30
+  peso_kg: 33.5
+  fusivel_serie_a: 35
+  notas: "RSM156-9-625BNDG — Bifacial — Fusivel 35 A — Specs corrigidas pelo datasheet Risen 625 Wp"
+  fonte_datasheet: https://en.risen.com/uploads/20240416/Risen_TDS%20for%20N-type%20Dual%20Glass%20Modules-20240416.pdf
+- marca: TSUN POWER
+  modelo_comercial: TS630S9T-132GAHT
+  fabricante_real: TSUN
+  potencia_w: 630
+  bifacial: true
+  eficiencia_pct: 23.3
+  tecnologia: N-Type HJT Bifacial
+  voc_v: 48.25
+  isc_a: 16.42
+  vmp_v: 40.65
+  imp_a: 15.5
+  coef_temp_voc_pct_c: -0.22
+  coef_temp_isc_pct_c: 0.047
+  coef_temp_pmax_pct_c: -0.24
+  dimensoes_mm: 2384x1134x30
+  peso_kg: 33.5
+  fusivel_serie_a: 30
+  notas: TS630S9T-132GAHT — TSUN — Bifacial — Fusivel serie 30 A
+  fonte_datasheet: https://registro.inmetro.gov.br/consulta/detalhe.aspx?NumeroRegistro=000111%2F2025&pag=1
+- marca: TSUN POWER
+  modelo_comercial: TS645S9T-132GAHT
+  fabricante_real: TSUN
+  potencia_w: 645
+  bifacial: true
+  eficiencia_pct: 23.9
+  tecnologia: N-Type HJT Bifacial
+  voc_v: 48.5
+  isc_a: 16.6
+  vmp_v: 40.9
+  imp_a: 15.77
+  coef_temp_voc_pct_c: -0.22
+  coef_temp_isc_pct_c: 0.047
+  coef_temp_pmax_pct_c: -0.24
+  dimensoes_mm: 2384x1134x30
+  peso_kg: 33.5
+  fusivel_serie_a: 30
+  notas: TS645S9T-132GAHT — TSUN — Bifacial — Fusivel serie 30 A
+  fonte_datasheet: https://registro.inmetro.gov.br/consulta/detalhe.aspx?NumeroRegistro=000111%2F2025&pag=1
+- marca: RENE PV
+  modelo_comercial: RSM132-8-680BHDG
+  fabricante_real: Risen
+  potencia_w: 670
+  bifacial: true
+  eficiencia_pct: 22.6
+  tecnologia: N-Type HJT Bifacial
+  voc_v: 49.47
+  isc_a: 17.48
+  vmp_v: 41.48
+  imp_a: 16.41
+  coef_temp_voc_pct_c: -0.22
+  coef_temp_isc_pct_c: 0.047
+  coef_temp_pmax_pct_c: -0.24
+  dimensoes_mm: 2384x1303x33
+  peso_kg: 38.0
+  fusivel_serie_a: 35
+  notas: RSM132-8-680BHDG — Risen — Bifacial — Fusivel serie 35 A
+  fonte_datasheet: https://www.coenergia.com/Apps/WebObjects/Coenergia.woa/wa/downloadFile?path=72554533b8d880e2bbf9a985a33c027d
+- marca: RENE PV
+  modelo_comercial: RSM132-8-700BHDG
+  fabricante_real: Risen
+  potencia_w: 680
+  bifacial: true
+  eficiencia_pct: 22.9
+  tecnologia: N-Type HJT Bifacial
+  voc_v: 49.83
+  isc_a: 17.82
+  vmp_v: 41.78
+  imp_a: 16.77
+  coef_temp_voc_pct_c: -0.22
+  coef_temp_isc_pct_c: 0.047
+  coef_temp_pmax_pct_c: -0.24
+  dimensoes_mm: 2384x1303x33
+  peso_kg: 38.3
+  fusivel_serie_a: 35
+  notas: RSM132-8-700BHDG — Risen — Bifacial — Fusivel serie 35 A
+  fonte_datasheet: https://www.coenergia.com/Apps/WebObjects/Coenergia.woa/wa/downloadFile?path=72554533b8d880e2bbf9a985a33c027d
+- marca: TSUN POWER
+  modelo_comercial: TS690S9T-132GAHT
+  fabricante_real: TSUN
+  potencia_w: 690
+  bifacial: true
+  eficiencia_pct: 22.22
+  tecnologia: N-Type HJT Bifacial
+  voc_v: 49.91
+  isc_a: 17.17
+  vmp_v: 42.55
+  imp_a: 16.22
+  coef_temp_voc_pct_c: -0.22
+  coef_temp_isc_pct_c: 0.047
+  coef_temp_pmax_pct_c: -0.24
+  dimensoes_mm: 2384x1303x33
+  peso_kg: 38.3
+  fusivel_serie_a: 30
+  notas: TS690S9T-132GAHT — TSUN — Bifacial — Fusivel serie 30 A
+  fonte_datasheet: https://registro.inmetro.gov.br/consulta/detalhe.aspx?NumeroRegistro=000111%2F2025&pag=1
+- marca: TSUN POWER
+  modelo_comercial: TS700S9T-132GAHT
+  fabricante_real: TSUN
+  potencia_w: 700
+  bifacial: true
+  eficiencia_pct: 22.54
+  tecnologia: N-Type HJT Bifacial
+  voc_v: 50.31
+  isc_a: 17.21
+  vmp_v: 43.0
+  imp_a: 16.28
+  coef_temp_voc_pct_c: -0.22
+  coef_temp_isc_pct_c: 0.047
+  coef_temp_pmax_pct_c: -0.24
+  dimensoes_mm: 2384x1303x33
+  peso_kg: 38.3
+  fusivel_serie_a: 30
+  notas: TS700S9T-132GAHT — TSUN — Bifacial — Fusivel serie 30 A
+  fonte_datasheet: https://registro.inmetro.gov.br/consulta/detalhe.aspx?NumeroRegistro=000111%2F2025&pag=1

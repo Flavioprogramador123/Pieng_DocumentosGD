@@ -167,8 +167,8 @@ def _format_cabo_padrao_unifilar(bitola_padrao: str | None, *, num_condutores: i
 
 
 def _format_poste_unifilar(num_poste: str | None) -> str:
-    raw = str(num_poste or 'ilégível').strip()
-    if not raw or raw.lower() in {'ilégível', 'ilegivel', 'ilegível'}:
+    raw = str(num_poste or 'ilegível').strip()
+    if not raw or raw.lower() in {'ilegível', 'ilegivel', 'ilégível'}:
         return '(POSTE N° \\PILÉGÍVEL)'
     return f'(POSTE N° \\P{raw.upper()})'
 
@@ -311,7 +311,7 @@ def apply_unifilar_tokens(out: dict[str, str]) -> dict[str, str]:
         bitola_ca = _bitola_mm2(out.get('BITOLA_CABO_CA'), '4')
         out.setdefault(
             'TEXTO_CABO_CA_UNIFILAR',
-            f'3#{bitola_ca},0mm² 0.6/1kV EPR/XLPE 90°C Classe 2',
+            f'2#{bitola_ca},0mm² 0,6/1kV\\PPVC 70°C - Classe 2\\P+ PE 1#6,00 mm²',
         )
         out.setdefault(
             'TEXTO_UNIFILAR_MICRO',

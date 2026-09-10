@@ -10,6 +10,21 @@ export function todayIso() {
 
 
 
+/** Data prevista de operação — padrão +20 dias a partir de hoje (ou data base). */
+
+export function operacaoDefaultIso(fromDate = new Date()) {
+
+  const d = new Date(fromDate)
+
+  if (Number.isNaN(d.getTime())) return todayIso()
+
+  d.setDate(d.getDate() + 20)
+
+  return d.toISOString().slice(0, 10)
+
+}
+
+
 export const RESIDENTIAL_TECHNICAL_DEFAULTS = {
 
   disjuntor_entrada: '40',
@@ -20,11 +35,11 @@ export const RESIDENTIAL_TECHNICAL_DEFAULTS = {
 
   dps_classe: '275 V',
 
-  bitola_cabo_ca: '6 mm²',
+  bitola_cabo_ca: '6',
 
-  bitola_cabo_cc: '4 mm²',
+  bitola_cabo_cc: '4',
 
-  bitola_cabo_padrao: '10 mm²',
+  bitola_cabo_padrao: '10',
 
   tipo_aterramento: 'Haste copper 2,4 m com caixa de inspeção',
 
@@ -40,7 +55,7 @@ export const RESIDENTIAL_TECHNICAL_DEFAULTS = {
 
   dr_tipo: 'DR 30 mA — alta sensibilidade',
 
-  data_operacao: todayIso(),
+  data_operacao: operacaoDefaultIso(),
 
 }
 
@@ -82,7 +97,7 @@ export function getInitialTechnicalData() {
 
     figura_map_zoom: '',
 
-    num_poste: 'ilégível',
+    num_poste: 'ilegível',
 
     area_arranjo: '',
 
@@ -107,6 +122,28 @@ export function getInitialTechnicalData() {
     num_mppt: '2',
 
     tipo_inversor: 'STRING',
+
+    qdca_micros_fase_a: '',
+    qdca_micros_fase_b: '',
+    qdca_micros_fase_c: '',
+    qdca_disj_fase_a: '',
+    qdca_disj_fase_b: '',
+    qdca_disj_fase_c: '',
+    qdca_disjuntor_ca: '',
+    qdca_num_dps: '',
+    qdca_observacoes: '',
+    qdca_bitola_ca: '',
+    qdca_bitola_fase_a: '',
+    qdca_bitola_fase_b: '',
+    qdca_bitola_fase_c: '',
+    qdca_corrente_proj_fase_a: '',
+    qdca_corrente_proj_fase_b: '',
+    qdca_corrente_proj_fase_c: '',
+    qdca_corrente_proj: '',
+    qdca_corrente_proj_tronco: '',
+    qdca_tem_disj_acoplamento: '0',
+    qdca_disjuntor_geral: '',
+    qdca_bitola_tronco: '10',
 
   }
 

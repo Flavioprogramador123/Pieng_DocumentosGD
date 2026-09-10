@@ -188,7 +188,7 @@ def create_txt_data(data):
         lines.append(f"Tensão de Atendimento (V): {uc['tensao_atendimento']}")
     if uc.get('disjuntor_entrada'):
         lines.append(f"Disjuntor de Entrada (A): {uc['disjuntor_entrada']}")
-    num_poste = pick_field(uc, 'num_poste') or 'ilégível'
+    num_poste = pick_field(uc, 'num_poste') or 'ilegível'
     lines.append(f"Nº Poste/Transformador: {num_poste}")
     if uc.get('modalidade_compensacao'):
         lines.append(f"Modalidade de Compensação: {uc['modalidade_compensacao']}")
@@ -428,6 +428,44 @@ def create_txt_data(data):
         lines.append(f"Strings em Paralelo por MPPT: {tecnicos['strings_por_mppt']}")
     if tecnicos.get('micros_por_grupo_ca'):
         lines.append(f"Microinversores por Grupo CA: {tecnicos['micros_por_grupo_ca']}")
+    if tecnicos.get('qdca_micros_fase_a'):
+        lines.append(f"QDCA Micros Fase A: {tecnicos['qdca_micros_fase_a']}")
+    if tecnicos.get('qdca_micros_fase_b'):
+        lines.append(f"QDCA Micros Fase B: {tecnicos['qdca_micros_fase_b']}")
+    if tecnicos.get('qdca_micros_fase_c'):
+        lines.append(f"QDCA Micros Fase C: {tecnicos['qdca_micros_fase_c']}")
+    if tecnicos.get('qdca_disj_fase_a'):
+        lines.append(f"QDCA Disjuntor Fase A (A): {tecnicos['qdca_disj_fase_a']}")
+    if tecnicos.get('qdca_disj_fase_b'):
+        lines.append(f"QDCA Disjuntor Fase B (A): {tecnicos['qdca_disj_fase_b']}")
+    if tecnicos.get('qdca_disj_fase_c'):
+        lines.append(f"QDCA Disjuntor Fase C (A): {tecnicos['qdca_disj_fase_c']}")
+    if tecnicos.get('qdca_corrente_proj_fase_a'):
+        lines.append(f"QDCA I Projeto Fase A (A): {tecnicos['qdca_corrente_proj_fase_a']}")
+    if tecnicos.get('qdca_corrente_proj_fase_b'):
+        lines.append(f"QDCA I Projeto Fase B (A): {tecnicos['qdca_corrente_proj_fase_b']}")
+    if tecnicos.get('qdca_corrente_proj_fase_c'):
+        lines.append(f"QDCA I Projeto Fase C (A): {tecnicos['qdca_corrente_proj_fase_c']}")
+    if tecnicos.get('qdca_corrente_proj'):
+        lines.append(f"QDCA Corrente Projeto (A): {tecnicos['qdca_corrente_proj']}")
+    if tecnicos.get('qdca_tem_disj_acoplamento'):
+        lines.append(f"QDCA Tem Disj. Acoplamento: {tecnicos['qdca_tem_disj_acoplamento']}")
+    if tecnicos.get('qdca_disjuntor_geral'):
+        lines.append(f"QDCA Disj. Geral (A): {tecnicos['qdca_disjuntor_geral']}")
+    if tecnicos.get('qdca_bitola_tronco'):
+        lines.append(f"QDCA Bitola Tronco (mm²): {tecnicos['qdca_bitola_tronco']}")
+    if tecnicos.get('qdca_disjuntor_ca'):
+        lines.append(f"QDCA Disjuntor CA Inversor (A): {tecnicos['qdca_disjuntor_ca']}")
+    if tecnicos.get('qdca_num_dps'):
+        lines.append(f"Quantidade DPS QDCA: {tecnicos['qdca_num_dps']}")
+    if tecnicos.get('qdca_observacoes'):
+        lines.append(f"Observações QDCA: {tecnicos['qdca_observacoes']}")
+    if tecnicos.get('qdca_bitola_ca'):
+        lines.append(f"QDCA Bitola Cabo CA: {tecnicos['qdca_bitola_ca']}")
+    for fase in ('a', 'b', 'c'):
+        bit = tecnicos.get(f'qdca_bitola_fase_{fase}')
+        if bit:
+            lines.append(f"QDCA Bitola Cabo CA Fase {fase.upper()}: {bit}")
 
     # Data do documento (assinatura) — padrão: dia da geração; usuário pode alterar no formulário
     doc_date = contrato_val('data_documento') or cliente.get('data_documento')
@@ -552,7 +590,7 @@ Formato esperado:
   "tipo_ligacao": "MONOFASICO",
   "disjuntor_entrada": 40,
   "demanda_alvo_kw": 6,
-  "num_poste": "ilégível",
+  "num_poste": "ilegível",
   "bitola_cabo_cc": "4 mm²",
   "bitola_cabo_ca": "6 mm²",
   "bitola_cabo_padrao": "10 mm²",
@@ -698,9 +736,9 @@ def parse_text_with_ai(text):
                 parsed_data['unidade_consumidora'].get('tipo_ligacao') == 'TRIFASICO'
                 or re.search(r'\btri\b', value, re.I)
             ):
-                parsed_data['unidade_consumidora']['tensao_atendimento'] = '220/380V'
+                parsed_data['unidade_consumidora']['tensao_atendimento'] = '380V'
             elif '220' in value and '380' in value:
-                parsed_data['unidade_consumidora']['tensao_atendimento'] = '220/380V'
+                parsed_data['unidade_consumidora']['tensao_atendimento'] = '380V'
             if re.search(r'\bb1\b', value, re.I):
                 parsed_data['unidade_consumidora']['classe'] = 'Residencial'
         elif 'tipo de ligacao' in label or 'tipo de ligação' in label:
@@ -1276,6 +1314,7 @@ def enrich_equipment():
             data.get('modulos', []),
             data.get('inversores', []),
             save_to_catalog=bool(payload.get('save_to_catalog', True)),
+            catalog_only=bool(payload.get('catalog_only', False)),
         )
         enriched = bool(sources)
         hint = None

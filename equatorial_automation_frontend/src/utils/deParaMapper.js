@@ -6,6 +6,8 @@
 
  */
 
+import { formatBitolaMm2 } from './bitola.js'
+
 
 
 function formatThdDht(value) {
@@ -170,7 +172,7 @@ export function buildLocalDeParaPreview(clientData, contractData, technicalData,
 
   push('Disjuntor de Entrada (A)', 'DISJUNTOR_ENTRADA', technicalData.disjuntor_entrada)
 
-  push('Nº Poste/Transformador', 'NUM_POSTE', technicalData.num_poste || 'ilégível')
+  push('Nº Poste/Transformador', 'NUM_POSTE', technicalData.num_poste || 'ilegível')
 
   push('Coordenada UTM X', 'COORDENADA_UTM_X', technicalData.coordenada_utm_x)
 
@@ -180,21 +182,43 @@ export function buildLocalDeParaPreview(clientData, contractData, technicalData,
 
   push('Curva do Disjuntor', 'CURVA_ATUACAO_DISJUNTOR', technicalData.curva_disjuntor)
 
-  push('Bitola Cabo CC', 'BITOLA_CABO_CC', technicalData.bitola_cabo_cc)
+  push('Bitola Cabo CC', 'BITOLA_CABO_CC', formatBitolaMm2(technicalData.bitola_cabo_cc))
 
-  push('Bitola Cabo CA', 'BITOLA_CABO_CA', technicalData.bitola_cabo_ca)
+  push('Bitola Cabo CA', 'BITOLA_CABO_CA', formatBitolaMm2(technicalData.bitola_cabo_ca))
 
-  push('Bitola Cabo Padrão', 'BITOLA_CABO_PADRAO', technicalData.bitola_cabo_padrao)
+  push('Bitola Cabo Padrão', 'BITOLA_CABO_PADRAO', formatBitolaMm2(technicalData.bitola_cabo_padrao))
 
   push('Área dos Arranjos (m²)', 'AREA_ARRANJO', technicalData.area_arranjo)
 
   push('Tipo de Arranjo', 'TIPO_ARRANJO', technicalData.tipo_arranjo)
 
-  push('Data Prevista de Operação', 'DATA_OPERACAO', technicalData.data_operacao)
+  push('Data Prevista de Operação', 'DATA_OPERACAO / {{DATA_OPER}}', technicalData.data_operacao)
 
   push('Demanda Alvo da Unidade (kW)', 'DEMANDA_ALVO_KW', technicalData.demanda_alvo_kw)
 
   push('Tabela de Demanda', 'TABELA_DEMANDA', technicalData.tabela_demanda_text ? '(texto)' : '')
+
+  push('Tipo de Inversor', 'TIPO_INVERSOR', technicalData.tipo_inversor)
+  push('Módulos por String', 'MODULOS_POR_STRING', technicalData.modulos_por_string)
+  push('Strings por MPPT', 'STRINGS_POR_MPPT', technicalData.strings_por_mppt)
+  push('MPPT por Inversor', 'QTD_ENTRADAS_MPPT_INVERSOR', technicalData.num_mppt)
+
+  push('QDCA Micros Fase A', 'QDCA_MICROS_FASE_A', technicalData.qdca_micros_fase_a)
+  push('QDCA Micros Fase B', 'QDCA_MICROS_FASE_B', technicalData.qdca_micros_fase_b)
+  push('QDCA Micros Fase C', 'QDCA_MICROS_FASE_C', technicalData.qdca_micros_fase_c)
+  push('QDCA Disj. Fase A', 'QDCA_DISJ_FASE_A', technicalData.qdca_disj_fase_a)
+  push('QDCA Disj. Fase B', 'QDCA_DISJ_FASE_B', technicalData.qdca_disj_fase_b)
+  push('QDCA Disj. Fase C', 'QDCA_DISJ_FASE_C', technicalData.qdca_disj_fase_c)
+  push('QDCA I Proj. Fase A', 'QDCA_CORRENTE_PROJ_FASE_A', technicalData.qdca_corrente_proj_fase_a)
+  push('QDCA I Proj. Fase B', 'QDCA_CORRENTE_PROJ_FASE_B', technicalData.qdca_corrente_proj_fase_b)
+  push('QDCA I Proj. Fase C', 'QDCA_CORRENTE_PROJ_FASE_C', technicalData.qdca_corrente_proj_fase_c)
+  push('QDCA Disjuntor CA', 'DISJUNTOR_CA_INVERSOR_A', technicalData.qdca_disjuntor_ca)
+  push('QDCA I Projeto', 'QDCA_CORRENTE_PROJ', technicalData.qdca_corrente_proj)
+  push('QDCA Tem Disj. Acoplamento', 'QDCA_TEM_DISJ_ACOPLAMENTO', technicalData.qdca_tem_disj_acoplamento)
+  push('QDCA Disj. Geral', 'DISJUNTOR_GERAL_QDCA_A', technicalData.qdca_disjuntor_geral)
+  push('QDCA Bitola Tronco', 'BITOLA_TRONCO_QDCA', technicalData.qdca_bitola_tronco)
+  push('QDCA Qtd DPS', 'QTD_DPS_QDCA', technicalData.qdca_num_dps)
+  push('QDCA Observações', 'QDCA_OBSERVACOES', technicalData.qdca_observacoes)
 
 
 

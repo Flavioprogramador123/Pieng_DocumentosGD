@@ -14,7 +14,7 @@ from advanced_calculations import (
     calculate_protection_devices_advanced,
 )
 from demand_table import generate_demand_table
-from grid_voltage import resolve_ac_voltage, map_inverter_fase, resolve_ligacao_config
+from grid_voltage import resolve_ac_voltage, resolve_equipment_fase_ca, resolve_ligacao_config
 from nbr5410_calculations import (
     calculate_inverter_ac_current,
     validate_inverter_network_compatibility,
@@ -105,18 +105,46 @@ def _validate_user_cables(
     return warnings
 
 
+def _format_bitola_ca(val) -> str:
+    text = str(val or '').strip()
+    if not text:
+        return '6mm²'
+    if 'mm' in text.lower():
+        return text.replace(' ', '')
+    return f'{text}mm²'
+
+
+def _apply_micro_qdca_display(
+    *,
+    qdca: dict[str, Any] | None,
+    inverter_ac: dict[str, Any],
+    cable_ca: str,
+    disjuntor_inversor_a: int,
+) -> tuple[dict[str, Any], str, int]:
+    """Usa valores do formulário QDCA na aba Cálculos (micro trifásico)."""
+    if not qdca or not qdca.get('phase_details'):
+        return inverter_ac, cable_ca, disjuntor_inversor_a
+    details = qdca['phase_details']
+    worst_br = max(int(d.get('breaker_a') or 0) for d in details)
+    bitola_raw = details[0].get('bitola_ca') or '6'
+    inv = dict(inverter_ac)
+    inv['breaker_rated_a'] = worst_br
+    return inv, _format_bitola_ca(bitola_raw), worst_br
+
+
 def _resolve_inverter_fase(inverters, technical, topology: str) -> str:
-    """Fase CA do inversor (monofasico/bifasico/trifasico). Micro → monofásico."""
+    """Fase CA do equipamento — micro sempre monofásico F-N; string conforme catálogo."""
+    tipo = (technical or {}).get('tipo_inversor')
     if topology == 'micro':
-        return 'monofasico'
+        tipo = tipo or 'MICRO'
+    fase_cat = None
     for inv in (inverters or []):
-        fc = inv.get('fase_ca')
-        if fc:
-            return map_inverter_fase(fc)
-    fc_tech = (technical or {}).get('fase_ca')
-    if fc_tech:
-        return map_inverter_fase(fc_tech)
-    return 'monofasico'
+        if inv.get('fase_ca'):
+            fase_cat = inv.get('fase_ca')
+            break
+    if not fase_cat:
+        fase_cat = (technical or {}).get('fase_ca')
+    return resolve_equipment_fase_ca(tipo, fase_cat)
 
 
 def calculate_technical_parameters(modules, inverters, context: dict | None = None) -> dict[str, Any]:
@@ -215,7 +243,12 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
         40.0,
     )
 
-    dc_strings = analyze_dc_strings(modules or [], inverters or [], technical)
+    technical_merged = {
+        **(technical or {}),
+        'tipo_ligacao': client.get('tipo_ligacao') or technical.get('tipo_ligacao'),
+        'tensao_ln_v': voltage_ln,
+    }
+    dc_strings = analyze_dc_strings(modules or [], inverters or [], technical_merged)
 
     topology = dc_strings.get('topology', 'string')
     num_inverters = dc_strings.get('inverter_quantity', 1)
@@ -248,27 +281,52 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
         system_type=system_type,
     )
 
-    # Disjuntores CA conforme topologia (micro: grupos até 3 em série; string: 1 por inversor)
+    # Disjuntores CA conforme topologia (micro trifásico: 1 por fase no QDCA)
+    qdca_micro: dict[str, Any] | None = None
     if topology == 'micro' and num_inverters > 0:
         power_per_micro = (total_inverter_power_kw * 1000) / num_inverters
-        breaker_groups_info = calculate_breaker_groups_microinverters(
-            num_microinverters=num_inverters,
-            power_per_micro_w=power_per_micro,
-            voltage_v=v_calc,
-        )
-        # Respeitar agrupamento informado pelo usuário (1–3 micros/disjuntor)
-        user_group = _safe_int(technical.get('micros_por_grupo_ca'), 3) or 3
-        user_group = min(3, max(1, user_group))
-        if user_group != 3:
-            micro_groups = dc_strings.get('micro_groups') or []
+        ligacao = (client.get('tipo_ligacao') or technical.get('tipo_ligacao') or '').upper()
+        if 'TRIF' in ligacao:
+            from qdca_layout import build_micro_qdca_from_form
+
+            qdca_micro = build_micro_qdca_from_form(
+                technical_merged,
+                num_micros=num_inverters,
+                power_per_micro_kw=power_per_micro / 1000,
+                voltage_ln_v=voltage_ln,
+                tipo_ligacao=ligacao,
+            )
+            num_breakers_ca = qdca_micro['num_qdca_breakers']
             breaker_groups_info = {
-                'num_breakers': len(micro_groups) or breaker_groups_info['num_breakers'],
-                'breaker_groups': breaker_groups_info.get('breaker_groups') or [],
-                'total_breakers_detail': (
-                    f'{len(micro_groups)} disjuntor(es) CA — até {user_group} micro(s) em série por disjuntor'
-                ),
+                'num_breakers': num_breakers_ca,
+                'breaker_groups': qdca_micro['phase_details'],
+                'total_breakers_detail': qdca_micro['description'],
+                'qdca_micro': qdca_micro,
             }
-        num_breakers_ca = dc_strings.get('num_ca_breakers') or breaker_groups_info['num_breakers']
+            inverter_ac, cable_ca, disjuntor_inversor_a = _apply_micro_qdca_display(
+                qdca=qdca_micro,
+                inverter_ac=inverter_ac,
+                cable_ca=cable_ca,
+                disjuntor_inversor_a=disjuntor_inversor_a,
+            )
+        else:
+            breaker_groups_info = calculate_breaker_groups_microinverters(
+                num_microinverters=num_inverters,
+                power_per_micro_w=power_per_micro,
+                voltage_v=v_calc,
+            )
+            user_group = _safe_int(technical.get('micros_por_grupo_ca'), 3) or 3
+            user_group = min(3, max(1, user_group))
+            if user_group != 3:
+                micro_groups = dc_strings.get('micro_groups') or []
+                breaker_groups_info = {
+                    'num_breakers': len(micro_groups) or breaker_groups_info['num_breakers'],
+                    'breaker_groups': breaker_groups_info.get('breaker_groups') or [],
+                    'total_breakers_detail': (
+                        f'{len(micro_groups)} disjuntor(es) CA — até {user_group} micro(s) em série por disjuntor'
+                    ),
+                }
+            num_breakers_ca = dc_strings.get('num_ca_breakers') or breaker_groups_info['num_breakers']
     else:
         num_breakers_ca = num_inverters
         breaker_groups_info = {
@@ -474,6 +532,10 @@ def _build_all_items(calc: dict) -> list[dict]:
     inv = calc.get('inverter_ac') or {}
     grid = calc.get('grid_padrao') or {}
     inv_fase = calc.get('inverter_fase', 'monofasico')
+    dc = calc.get('dc_strings') or {}
+    topology = dc.get('topology', '')
+    qdca_micro = (calc.get('breaker_groups') or {}).get('qdca_micro')
+    is_micro_qdca = topology == 'micro' and bool(qdca_micro)
 
     items = [
         {'grupo': 'Potência', 'rotulo': 'Potência total módulos', 'valor': f"{calc['total_module_power_kw']} kWp", 'token': 'POTENCIA_TOTAL_INSTALADA'},
@@ -504,19 +566,28 @@ def _build_all_items(calc: dict) -> list[dict]:
     # —— Inversor CA (potência nominal × fase do equipamento) ——
     fase_label = {'monofasico': 'Monofásico', 'trifasico': 'Trifásico', 'bifasico': 'Bifásico'}.get(inv_fase, inv_fase)
     items.extend([
-        {'grupo': 'Inversor CA', 'rotulo': 'Fase CA do inversor', 'valor': fase_label, 'token': 'FASE_CA'},
+        {'grupo': 'Inversor CA', 'rotulo': 'Fase CA do equipamento', 'valor': fase_label, 'token': 'FASE_CA'},
         {'grupo': 'Inversor CA', 'rotulo': 'Potência nominal CA', 'valor': f"{calc['total_inverter_power_kw']} kW", 'token': 'POTENCIA_INVERSOR_TOTAL'},
         {'grupo': 'Inversor CA', 'rotulo': 'Fórmula corrente', 'valor': inv.get('formula', '—'), 'token': None},
         {'grupo': 'Inversor CA', 'rotulo': 'Corrente nominal inversor', 'valor': f"{calc.get('corrente_inversor_a', '—')} A", 'token': None},
         {'grupo': 'Inversor CA', 'rotulo': 'Corrente projeto (×1,25)', 'valor': f"{inv.get('current_design_a', '—')} A", 'token': None},
-        {'grupo': 'Inversor CA', 'rotulo': 'Disjuntor CA inversor', 'valor': f"{calc.get('disjuntor_inversor_ca_a', '—')} A {inv.get('descricao_polos_disjuntor', '')}", 'token': 'DISJUNTOR_CA_INVERSOR_A'},
+        {
+            'grupo': 'Inversor CA',
+            'rotulo': 'Disjuntor QDCA' if is_micro_qdca else 'Disjuntor CA inversor',
+            'valor': f"{calc.get('disjuntor_inversor_ca_a', '—')} A {inv.get('descricao_polos_disjuntor', '')}",
+            'token': 'DISJUNTOR_CA_INVERSOR_A',
+        },
         {'grupo': 'Inversor CA', 'rotulo': 'Conexão', 'valor': inv.get('distribution', '—'), 'token': None},
         {'grupo': 'Inversor CA', 'rotulo': 'Qtd disjuntores CA', 'valor': str(calc.get('num_breakers_ca', '—')), 'token': None},
         {'grupo': 'Cabos', 'rotulo': 'Bitola CC recomendada', 'valor': calc['cable_section_cc'], 'token': 'BITOLA_CABO_CC'},
-        {'grupo': 'Cabos', 'rotulo': 'Bitola CA inversor', 'valor': calc['cable_section_ca'], 'token': 'BITOLA_CABO_CA'},
+        {
+            'grupo': 'Cabos',
+            'rotulo': 'Bitola CA QDCA' if is_micro_qdca else 'Bitola CA inversor',
+            'valor': calc['cable_section_ca'],
+            'token': 'BITOLA_CABO_CA',
+        },
         {'grupo': 'Economia', 'rotulo': 'Economia mensal estimada', 'valor': f"R$ {calc['economia_mensal_estimada']}", 'token': None},
     ])
-    dc = calc.get('dc_strings') or {}
     if dc:
         items.extend([
             {'grupo': 'Strings CC', 'rotulo': 'Topologia', 'valor': dc.get('topology', '—'), 'token': None},
@@ -549,13 +620,28 @@ def _build_all_items(calc: dict) -> list[dict]:
                 'token': 'PROTECAO_CA_DESCRICAO',
             })
     prot = calc.get('protection') or {}
-    if prot:
+    if prot and not is_micro_qdca:
         items.extend([
             {'grupo': 'Proteção', 'rotulo': 'Disjuntor CA (detalhe)', 'valor': f"{prot.get('ac_breaker_a')} A", 'token': None},
             {'grupo': 'Proteção', 'rotulo': 'DPS', 'valor': f"{prot.get('dps_class')} {prot.get('dps_voltage')}", 'token': None},
         ])
+    elif is_micro_qdca:
+        djg = qdca_micro.get('djg_a')
+        if djg:
+            items.append({
+                'grupo': 'Proteção',
+                'rotulo': 'DJG QDCA',
+                'valor': f"{djg} A",
+                'token': 'DISJUNTOR_GERAL_QDCA_A',
+            })
+        items.append({
+            'grupo': 'Proteção',
+            'rotulo': 'DPS',
+            'valor': f"{prot.get('dps_class', 'Classe II')} {prot.get('dps_voltage', '275V')}",
+            'token': None,
+        })
     cab = calc.get('cables', {}).get('detail') or {}
-    if cab:
+    if cab and not is_micro_qdca:
         items.append({
             'grupo': 'Cabos',
             'rotulo': 'Seção calculada (NR)',
@@ -572,12 +658,16 @@ def _build_all_items(calc: dict) -> list[dict]:
             'token': None,
         })
     for group in bg.get('breaker_groups') or []:
+        fase = group.get('fase') or group.get('group_id', '?')
+        micros = group.get('micros') if group.get('micros') is not None else group.get('micros_count', '?')
+        bitola = group.get('bitola_ca', '')
+        bitola_txt = f", cabo {bitola}" if bitola else ''
         items.append({
             'grupo': 'Proteção',
-            'rotulo': f"Grupo {group.get('group_id', '?')} — {group.get('micros_count', '?')} micro(s)",
+            'rotulo': f"Fase {fase} — {micros} micro(s)",
             'valor': (
                 f"I={group.get('current_a', '—')} A → "
-                f"disjuntor {group.get('breaker_a', '—')} A"
+                f"disjuntor {group.get('breaker_a', '—')} A{bitola_txt}"
             ),
             'token': None,
         })

@@ -27,7 +27,7 @@ SAMPLE_STRING = {
     'BITOLA_CABO_CC': '4 mm²',
     'BITOLA_CABO_CA': '6 mm²',
     'TIPO_LIGACAO': 'MONOFASICO',
-    'NUM_POSTE': 'ilégível',
+    'NUM_POSTE': 'ilegível',
 }
 
 SAMPLE_MICRO = {
@@ -47,7 +47,7 @@ SAMPLE_MICRO = {
     'BITOLA_CABO_CC': '4 mm²',
     'BITOLA_CABO_CA': '4 mm²',
     'TIPO_LIGACAO': 'MONOFASICO',
-    'NUM_POSTE': 'ilégível',
+    'NUM_POSTE': 'ilegível',
 }
 
 

@@ -95,15 +95,20 @@ def resolve_ligacao_config(tipo_ligacao: str | None = None) -> dict[str, Any]:
 
 
 def _parse_dual_voltage(text: str | None) -> tuple[float | None, float | None]:
-    """Extrai VN (menor) e V_LL (maior) de textos como 127/220V ou 220/380V."""
+    """Extrai VN e V_LL de 127V, 220V, 380V ou textos como 127/220V ou 220/380V."""
     if not text:
         return None, None
+    t = str(text).upper().replace(' ', '')
+    if '220/380' in t or ('220' in t and '380' in t):
+        return 220.0, 380.0
     nums = [float(n) for n in re.findall(r'\d{2,3}', str(text))]
     if len(nums) >= 2:
         return min(nums), max(nums)
     if len(nums) == 1:
-        # Valor único (ex.: 220V) = tensão fase-neutro, não linha-linha
-        return nums[0], None
+        v = nums[0]
+        if v == 380:
+            return 220.0, 380.0
+        return v, None
     return None, None
 
 
@@ -115,6 +120,61 @@ def map_inverter_fase(fase_ca: str | None = None) -> str:
     if 'BIF' in t:
         return 'bifasico'
     return 'monofasico'
+
+
+def _tipo_is_micro(tipo_inversor: str | None) -> bool:
+    t = (tipo_inversor or '').upper()
+    return 'MICRO' in t
+
+
+def resolve_equipment_fase_ca(
+    tipo_inversor: str | None = None,
+    fase_ca_catalog: str | None = None,
+) -> str:
+    """
+    Fase CA do equipamento solar — distinto do tipo de ligação da UC (padrão de entrada).
+
+    Microinversor: sempre monofásico F-N (ex.: 220 V em GO). Não existe micro trifásico.
+    Inversor string: monofásico F-N ou trifásico F-F conforme catálogo/fabricante.
+    """
+    if _tipo_is_micro(tipo_inversor):
+        return 'monofasico'
+    return map_inverter_fase(fase_ca_catalog)
+
+
+def describe_equipment_ca_connection(
+    *,
+    tipo_inversor: str | None,
+    fase_ca_catalog: str | None,
+    voltage_ln_v: float,
+    voltage_ll_v: float,
+    tipo_ligacao_uc: str | None = None,
+) -> str:
+    """Texto memorial/unifilar — equipamento vs rede da UC."""
+    inv_fase = resolve_equipment_fase_ca(tipo_inversor, fase_ca_catalog)
+    uc = _map_system_type(tipo_ligacao_uc)
+    v_ln = int(voltage_ln_v or 220)
+    v_ll = int(voltage_ll_v or 380)
+
+    if _tipo_is_micro(tipo_inversor):
+        if uc == 'trifasico':
+            return (
+                f'Microinversor monofásico {v_ln} V (Fase-Neutro), conectado em uma fase da '
+                f'rede trifásica {v_ln}/{v_ll} V da UC (balanceamento entre fases).'
+            )
+        if uc == 'bifasico':
+            return (
+                f'Microinversor monofásico {v_ln} V (Fase-Neutro), conectado em uma fase da '
+                f'rede bifásica da UC.'
+            )
+        return f'Microinversor monofásico {v_ln} V (Fase-Neutro), rede monofásica da UC.'
+
+    if inv_fase == 'trifasico':
+        return f'Inversor string trifásico {v_ll} V (Fase-Fase), rede da UC {v_ln}/{v_ll} V.'
+    return (
+        f'Inversor string monofásico {v_ln} V (Fase-Neutro)'
+        + (f', em uma fase da rede trifásica {v_ln}/{v_ll} V da UC.' if uc == 'trifasico' else '.')
+    )
 
 
 def resolve_ac_voltage(
@@ -159,32 +219,38 @@ def resolve_ac_voltage(
     }
 
 
-def normalize_tensao_fase_neutro(
+def normalize_tensao_atendimento(
     tensao_atendimento: str | None = None,
     uf: str | None = None,
+    tipo_ligacao: str | None = None,
 ) -> str:
-    """Label F-N para formulário (127V ou 220V). LL vem do tipo de ligação."""
+    """Valores do formulário alinhados ao NT Equatorial: 127V, 220V, 380V."""
     if tensao_atendimento:
-        text = str(tensao_atendimento).upper()
-        if '13.8' in text or '13800' in text:
-            return '13.8kV'
-        nums = [int(n) for n in re.findall(r'\d{2,3}', text)]
-        if nums and min(nums) == 127:
+        text = str(tensao_atendimento).upper().replace(' ', '')
+        if '127' in text and '220' not in text and '380' not in text:
             return '127V'
-        if nums:
+        if '380' in text or '220/380' in text or ('220' in text and '380' in text):
+            return '380V'
+        if '13.8' in text or '13800' in text:
             return '220V'
+        if '220' in text:
+            return '220V'
+    return suggest_tensao_atendimento(uf, tipo_ligacao)
+
+
+def suggest_tensao_atendimento(uf: str | None, tipo_ligacao: str | None = None) -> str:
+    """Sugere tensão conforme UF e tipo de ligação (trifásico → 380 V no NT)."""
+    system_type = _map_system_type(tipo_ligacao)
+    if system_type == 'trifasico':
+        return '380V'
     uf_key = (uf or 'GO').upper()[:2]
     defaults = UF_VOLTAGE.get(uf_key, UF_VOLTAGE['DEFAULT'])
     return f"{int(defaults['monofasico'])}V"
 
 
-def suggest_tensao_atendimento(uf: str | None, tipo_ligacao: str | None) -> str:
-    """Sugere tensão F-N (127V ou 220V) — trifásico/bifásico fica no tipo de ligação."""
-    uf_key = (uf or 'GO').upper()[:2]
-    defaults = UF_VOLTAGE.get(uf_key, UF_VOLTAGE['DEFAULT'])
-    system_type = _map_system_type(tipo_ligacao)
-    if system_type == 'bifasico':
-        v = defaults['bifasico']
-    else:
-        v = defaults['monofasico']
-    return f"{int(v)}V"
+def normalize_tensao_fase_neutro(
+    tensao_atendimento: str | None = None,
+    uf: str | None = None,
+) -> str:
+    """Compatibilidade — use normalize_tensao_atendimento."""
+    return normalize_tensao_atendimento(tensao_atendimento, uf)

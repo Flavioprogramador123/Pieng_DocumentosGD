@@ -30,8 +30,12 @@ REFERENCE_LOADS = [
     {'descricao': 'Tomadas de uso geral e auxiliares', 'tipo': 'tug', 'pot_w': 750, 'qtd': 4, 'fp': 0.90},
     {'descricao': 'Compressor de ar industrial', 'tipo': 'motor', 'pot_w': 7500, 'qtd': 1, 'fp': 0.85},
     {'descricao': 'Bomba/motor de processo', 'tipo': 'motor', 'pot_w': 5500, 'qtd': 1, 'fp': 0.85},
-    {'descricao': 'Máquina de solda / produção', 'tipo': 'motor', 'pot_w': 5000, 'qtd': 1, 'fp': 0.80},
-    {'descricao': 'Escritório e informática', 'tipo': 'iluminacao_tug', 'pot_w': 2000, 'qtd': 1, 'fp': 0.95},
+    {'descricao': 'Motor de ventilação / exaustão industrial', 'tipo': 'motor', 'pot_w': 4500, 'qtd': 1, 'fp': 0.85},
+    {'descricao': 'Impressoras e computadores', 'tipo': 'iluminacao_tug', 'pot_w': 2000, 'qtd': 1, 'fp': 0.95},
+    {'descricao': 'Ar-condicionado comercial', 'tipo': 'ar_condicionado', 'pot_w': 3600, 'qtd': 2, 'fp': 0.85},
+    {'descricao': 'Câmara fria / geladeira industrial', 'tipo': 'geladeira', 'pot_w': 800, 'qtd': 2, 'fp': 0.85},
+    {'descricao': 'Esteira transportadora / motor de acionamento', 'tipo': 'motor', 'pot_w': 3000, 'qtd': 1, 'fp': 0.80},
+    {'descricao': 'Iluminação de emergência e segurança', 'tipo': 'iluminacao', 'pot_w': 60, 'qtd': 8, 'fp': 0.95},
 ]
 
 

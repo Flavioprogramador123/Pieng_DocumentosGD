@@ -1,295 +1,410 @@
 # Inversores SAJ / DEYE — topologia MPPT para cálculo de strings CC
 # Regra PIENG: até 10 kW monofásico 220 V; a partir de 12 kW trifásico
-# Campos chave: strings_por_mppt (lista por MPPT), corrente_entrada_cc_max_a_por_mppt
+# Campos chave: strings_por_mppt, corrente_entrada_cc_max_a_por_mppt (Icc)
+# Atualizado a partir de catalogo_inversores_para_ia_COMPLETO.json
 
 inversores:
-  - fabricante: "DEYE"
-    modelo: "MICRO INVERSOR DEYE-S2.25K-G4 220V"
-    tipo: "Microinversor"
-    fase_ca: "MONOFASICO"
-    entrada_cc:
-      potencia_max_arranjo_wp: "210 a 790"
-      tensao_rastreamento_mppt_v: "25 - 55"
-      faixa_tensao_operacao_v: "25 - 55"
-      tensao_entrada_max_v: 60
-      corrente_entrada_cc_max_a: 18
-      numero_mppts: 4
-      strings_por_mppt: [1, 1, 1, 1]
-      modulos_por_mppt: 1
-      micros_max_por_disjuntor_ca: 3
-    saida_ca:
-      potencia_max_saida_w: 2250
-      corrente_saida_max_a: 10.3
-      tensao_ca_nominal_faixa_v: "220 / 187 - 253"
-      frequencia_nominal_faixa_hz: "60 / 59.9 - 60.1"
-      fator_potencia: "> 0.99"
-      thd_corrente_pct: "< 3"
-    performance:
-      eficiencia_pico_pct: 96.5
-      eficiencia_ponderada_cec_pct: 96.5
-      grau_protecao: "IP67"
-      faixa_temperatura_c: "-40 a +65"
-      garantia_anos: 12
-
-  - fabricante: "SAJ"
-    modelo: "MICRO INVERSOR M2-2.25K-S4 220V"
-    tipo: "Microinversor"
-    fase_ca: "MONOFASICO"
-    entrada_cc:
-      potencia_max_arranjo_wp: "400 a 700"
-      tensao_rastreamento_mppt_v: "35 - 50"
-      faixa_tensao_operacao_v: "16 - 55"
-      tensao_entrada_max_v: 60
-      corrente_entrada_cc_max_a: 20
-      numero_mppts: 4
-      strings_por_mppt: [1, 1, 1, 1]
-      modulos_por_mppt: 1
-      micros_max_por_disjuntor_ca: 3
-    saida_ca:
-      potencia_max_saida_w: 2250
-      corrente_saida_max_a: 9.78
-      tensao_ca_nominal_faixa_v: "220 / 180 - 280"
-      frequencia_nominal_faixa_hz: "60 / 59.9 - 60.1"
-      fator_potencia: "> 0.99"
-      thd_corrente_pct: "< 3"
-    performance:
-      eficiencia_pico_pct: 97.0
-      eficiencia_ponderada_cec_pct: 96.0
-      grau_protecao: "IP67"
-      faixa_temperatura_c: "-40 a +60"
-      garantia_anos: 12
-
-  - fabricante: "SAJ"
-    modelo: "INVERSOR SAJ 3KW MONO 220V"
-    tipo: "Inversor String On-Grid"
-    fase_ca: "MONOFASICO"
-    entrada_cc:
-      potencia_max_arranjo_wp: "4500"
-      tensao_rastreamento_mppt_v: "90 - 550"
-      faixa_tensao_operacao_v: "80 - 550"
-      tensao_entrada_max_v: 600
-      corrente_entrada_cc_max_a_por_mppt: [16, 16, 16]
-      numero_mppts: 3
-      strings_por_mppt: [1, 1, 1]
-      topologia_tipica: "1 string em 1 MPPT (demais vazios)"
-    saida_ca:
-      potencia_max_saida_w: 3000
-      corrente_saida_max_a: 13.1
-      tensao_ca_nominal_faixa_v: "220 / 180 - 280"
-      frequencia_nominal_faixa_hz: "60 / 59.9 - 60.1"
-      fator_potencia: "> 0.99"
-      thd_corrente_pct: "< 3"
-    performance:
-      eficiencia_pico_pct: 98.2
-      eficiencia_ponderada_cec_pct: 97.8
-      grau_protecao: "IP65"
-      faixa_temperatura_c: "-40 a +60"
-      garantia_anos: 10
-
-  - fabricante: "DEYE"
-    modelo: "INVERSOR DEYE 6KW MONO 220V"
-    tipo: "Inversor String On-Grid"
-    fase_ca: "MONOFASICO"
-    entrada_cc:
-      potencia_max_arranjo_wp: "9000"
-      tensao_rastreamento_mppt_v: "100 - 500"
-      faixa_tensao_operacao_v: "70 - 500"
-      tensao_entrada_max_v: 600
-      corrente_entrada_cc_max_a_por_mppt: [13, 13]
-      numero_mppts: 2
-      strings_por_mppt: [1, 1]
-      topologia_tipica: "2 strings independentes (1 por MPPT)"
-    saida_ca:
-      potencia_max_saida_w: 6000
-      corrente_saida_max_a: 27.3
-      tensao_ca_nominal_faixa_v: "220 / 180 - 280"
-      frequencia_nominal_faixa_hz: "60 / 59.9 - 60.1"
-      fator_potencia: "> 0.99"
-      thd_corrente_pct: "< 3"
-    performance:
-      eficiencia_pico_pct: 97.5
-      eficiencia_ponderada_cec_pct: 97.0
-      grau_protecao: "IP65"
-      faixa_temperatura_c: "-25 a +60"
-      garantia_anos: 10
-
-  - fabricante: "SAJ"
-    modelo: "INVERSOR SAJ 6KW MONO 220V"
-    tipo: "Inversor String On-Grid"
-    fase_ca: "MONOFASICO"
-    entrada_cc:
-      potencia_max_arranjo_wp: "9000"
-      tensao_rastreamento_mppt_v: "90 - 550"
-      faixa_tensao_operacao_v: "80 - 550"
-      tensao_entrada_max_v: 600
-      corrente_entrada_cc_max_a_por_mppt: [16, 16]
-      numero_mppts: 2
-      strings_por_mppt: [1, 1]
-      topologia_tipica: "2 strings independentes (1 por MPPT)"
-    saida_ca:
-      potencia_max_saida_w: 6000
-      corrente_saida_max_a: 26.1
-      tensao_ca_nominal_faixa_v: "220 / 180 - 280"
-      frequencia_nominal_faixa_hz: "60 / 59.9 - 60.1"
-      fator_potencia: "> 0.99"
-      thd_corrente_pct: "< 3"
-    performance:
-      eficiencia_pico_pct: 98.2
-      eficiencia_ponderada_cec_pct: 97.8
-      grau_protecao: "IP65"
-      faixa_temperatura_c: "-40 a +60"
-      garantia_anos: 10
-
-  - fabricante: "SAJ"
-    modelo: "INVERSOR SAJ 8KW MONO 220V"
-    tipo: "Inversor String On-Grid"
-    fase_ca: "MONOFASICO"
-    entrada_cc:
-      potencia_max_arranjo_wp: "12000"
-      tensao_rastreamento_mppt_v: "90 - 550"
-      faixa_tensao_operacao_v: "80 - 550"
-      tensao_entrada_max_v: 600
-      corrente_entrada_cc_max_a_por_mppt: [16, 16, 16]
-      numero_mppts: 3
-      strings_por_mppt: [1, 1, 1]
-    saida_ca:
-      potencia_max_saida_w: 8000
-      corrente_saida_max_a: 34.8
-      tensao_ca_nominal_faixa_v: "220 / 180 - 280"
-    performance:
-      eficiencia_pico_pct: 98.2
-      grau_protecao: "IP65"
-      garantia_anos: 10
-
-  - fabricante: "SAJ"
-    modelo: "INVERSOR SAJ 10KW MONO 220V"
-    tipo: "Inversor String On-Grid"
-    fase_ca: "MONOFASICO"
-    entrada_cc:
-      potencia_max_arranjo_wp: "15000"
-      tensao_rastreamento_mppt_v: "90 - 550"
-      tensao_entrada_max_v: 600
-      corrente_entrada_cc_max_a_por_mppt: [16, 16, 16]
-      numero_mppts: 3
-      strings_por_mppt: [1, 1, 1]
-    saida_ca:
-      potencia_max_saida_w: 10000
-      corrente_saida_max_a: 43.5
-      tensao_ca_nominal_faixa_v: "220 / 180 - 280"
-    performance:
-      eficiencia_pico_pct: 98.2
-      grau_protecao: "IP65"
-      garantia_anos: 10
-
-  - fabricante: "DEYE"
-    modelo: "INVERSOR DEYE 12KW TRIFÁSICO 220V"
-    tipo: "Inversor String On-Grid"
-    fase_ca: "TRIFASICO"
-    entrada_cc:
-      potencia_max_arranjo_wp: "18000"
-      tensao_rastreamento_mppt_v: "120 - 1000"
-      tensao_entrada_max_v: 1100
-      corrente_entrada_cc_max_a_por_mppt: [20, 20]
-      numero_mppts: 2
-      strings_por_mppt: [1, 1]
-    saida_ca:
-      potencia_max_saida_w: 12000
-      tensao_ca_nominal_faixa_v: "380 / 220 - 280"
-    performance:
-      eficiencia_pico_pct: 98.3
-      grau_protecao: "IP65"
-      garantia_anos: 10
-
-  - fabricante: "DEYE"
-    modelo: "INVERSOR DEYE 15KW TRIFÁSICO 220V"
-    tipo: "Inversor String On-Grid"
-    fase_ca: "TRIFASICO"
-    entrada_cc:
-      potencia_max_arranjo_wp: "22500"
-      tensao_rastreamento_mppt_v: "200 - 1000"
-      faixa_tensao_operacao_v: "150 - 1000"
-      tensao_entrada_max_v: 1100
-      corrente_entrada_cc_max_a_por_mppt: [20, 26]
-      numero_mppts: 2
-      strings_por_mppt: [1, 2]
-      topologia_tipica: "MPPT misto 1+2 strings"
-    saida_ca:
-      potencia_max_saida_w: 15000
-      corrente_saida_max_a: 39.5
-      tensao_ca_nominal_faixa_v: "380 / 220 - 280"
-      frequencia_nominal_faixa_hz: "60 / 59.9 - 60.1"
-      fator_potencia: "> 0.99"
-      thd_corrente_pct: "< 3"
-    performance:
-      eficiencia_pico_pct: 98.5
-      eficiencia_ponderada_cec_pct: 98.0
-      grau_protecao: "IP65"
-      faixa_temperatura_c: "-25 a +60"
-      garantia_anos: 10
-
-  - fabricante: "SAJ"
-    modelo: "INVERSOR SAJ 15KW TRIFÁSICO 220V"
-    tipo: "Inversor String On-Grid"
-    fase_ca: "TRIFASICO"
-    entrada_cc:
-      potencia_max_arranjo_wp: "22500"
-      tensao_rastreamento_mppt_v: "180 - 1000"
-      faixa_tensao_operacao_v: "150 - 1000"
-      tensao_entrada_max_v: 1100
-      corrente_entrada_cc_max_a_por_mppt: [32, 32]
-      numero_mppts: 2
-      strings_por_mppt: [2, 2]
-    saida_ca:
-      potencia_max_saida_w: 15000
-      corrente_saida_max_a: 39.5
-      tensao_ca_nominal_faixa_v: "380 / 220 - 280"
-      frequencia_nominal_faixa_hz: "60 / 59.9 - 60.1"
-      fator_potencia: "> 0.99"
-      thd_corrente_pct: "< 3"
-    performance:
-      eficiencia_pico_pct: 98.8
-      eficiencia_ponderada_cec_pct: 98.5
-      grau_protecao: "IP65"
-      faixa_temperatura_c: "-25 a +60"
-      garantia_anos: 10
-
-  - fabricante: "SAJ"
-    modelo: "INVERSOR SAJ 25KW TRIFÁSICO 220V"
-    tipo: "Inversor String On-Grid"
-    fase_ca: "TRIFASICO"
-    entrada_cc:
-      potencia_max_arranjo_wp: "37500"
-      tensao_rastreamento_mppt_v: "180 - 1000"
-      faixa_tensao_operacao_v: "200 - 1000"
-      tensao_entrada_max_v: 1100
-      corrente_entrada_cc_max_a_por_mppt: [32, 32]
-      numero_mppts: 2
-      strings_por_mppt: [2, 2]
-      topologia_tipica: "Até 4 strings — validar Isc paralelo ≤ 32 A/MPPT"
-    saida_ca:
-      potencia_max_saida_w: 25000
-      corrente_saida_max_a: 36.2
-      tensao_ca_nominal_faixa_v: "380 / 220 - 280"
-    performance:
-      eficiencia_pico_pct: 98.8
-      grau_protecao: "IP65"
-      garantia_anos: 10
-
-  - fabricante: "DEYE"
-    modelo: "INVERSOR DEYE 25KW TRIFÁSICO 220V"
-    tipo: "Inversor String On-Grid"
-    fase_ca: "TRIFASICO"
-    entrada_cc:
-      potencia_max_arranjo_wp: "37500"
-      tensao_rastreamento_mppt_v: "200 - 1000"
-      tensao_entrada_max_v: 1100
-      corrente_entrada_cc_max_a_por_mppt: [54, 48]
-      numero_mppts: 2
-      strings_por_mppt: [2, 2]
-    saida_ca:
-      potencia_max_saida_w: 25000
-      tensao_ca_nominal_faixa_v: "380 / 220 - 280"
-    performance:
-      eficiencia_pico_pct: 98.2
-      grau_protecao: "IP65"
-      garantia_anos: 10
+- fabricante: DEYE
+  modelo: MICRO INVERSOR DEYE-S2.25K-G4 220V
+  modelo_comercial_datasheet: SUN-M225G4-EU-Q0
+  tipo: Microinversor
+  fase_ca: MONOFASICO
+  entrada_cc:
+    potencia_max_arranjo_wp: 210 a 790
+    tensao_rastreamento_mppt_v: 25 - 55
+    faixa_tensao_operacao_v: 25 - 55
+    tensao_entrada_max_v: 60
+    corrente_entrada_cc_max_a: 18
+    corrente_entrada_cc_max_a_por_mppt:
+    - 18
+    - 18
+    - 18
+    - 18
+    numero_mppts: 4
+    strings_por_mppt:
+    - 1
+    - 1
+    - 1
+    - 1
+    modulos_por_mppt: 1
+    micros_max_por_disjuntor_ca: 3
+    topologia_tipica: '4 MPPT(s); strings por MPPT: [1, 1, 1, 1]'
+  saida_ca:
+    potencia_max_saida_w: 2250
+    corrente_saida_max_a: 10.3
+    tensao_ca_nominal_faixa_v: 220 / 187 - 253
+    frequencia_nominal_faixa_hz: 50/45-55, 60/55-65
+    fator_potencia: 0.9 adiantado a 0.9 atrasado
+    thd_corrente_pct: <3%
+  performance:
+    eficiencia_pico_pct: 96.5
+    eficiencia_ponderada_cec_pct: 96.0
+    grau_protecao: IP67
+    faixa_temperatura_c: -40 a +65 (derating >45)
+    garantia_anos: 12
+  fonte_datasheet: https://www.deyeinverter.com/product/microinverter-1/sunm220-225g4euq0-22002250w-single-phase-4mppt-micro-inverter.html
+- fabricante: SAJ
+  modelo: MICRO INVERSOR M2-2.25K-S4 220V
+  modelo_comercial_datasheet: M2-2.25K-S4
+  tipo: Microinversor
+  fase_ca: MONOFASICO
+  entrada_cc:
+    potencia_max_arranjo_wp: 400 a 700
+    tensao_rastreamento_mppt_v: 35 - 50
+    faixa_tensao_operacao_v: 16 - 55
+    tensao_entrada_max_v: 60
+    corrente_entrada_cc_max_a: 20
+    corrente_entrada_cc_max_a_por_mppt:
+    - 20
+    - 20
+    - 20
+    - 20
+    numero_mppts: 4
+    strings_por_mppt:
+    - 1
+    - 1
+    - 1
+    - 1
+    modulos_por_mppt: 1
+    micros_max_por_disjuntor_ca: 3
+    topologia_tipica: '4 MPPT(s); strings por MPPT: [1, 1, 1, 1]'
+  saida_ca:
+    potencia_max_saida_w: 2250
+    corrente_saida_max_a: 9.78
+    tensao_ca_nominal_faixa_v: 220 / 180 - 280
+    frequencia_nominal_faixa_hz: 50/45-55, 60/55-65
+    fator_potencia: '>0.99; padrão 0.8 adiantado a 0.8 atrasado'
+    thd_corrente_pct: <3%
+  performance:
+    eficiencia_pico_pct: 97.0
+    eficiencia_ponderada_cec_pct: 96.0
+    grau_protecao: IP67
+    faixa_temperatura_c: -40 a +60 (derating >45)
+    garantia_anos: 12
+  fonte_datasheet: https://de.saj-electric.com/hubfs/crm-properties-file-values/M2-%281.8K-2.25K%29-S4_User_Manual_de_en_DE-1.pdf
+- fabricante: SAJ
+  modelo: INVERSOR SAJ 3KW MONO 220V
+  modelo_comercial_datasheet: R5-3K-S1-15
+  tipo: Inversor String On-Grid
+  fase_ca: MONOFASICO
+  entrada_cc:
+    potencia_max_arranjo_wp: '4500'
+    tensao_rastreamento_mppt_v: 90 - 550
+    faixa_tensao_operacao_v: 80-550
+    tensao_entrada_max_v: 600
+    corrente_entrada_cc_max_a_por_mppt:
+    - 15
+    - 15
+    - 15
+    numero_mppts: 3
+    strings_por_mppt:
+    - 1
+    - 1
+    - 1
+    topologia_tipica: 1 string em 1 MPPT (demais vazios)
+  saida_ca:
+    potencia_max_saida_w: 3000
+    corrente_saida_max_a: 13.1
+    tensao_ca_nominal_faixa_v: 220 / 180 - 280
+    frequencia_nominal_faixa_hz: 50/45-55, 60/55-65
+    fator_potencia: 0.8 adiantado a 0.8 atrasado
+    thd_corrente_pct: <3%
+  performance:
+    eficiencia_pico_pct: 98.2
+    eficiencia_ponderada_cec_pct: 97.2
+    grau_protecao: IP65
+    faixa_temperatura_c: -40 a +60 (derating >45)
+    garantia_anos: 10
+  fonte_datasheet: https://br.saj-electric.com/hubfs/Brazil/Datasheet/R5-3K-S1-15_datasheet_pt_BR.pdf
+- fabricante: DEYE
+  modelo: INVERSOR DEYE 6KW MONO 220V
+  modelo_comercial_datasheet: SUN-6K-G04
+  tipo: Inversor String On-Grid
+  fase_ca: MONOFASICO
+  entrada_cc:
+    potencia_max_arranjo_wp: '9000'
+    tensao_rastreamento_mppt_v: 100 - 500
+    faixa_tensao_operacao_v: 70 - 500
+    tensao_entrada_max_v: 600
+    corrente_entrada_cc_max_a_por_mppt:
+    - 13
+    - 13
+    numero_mppts: 2
+    strings_por_mppt:
+    - 1
+    - 1
+    topologia_tipica: 2 strings independentes (1 por MPPT)
+  saida_ca:
+    potencia_max_saida_w: 6000
+    corrente_saida_max_a: 27.3
+    tensao_ca_nominal_faixa_v: 220 / 180 - 280
+    frequencia_nominal_faixa_hz: 50/45-55, 60/55-65
+    fator_potencia: 0.8 adiantado a 0.8 atrasado
+    thd_corrente_pct: <3%
+  performance:
+    eficiencia_pico_pct: 97.5
+    eficiencia_ponderada_cec_pct: 97.0
+    grau_protecao: IP65
+    faixa_temperatura_c: -25 a +65 (derating >45)
+    garantia_anos: 10
+  fonte_datasheet: https://pt.deyeinverter.com/product/single-phase-string-inverter/SUN3-6-4-4-2-4-6-5-5-2-6-6-2KG04P1EUAM2P1-3-66-2kW-Single-Phase-2-MPPT.html
+- fabricante: SAJ
+  modelo: INVERSOR SAJ 6KW MONO 220V
+  modelo_comercial_datasheet: R6-6K-S3-18
+  tipo: Inversor String On-Grid
+  fase_ca: MONOFASICO
+  entrada_cc:
+    potencia_max_arranjo_wp: '9000'
+    tensao_rastreamento_mppt_v: 90 - 550
+    faixa_tensao_operacao_v: 80 - 550
+    tensao_entrada_max_v: 600
+    corrente_entrada_cc_max_a_por_mppt:
+    - 18
+    - 18
+    numero_mppts: 2
+    strings_por_mppt:
+    - 1
+    - 1
+    topologia_tipica: 2 strings independentes (1 por MPPT)
+  saida_ca:
+    potencia_max_saida_w: 6000
+    corrente_saida_max_a: 26.1
+    tensao_ca_nominal_faixa_v: 220 / 180 - 280
+    frequencia_nominal_faixa_hz: 50/44-55, 60/55-65
+    fator_potencia: 0.8 adiantado a 0.8 atrasado
+    thd_corrente_pct: <3%
+  performance:
+    eficiencia_pico_pct: 98.2
+    eficiencia_ponderada_cec_pct: 97.8
+    grau_protecao: IP65
+    faixa_temperatura_c: -40 a +60
+    garantia_anos: 10
+  fonte_datasheet: https://br.saj-electric.com/hubfs/Brazil/Datasheet/R6%20-%20MONO.pdf
+- fabricante: SAJ
+  modelo: INVERSOR SAJ 8KW MONO 220V
+  modelo_comercial_datasheet: R6-8K-S3-18
+  tipo: Inversor String On-Grid
+  fase_ca: MONOFASICO
+  entrada_cc:
+    potencia_max_arranjo_wp: '12000'
+    tensao_rastreamento_mppt_v: 90 - 550
+    faixa_tensao_operacao_v: 80 - 550
+    tensao_entrada_max_v: 600
+    corrente_entrada_cc_max_a_por_mppt:
+    - 18
+    - 18
+    - 18
+    numero_mppts: 3
+    strings_por_mppt:
+    - 1
+    - 1
+    - 1
+    topologia_tipica: '3 MPPT(s); strings por MPPT: [1, 1, 1]'
+  saida_ca:
+    potencia_max_saida_w: 8000
+    corrente_saida_max_a: 34.8
+    tensao_ca_nominal_faixa_v: 220 / 180 - 280
+    frequencia_nominal_faixa_hz: 50/44-55, 60/55-65
+    fator_potencia: 0.8 adiantado a 0.8 atrasado
+    thd_corrente_pct: <3%
+  performance:
+    eficiencia_pico_pct: 98.2
+    eficiencia_ponderada_cec_pct: 97.8
+    grau_protecao: IP65
+    faixa_temperatura_c: -40 a +60
+    garantia_anos: 10
+  fonte_datasheet: https://br.saj-electric.com/hubfs/Brazil/Datasheet/R6%20-%20MONO.pdf
+- fabricante: SAJ
+  modelo: INVERSOR SAJ 10KW MONO 220V
+  modelo_comercial_datasheet: R6-10K-S3-18
+  tipo: Inversor String On-Grid
+  fase_ca: MONOFASICO
+  entrada_cc:
+    potencia_max_arranjo_wp: '15000'
+    tensao_rastreamento_mppt_v: 90 - 550
+    faixa_tensao_operacao_v: 80-500
+    tensao_entrada_max_v: 600
+    corrente_entrada_cc_max_a_por_mppt:
+    - 18
+    - 18
+    - 18
+    numero_mppts: 3
+    strings_por_mppt:
+    - 1
+    - 1
+    - 1
+    topologia_tipica: '3 MPPT(s); strings por MPPT: [1, 1, 1]'
+  saida_ca:
+    potencia_max_saida_w: 10000
+    corrente_saida_max_a: 43.5
+    tensao_ca_nominal_faixa_v: 220 / 180 - 280
+    frequencia_nominal_faixa_hz: 50/44-55, 60/55-65
+    fator_potencia: 0.8 adiantado a 0.8 atrasado
+    thd_corrente_pct: <3%
+  performance:
+    eficiencia_pico_pct: 98.2
+    eficiencia_ponderada_cec_pct: 97.8
+    grau_protecao: IP65
+    faixa_temperatura_c: -40 a +60
+    garantia_anos: 10
+  fonte_datasheet: https://br.saj-electric.com/hubfs/Brazil/Datasheet/R6%20-%20MONO.pdf
+- fabricante: DEYE
+  modelo: INVERSOR DEYE 12KW TRIFÁSICO 220V
+  modelo_comercial_datasheet: SUN-12K-G03
+  tipo: Inversor String On-Grid
+  fase_ca: TRIFASICO
+  entrada_cc:
+    potencia_max_arranjo_wp: '18000'
+    tensao_rastreamento_mppt_v: 120 - 1000
+    faixa_tensao_operacao_v: 200-850
+    tensao_entrada_max_v: 1100
+    corrente_entrada_cc_max_a_por_mppt:
+    - 11
+    - 22
+    numero_mppts: 2
+    strings_por_mppt:
+    - 1
+    - 1
+    topologia_tipica: '2 MPPT(s); strings por MPPT: [1, 1]'
+  saida_ca:
+    potencia_max_saida_w: 12000
+    corrente_saida_max_a: 23.9
+    tensao_ca_nominal_faixa_v: 380 / 220 - 280
+    frequencia_nominal_faixa_hz: 50/45-55, 60/55-65
+    fator_potencia: 0.8 adiantado a 0.8 atrasado
+    thd_corrente_pct: <3%
+  performance:
+    eficiencia_pico_pct: 98.3
+    eficiencia_ponderada_cec_pct: 97.8
+    grau_protecao: IP65
+    faixa_temperatura_c: -25 a +65
+    garantia_anos: 10
+  fonte_datasheet: https://www.deyeinverter.com/deyeinverter/2021/03/22/%E3%80%90b%E3%80%91threephasesun-12-15k-g03.pdf
+- fabricante: DEYE
+  modelo: INVERSOR DEYE 15KW TRIFÁSICO 220V
+  modelo_comercial_datasheet: SUN-15K-G03
+  tipo: Inversor String On-Grid
+  fase_ca: TRIFASICO
+  entrada_cc:
+    potencia_max_arranjo_wp: '22500'
+    tensao_rastreamento_mppt_v: 200 - 1000
+    faixa_tensao_operacao_v: 150 - 1000
+    tensao_entrada_max_v: 1100
+    corrente_entrada_cc_max_a_por_mppt:
+    - 11
+    - 22
+    numero_mppts: 2
+    strings_por_mppt:
+    - 1
+    - 2
+    topologia_tipica: MPPT misto 1+2 strings
+  saida_ca:
+    potencia_max_saida_w: 15000
+    corrente_saida_max_a: 39.5
+    tensao_ca_nominal_faixa_v: 380 / 220 - 280
+    frequencia_nominal_faixa_hz: 60 / 59.9 - 60.1
+    fator_potencia: '> 0.99'
+    thd_corrente_pct: < 3
+  performance:
+    eficiencia_pico_pct: 98.5
+    eficiencia_ponderada_cec_pct: 98.0
+    grau_protecao: IP65
+    faixa_temperatura_c: -25 a +60
+    garantia_anos: 10
+  fonte_datasheet: https://www.deyeinverter.com/deyeinverter/2021/03/22/%E3%80%90b%E3%80%91threephasesun-12-15k-g03.pdf
+- fabricante: SAJ
+  modelo: INVERSOR SAJ 15KW TRIFÁSICO 220V
+  modelo_comercial_datasheet: R6-15K-T2-32-LV
+  tipo: Inversor String On-Grid
+  fase_ca: TRIFASICO
+  entrada_cc:
+    potencia_max_arranjo_wp: '22500'
+    tensao_rastreamento_mppt_v: 180 - 1000
+    faixa_tensao_operacao_v: 150 - 1000
+    tensao_entrada_max_v: 1100
+    corrente_entrada_cc_max_a_por_mppt:
+    - 32
+    - 32
+    numero_mppts: 2
+    strings_por_mppt:
+    - 2
+    - 2
+    topologia_tipica: '2 MPPT(s); strings por MPPT: [2, 2]'
+  saida_ca:
+    potencia_max_saida_w: 15000
+    corrente_saida_max_a: 39.5
+    tensao_ca_nominal_faixa_v: 380 / 220 - 280
+    frequencia_nominal_faixa_hz: 60 / 59.9 - 60.1
+    fator_potencia: '> 0.99'
+    thd_corrente_pct: < 3
+  performance:
+    eficiencia_pico_pct: 98.8
+    eficiencia_ponderada_cec_pct: 98.5
+    grau_protecao: IP65
+    faixa_temperatura_c: -25 a +60
+    garantia_anos: 10
+  fonte_datasheet: https://br.saj-electric.com/hubfs/Brazil/Datasheet/R6%20-%20TRI%20220%205~15.pdf
+- fabricante: SAJ
+  modelo: INVERSOR SAJ 25KW TRIFÁSICO 220V
+  modelo_comercial_datasheet: R6-25K-T3-32
+  tipo: Inversor String On-Grid
+  fase_ca: TRIFASICO
+  entrada_cc:
+    potencia_max_arranjo_wp: '37500'
+    tensao_rastreamento_mppt_v: 180 - 1000
+    faixa_tensao_operacao_v: 200 - 1000
+    tensao_entrada_max_v: 1100
+    corrente_entrada_cc_max_a_por_mppt:
+    - 32
+    - 32
+    numero_mppts: 2
+    strings_por_mppt:
+    - 2
+    - 2
+    topologia_tipica: Até 4 strings — validar Isc paralelo ≤ 32 A/MPPT
+  saida_ca:
+    potencia_max_saida_w: 25000
+    corrente_saida_max_a: 36.2
+    tensao_ca_nominal_faixa_v: 380 / 220 - 280
+    frequencia_nominal_faixa_hz: 50/44-55, 60/55-65
+    fator_potencia: 0.8 adiantado a 0.8 atrasado
+    thd_corrente_pct: <3%
+  performance:
+    eficiencia_pico_pct: 98.8
+    eficiencia_ponderada_cec_pct: 98.5
+    grau_protecao: IP65
+    faixa_temperatura_c: -25 a +60
+    garantia_anos: 10
+  fonte_datasheet: https://br.saj-electric.com/hubfs/Brazil/Datasheet/R6%20-%20TRI%20220%205~15.pdf
+- fabricante: DEYE
+  modelo: INVERSOR DEYE 25KW TRIFÁSICO 220V
+  modelo_comercial_datasheet: SUN-25K-G05
+  tipo: Inversor String On-Grid
+  fase_ca: TRIFASICO
+  entrada_cc:
+    potencia_max_arranjo_wp: '37500'
+    tensao_rastreamento_mppt_v: 200 - 1000
+    faixa_tensao_operacao_v: 200-1000
+    tensao_entrada_max_v: 1100
+    corrente_entrada_cc_max_a_por_mppt:
+    - 54
+    - 48
+    numero_mppts: 2
+    strings_por_mppt:
+    - 2
+    - 2
+    topologia_tipica: '2 MPPT(s); strings por MPPT: [2, 2]'
+  saida_ca:
+    potencia_max_saida_w: 25000
+    corrente_saida_max_a: 39.8
+    tensao_ca_nominal_faixa_v: 380 / 220 - 280
+    frequencia_nominal_faixa_hz: 50/45-55, 60/55-65
+    fator_potencia: 0.8 adiantado a 0.8 atrasado
+    thd_corrente_pct: <3%
+  performance:
+    eficiencia_pico_pct: 98.2
+    eficiencia_ponderada_cec_pct: 98.0
+    grau_protecao: IP65
+    faixa_temperatura_c: -25 a +60
+    garantia_anos: 10
+  fonte_datasheet: https://pt.deyeinverter.com/product/three-phase-string-inverter/sun18-20-22-23-25kg05-1825kw-trif-sico-2mppt.html

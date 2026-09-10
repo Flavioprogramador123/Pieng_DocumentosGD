@@ -268,17 +268,41 @@ def analyze_dc_strings(modules: list, inverters: list, technical: dict | None = 
     mppt_used = layout.get('mppt_used')
     icc_ok = layout.get('icc_ok', True)
     layout_mppt_ok = layout.get('mppt_ok', True)
+    suggested_qdca: dict[str, Any] = {}
 
     if topology == 'micro':
         strings_count = total_modules
         modules_per_string = 1
         strings_per_mppt = 1
-        micro_groups = _micro_groups(inv_qty, micros_per_group)
-        num_ca_breakers = len(micro_groups)
+        ligacao = technical.get('tipo_ligacao') or ''
+        pot_inv_kw = _sf(inv_ref.get('potencia') or inv_ref.get('power'), 2.25)
+        v_ln = _sf(technical.get('tensao_ln_v'), 220.0) or 220.0
+
+        from qdca_layout import build_micro_qdca_from_form, layout_to_form_fields
+
+        qdca = build_micro_qdca_from_form(
+            technical,
+            num_micros=inv_qty,
+            power_per_micro_kw=pot_inv_kw,
+            voltage_ln_v=v_ln,
+            tipo_ligacao=ligacao,
+        )
+        num_ca_breakers = qdca['num_qdca_breakers']
+        micro_groups = [
+            {
+                'group_id': i + 1,
+                'micros_count': d['micros'],
+                'fase': d['fase'],
+                'breaker_a': d['breaker_a'],
+            }
+            for i, d in enumerate(qdca['phase_details'])
+        ]
+        suggested_qdca = layout_to_form_fields(qdca)
+        is_tri = 'TRIF' in str(ligacao).upper()
         messages.append(
             f'Microinversor: 1 módulo por equipamento ({inv_qty} micro(s)); '
-            f'proteção CA em {num_ca_breakers} disjuntor(es) — até {micros_per_group} micro(s) '
-            f'em série por disjuntor (correntes somam no grupo).'
+            f'proteção CA no QDCA: {num_ca_breakers} disjuntor(es) '
+            f'{"(distribuição por fase)" if is_tri else f"— até {micros_per_group} micro(s) por disjuntor"}.'
         )
         config_text = (
             f'Configuração CC: {total_modules} módulo(s) fotovoltaico(s) acoplados a '
@@ -291,18 +315,25 @@ def analyze_dc_strings(modules: list, inverters: list, technical: dict | None = 
             f'Proteção CC: cada microinversor com 1 string (1 módulo); dimensionamento de cabo CC '
             f'por Isc de projeto {isc_mod * 1.25:.2f} A (Isc {isc_mod:g} A × 1,25) por equipamento.'
         )
-        if i_micro_ca:
+        if i_micro_ca or micro_groups:
             group_lines = []
             for g in micro_groups:
-                i_g = i_micro_ca * g['micros_count']
-                br = standard_breaker_rating(i_g * 1.25)
-                group_lines.append(
-                    f"Grupo {g['group_id']}: {g['micros_count']} micro(s) em série → "
-                    f'{i_g:.2f} A → disjuntor {br} A'
-                )
-            prot_ca = (
-                f'Proteção CA (QDCA): {num_ca_breakers} disjuntor(es) dedicado(s) — '
-                f'até {micros_per_group} microinversor(es) em série por disjuntor. '
+                if g.get('fase'):
+                    br = g.get('breaker_a') or standard_breaker_rating(
+                        (_sf(i_micro_ca) or pot_inv_kw * 1000 / v_ln) * g['micros_count'] * 1.25
+                    )
+                    group_lines.append(
+                        f"Fase {g['fase']}: {g['micros_count']} micro(s) → disjuntor {br} A"
+                    )
+                else:
+                    i_g = (_sf(i_micro_ca) or pot_inv_kw * 1000 / v_ln) * g['micros_count']
+                    br = standard_breaker_rating(i_g * 1.25) if i_g else g.get('breaker_a', 32)
+                    group_lines.append(
+                        f"Grupo {g['group_id']}: {g['micros_count']} micro(s) → "
+                        f'{i_g:.2f} A → disjuntor {br} A'
+                    )
+            prot_ca = qdca.get('protection_hierarchy') or qdca.get('protection_text') or (
+                f'Proteção CA (QDCA): {num_ca_breakers} disjuntor(es) e {qdca.get("num_dps", num_ca_breakers)} DPS — '
                 + '; '.join(group_lines)
                 + '.'
             )
@@ -313,7 +344,37 @@ def analyze_dc_strings(modules: list, inverters: list, technical: dict | None = 
             )
     else:
         micro_groups = []
-        num_ca_breakers = inv_qty
+        from qdca_layout import build_string_qdca_from_form, layout_to_form_fields
+        from nbr5410_calculations import calculate_inverter_ac_current
+
+        pot_kw = _sf(inv_ref.get('potencia') or inv_ref.get('power'), 6)
+        ligacao = technical.get('tipo_ligacao') or ''
+        v_ln = _sf(technical.get('tensao_ln_v'), 220.0) or 220.0
+        v_ll = _sf(technical.get('tensao_ll_v'), 380.0) or 380.0
+        inv_fase = str(inv_ref.get('fase_ca') or technical.get('inverter_fase_ca') or 'monofasico')
+        if 'TRIF' in str(ligacao).upper() and 'mono' not in inv_fase.lower():
+            inv_fase = 'trifasico'
+        cur = calculate_inverter_ac_current(
+            pot_kw, inv_fase, v_ln, v_ll, topology='string', num_devices=inv_qty,
+        )
+        tech_qdca = dict(technical)
+        tech_qdca.update({
+            'potencia_inversor_kw': pot_kw,
+            'potencia_geracao_kw': pot_kw * inv_qty,
+            'tipo_ligacao': ligacao,
+            'inverter_fase_ca': inv_fase,
+            'tensao_ln_v': v_ln,
+            'tensao_ll_v': v_ll,
+            'disjuntor_entrada': technical.get('disjuntor_entrada'),
+            'bitola_cabo_padrao': technical.get('bitola_cabo_padrao'),
+        })
+        string_qdca = build_string_qdca_from_form(
+            tech_qdca,
+            num_inverters=inv_qty,
+            disjuntor_calc_a=int(cur.get('breaker_rated_a') or 40),
+        )
+        suggested_qdca = layout_to_form_fields(string_qdca)
+        num_ca_breakers = string_qdca.get('num_qdca_breakers', inv_qty)
         layout_desc = '+'.join(str(x) for x in mppt_layout) if mppt_layout else str(strings_per_mppt)
         messages.append(
             f'Inversor string: {modules_per_string} módulo(s) em série por string; '
@@ -336,7 +397,7 @@ def analyze_dc_strings(modules: list, inverters: list, technical: dict | None = 
             f'Proteção CC: corrente de projeto por MPPT = Isc × strings em paralelo × 1,25 = '
             f'{isc_mod:g} A × {strings_per_mppt} × 1,25 = {isc_mod * strings_per_mppt * 1.25:.2f} A.'
         )
-        prot_ca = (
+        prot_ca = string_qdca.get('protection_hierarchy') or string_qdca.get('protection_text') or (
             f'Proteção CA: {inv_qty} inversor(es) string — 1 disjuntor CA dedicado por inversor '
             f'(ou conforme QDCA do fabricante).'
         )
@@ -399,6 +460,7 @@ def analyze_dc_strings(modules: list, inverters: list, technical: dict | None = 
         'configuracao_strings_text': config_text,
         'protecao_cc_text': prot_cc,
         'protecao_ca_text': prot_ca,
+        'suggested_qdca': suggested_qdca,
     }
 
 

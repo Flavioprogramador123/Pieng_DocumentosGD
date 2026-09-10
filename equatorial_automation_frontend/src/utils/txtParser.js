@@ -145,6 +145,9 @@ const FIELD_MAPPING_RAW = {
 
   'data prevista de operacao': 'data_operacao',
   'data de operacao': 'data_operacao',
+  'data inicio em operacao': 'data_operacao',
+  'data início em operação': 'data_operacao',
+  'data oper': 'data_operacao',
   'data do documento': 'data_documento',
   'data de assinatura': 'data_documento',
 
@@ -283,17 +286,18 @@ export function mapTensao(value, options = {}) {
   const raw = String(value || '')
   const v = raw.toUpperCase().replace(/\s/g, '')
   if (!v) return ''
-  if (v.includes('13.8') || v.includes('13800') || v.includes('13,8')) return '13.8kV'
-  if (v.includes('127')) return '127V'
+  if (v.includes('127') && !v.includes('220') && !v.includes('380')) return '127V'
   if (v.includes('220/380') || v.includes('220380') || (v.includes('220') && v.includes('380'))) {
-    return '220/380V'
+    return '380V'
   }
   const isTri = options.tri
     || mapLigacao(raw) === 'TRIFASICO'
     || /\bTRI\b/.test(raw.toUpperCase())
     || raw.toLowerCase().includes('trifas')
-  if (v.includes('380') && isTri) return '220/380V'
-  if (v.includes('220') || v.includes('380')) return '220V'
+  if (v.includes('380') && isTri) return '380V'
+  if (v.includes('380')) return '380V'
+  if (v.includes('13.8') || v.includes('13800') || v.includes('13,8')) return '220V'
+  if (v.includes('220')) return '220V'
   return raw.trim()
 }
 
@@ -698,10 +702,20 @@ export function parseTxtData(txtContent) {
       if (qty) currentModuleData.quantity = qty
       if (power) currentModuleData.power = power
       currentModuleData.model = value.replace(/^\d+\s*unidades?\s+de\s+/i, '').trim()
-      const fabricantes = ['RENEPV', 'JINKO', 'CANADIAN', 'TRINA', 'JA SOLAR', 'LONGI']
+      const fabricantes = [
+        { token: 'RENEPV', label: 'RENE PV' },
+        { token: 'RENE PV', label: 'RENE PV' },
+        { token: 'JINKO', label: 'JINKO' },
+        { token: 'CANADIAN', label: 'CANADIAN' },
+        { token: 'TRINA', label: 'TRINA' },
+        { token: 'JA SOLAR', label: 'JA SOLAR' },
+        { token: 'LONGI', label: 'LONGI' },
+        { token: 'TSUN', label: 'TSUN POWER' },
+      ]
+      const upper = value.toUpperCase()
       for (const fab of fabricantes) {
-        if (value.toUpperCase().includes(fab)) {
-          currentModuleData.fabricante = fab
+        if (upper.includes(fab.token.replace(/\s/g, '')) || upper.includes(fab.token)) {
+          currentModuleData.fabricante = fab.label
           break
         }
       }

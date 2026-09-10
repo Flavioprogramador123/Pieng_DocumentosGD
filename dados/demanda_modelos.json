@@ -122,8 +122,11 @@
         {"descricao": "Ar-condicionado comercial", "tipo": "ar_condicionado", "pot_w": 3500, "qtd": 4, "fp": 0.85},
         {"descricao": "Geladeira expositora", "tipo": "geladeira", "pot_w": 800, "qtd": 3, "fp": 0.85},
         {"descricao": "Freezer / câmara fria compacta", "tipo": "geladeira", "pot_w": 600, "qtd": 2, "fp": 0.85},
-        {"descricao": "Forno elétrico / equipamento padaria", "tipo": "microondas", "pot_w": 3000, "qtd": 1, "fp": 0.90},
-        {"descricao": "Motobomba / exaustão", "tipo": "motor", "pot_w": 1500, "qtd": 1, "fp": 0.85}
+        {"descricao": "Compressor de ar industrial", "tipo": "motor", "pot_w": 7500, "qtd": 1, "fp": 0.85},
+        {"descricao": "Bomba/motor de processo", "tipo": "motor", "pot_w": 5500, "qtd": 1, "fp": 0.85},
+        {"descricao": "Motor de ventilação / exaustão industrial", "tipo": "motor", "pot_w": 4500, "qtd": 1, "fp": 0.85},
+        {"descricao": "Esteira transportadora / motor de acionamento", "tipo": "motor", "pot_w": 3000, "qtd": 1, "fp": 0.80},
+        {"descricao": "Impressoras e computadores", "tipo": "tug", "pot_w": 1700, "qtd": 1, "fp": 0.95}
       ]
     }
   ]

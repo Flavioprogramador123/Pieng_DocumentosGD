@@ -2,7 +2,7 @@
 Caixa de medição no memorial — figura + texto conforme TIPO_LIGACAO.
 
 Assets: templates/assets/caixa_medicao/{monofasica|polifasica}/
-Tokens: {{FIGURA_CAIXA}}, {{TEXTO_CAIXA}} (aceita minúsculas no template)
+Tokens: {{FIGURA_CAIXA}}, {{TEXTO_CAIXA}}
 """
 
 from __future__ import annotations
@@ -27,7 +27,6 @@ FIGURA_PLACEHOLDER = '[Figura caixa de medição]'
 
 FIGURA_PLACEHOLDERS = (
     '{{FIGURA_CAIXA}}',
-    '{{figura_caixa}}',
     FIGURA_TOKEN,
     FIGURA_PLACEHOLDER,
 )
@@ -98,6 +97,6 @@ def try_embed_caixa_medicao(memorial_docx: Path, values: dict[str, str]) -> tupl
     if ok:
         return True, f'Figura da caixa de medição inserida ({assets["variante"]}).'
     return False, (
-        'Figura da caixa não inserida — marcador {{figura_caixa}} / '
+        'Figura da caixa não inserida — marcador {{FIGURA_CAIXA}} / '
         '[Figura caixa de medição] ausente no memorial.'
     )

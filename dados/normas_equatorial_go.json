@@ -265,7 +265,7 @@
       "Busque demanda: 'demanda contratada', 'demanda alvo', 'carga instalada', 'kW' → demanda_alvo_kw",
       "Busque cabos: bitola CC, CA, padrão se mencionados no TXT",
       "UF padrão GO se não informada; concessionária Equatorial Goiás",
-      "num_poste: use 'ilégível' se não constar no TXT"
+      "num_poste: use 'ilegível' se não constar no TXT"
     ],
     "demanda_levantamento": [
       "Monte cargas plausíveis para a classe e demanda-alvo informada",

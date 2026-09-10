@@ -516,6 +516,141 @@ def validate_network_power_limit(
     }
 
 
+def distribute_micros_by_phase(num_micros: int, phases: int = 3) -> list[int]:
+    """Distribui microinversores nas fases da rede (ex.: 8 → [3, 3, 2])."""
+    if num_micros <= 0:
+        return []
+    phases = max(1, int(phases))
+    base = num_micros // phases
+    extra = num_micros % phases
+    return [base + (1 if i < extra else 0) for i in range(phases)]
+
+
+def micro_qdca_phase_layout(
+    num_micros: int,
+    power_per_micro_w: float,
+    voltage_ln_v: float,
+    *,
+    network_type: str = 'trifasico',
+    micros_per_breaker: int = 3,
+) -> dict[str, Any]:
+    """
+    QDCA para microinversores monofásicos — distribuição por fase e disjuntor por ramal.
+
+    Em trifásico: micros em paralelo na mesma fase (correntes somam) → 1 disjuntor/fase.
+    """
+    phases_count = {'monofasico': 1, 'bifasico': 2, 'trifasico': 3}.get(
+        (network_type or 'trifasico').lower(), 3
+    )
+    labels = (['A', 'B', 'C'] if phases_count == 3 else ['A', 'B'] if phases_count == 2 else ['A'])
+    per_phase = distribute_micros_by_phase(num_micros, phases_count)
+    i_micro = power_per_micro_w / voltage_ln_v if voltage_ln_v else 0.0
+    per_breaker = max(1, min(3, int(micros_per_breaker or 3)))
+
+    phase_rows: list[dict[str, Any]] = []
+    for idx, count in enumerate(per_phase):
+        if count <= 0:
+            continue
+        # Micros em paralelo na fase (correntes somam no disjuntor do ramal)
+        i_phase = i_micro * count
+        i_design = i_phase * 1.25
+        breaker_a = standard_breaker_rating(i_design)
+        label = labels[idx] if idx < len(labels) else str(idx + 1)
+        phase_rows.append({
+            'phase': label,
+            'micros_count': count,
+            'current_a': round(i_phase, 2),
+            'breaker_a': breaker_a,
+            'description': (
+                f'Fase {label}: {count} micro-inversor(es) — '
+                f'I = {i_phase:.2f} A → disjuntor {breaker_a} A'
+            ),
+        })
+
+    worst = max((r['current_a'] for r in phase_rows), default=0.0)
+    worst_breaker = max((r['breaker_a'] for r in phase_rows), default=standard_breaker_rating(i_micro * 1.25))
+
+    return {
+        'phases': phase_rows,
+        'num_breakers': len(phase_rows),
+        'current_per_micro_a': round(i_micro, 2),
+        'current_worst_phase_a': worst,
+        'breaker_worst_a': worst_breaker,
+        'summary': '; '.join(r['description'] for r in phase_rows),
+        'micros_per_breaker_limit': per_breaker,
+    }
+
+
+def distribute_micros_across_phases(num_microinverters: int, num_phases: int = 3) -> list[int]:
+    """Distribui microinversores equilibradamente entre fases (ex.: 8 → [3, 3, 2])."""
+    n = max(0, int(num_microinverters))
+    phases = max(1, int(num_phases))
+    base = n // phases
+    extra = n % phases
+    return [base + (1 if i < extra else 0) for i in range(phases)]
+
+
+def calculate_micro_qdca_phases(
+    num_microinverters: int,
+    power_per_micro_w: float,
+    voltage_ln_v: float,
+    network_type: str = 'trifasico',
+    micros_per_breaker: int = 3,
+) -> dict[str, Any]:
+    """
+    QDCA — microinversores monofásicos em rede mono/bi/trifásica.
+
+    Trifásico típico: micros distribuídos nas fases (paralelo por fase);
+    1 disjuntor + 1 DPS por fase no QDCA. Não confundir com disjuntor geral da UC.
+    """
+    phases = {'monofasico': 1, 'bifasico': 2, 'trifasico': 3}.get(
+        (network_type or 'trifasico').lower(), 1,
+    )
+    labels = (['A', 'B', 'C'] if phases == 3 else ['A', 'B'] if phases == 2 else ['A'])
+    per_phase = distribute_micros_across_phases(num_microinverters, phases)
+    i_micro = power_per_micro_w / voltage_ln_v if voltage_ln_v else 0.0
+    per_breaker = max(1, min(3, int(micros_per_breaker or 3)))
+
+    phase_details: list[dict[str, Any]] = []
+    for label, count in zip(labels, per_phase):
+        if count <= 0:
+            continue
+        groups = math.ceil(count / per_breaker)
+        # Pior caso na fase: todos os micros da fase no mesmo disjuntor (paralelo — correntes somam)
+        i_phase = i_micro * count
+        i_design = i_phase * 1.25
+        br_a = standard_breaker_rating(i_design)
+        phase_details.append({
+            'fase': label,
+            'micros': count,
+            'groups': groups,
+            'current_a': round(i_phase, 2),
+            'breaker_a': br_a,
+        })
+
+    lines = [
+        f"Fase {d['fase']}: {d['micros']} micro-inversor(es), Disj {d['breaker_a']} A"
+        for d in phase_details
+    ]
+    worst = max((d['breaker_a'] for d in phase_details), default=40)
+    i_worst = max((d['current_a'] for d in phase_details), default=0.0)
+
+    return {
+        'phases': phases,
+        'micros_per_phase': per_phase,
+        'phase_details': phase_details,
+        'num_qdca_breakers': len(phase_details),
+        'breaker_worst_a': worst,
+        'current_per_micro_a': round(i_micro, 2),
+        'current_worst_phase_a': i_worst,
+        'description': '; '.join(lines),
+        'qdca_summary': (
+            f"QDCA com {len(phase_details)} disjuntor(es) e {len(phase_details)} DPS "
+            f"(um par por fase alimentada)."
+        ),
+    }
+
+
 def calculate_breaker_groups_microinverters(
     num_microinverters: int,
     power_per_micro_w: float,

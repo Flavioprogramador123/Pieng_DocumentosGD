@@ -174,8 +174,10 @@ def resolve_entrada_uc(
     elif not padrao.get('disjuntor_a'):
         padrao['disjuntor_a'] = 40
     if padrao.get('tensao_v'):
-        from grid_voltage import normalize_tensao_fase_neutro
-        padrao['tensao_v'] = normalize_tensao_fase_neutro(padrao['tensao_v'], uf)
+        from grid_voltage import normalize_tensao_atendimento
+        padrao['tensao_v'] = normalize_tensao_atendimento(
+            padrao['tensao_v'], uf, tipo_ligacao
+        )
     return padrao
 
 

@@ -4,16 +4,16 @@ Valores padrão para instalações residenciais comuns (só preenchem campos vaz
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 
 RESIDENTIAL_TECHNICAL_DEFAULTS = {
     'tipo_aterramento': 'Haste copper 2,4 m com caixa de inspeção',
     'resistencia_aterramento': '≤ 10 Ω',
-    'bitola_cabo_cc': '4 mm²',
-    'bitola_cabo_ca': '6 mm²',
-    'bitola_cabo_padrao': '10 mm²',
+    'bitola_cabo_cc': '4',
+    'bitola_cabo_ca': '6',
+    'bitola_cabo_padrao': '10',
     'curva_disjuntor': 'C',
     'dps_tipo': 'DPS Classe II',
     'dps_classe': '275 V',
@@ -30,12 +30,23 @@ RESIDENTIAL_UC_DEFAULTS = {
     'classe': 'RESIDENCIAL',
     'disjuntor_entrada': '40',
     'fuso_utm': '22S',
-    'num_poste': 'ilégível',
+    'num_poste': 'ilegível',
 }
 
 
 def today_iso() -> str:
     return date.today().isoformat()
+
+
+def operacao_default_iso(doc_date_iso: str | None = None, days: int = 20) -> str:
+    """ISO YYYY-MM-DD — padrão +N dias a partir da data do documento."""
+    base: date | None = None
+    if doc_date_iso and re_match_iso(str(doc_date_iso)):
+        y, m, d = str(doc_date_iso).split('-')
+        base = date(int(y), int(m), int(d))
+    if base is None:
+        base = date.today()
+    return (base + timedelta(days=days)).isoformat()
 
 
 def today_br() -> str:
@@ -136,6 +147,6 @@ def apply_residential_defaults(payload: dict) -> dict:
     contrato.setdefault('data_documento', doc_date)
 
     if _is_empty(result['dados_tecnicos'].get('data_operacao')):
-        result['dados_tecnicos']['data_operacao'] = doc_date
+        result['dados_tecnicos']['data_operacao'] = operacao_default_iso(doc_date)
 
     return result

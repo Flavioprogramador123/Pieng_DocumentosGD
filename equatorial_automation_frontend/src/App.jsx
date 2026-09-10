@@ -30,11 +30,12 @@ import {
   parseTxtData,
   toIsoDate,
 } from './utils/txtParser'
-import { normalizeTensaoFaseNeutro } from '@/utils/gridVoltage.js'
+import { normalizeTensaoAtendimento, suggestTensaoAtendimento } from '@/utils/gridVoltage.js'
 import './App.css'
 
 import { buildLocalDeParaPreview } from './utils/deParaMapper'
 import { getInitialTechnicalData, getInitialContractData, EXEMPLO_TEXTO_VALOR_PAGAMENTO_CONTRATO, EXEMPLOS_TEXTO_VALOR_PAGAMENTO, contractFromLegacyTechnical } from './utils/formDefaults'
+import { mergeSuggestedQdcaFields } from '@/utils/qdcaLayout.js'
 import { parseCoordinateText, syncTechnicalCoordinates } from './utils/coordinateUtils'
 import { computeAreaArranjo } from './utils/areaUtils'
 import { FiguraLocalizacaoPreview } from '@/components/FiguraLocalizacaoPreview.jsx'
@@ -43,6 +44,8 @@ import { GeneratedFilesPanel } from '@/components/GeneratedFilesPanel.jsx'
 import { OutputSettingsDialog } from '@/components/OutputSettingsDialog.jsx'
 import { AppSettingsDialog } from '@/components/AppSettingsDialog.jsx'
 import { ContractNumberDialog } from '@/components/ContractNumberDialog.jsx'
+import StringsQdcaSection from '@/components/StringsQdcaSection.jsx'
+import { ImportFileDropZone } from '@/components/ImportFileDropZone.jsx'
 
 function App() {
   const [activeTab, setActiveTab] = useState('entrada')
@@ -315,30 +318,18 @@ function App() {
     }
   }
 
-  const estimateCargaKw = () => {
+  /** Carga instalada da UC (kW) — só demanda da tabela; geração FV não altera disjuntor de entrada. */
+  const estimateCargaConsumoKw = () => {
     const demanda = parseFloat(String(technicalData.demanda_alvo_kw || '').replace(',', '.'))
     if (Number.isFinite(demanda) && demanda > 0) return demanda
-    let potMod = 0
-    for (const m of modules) {
-      const q = parseInt(String(m.quantity || '').trim(), 10) || 0
-      const p = parseFloat(String(m.power || '').replace(',', '.')) || 0
-      if (q > 0 && p > 0) potMod += (q * p) / 1000
-    }
-    if (potMod > 0) return Math.round(potMod * 10) / 10
-    let potInv = 0
-    for (const inv of inverters) {
-      const q = parseInt(String(inv.quantity || '').trim(), 10) || 0
-      const p = parseFloat(String(inv.power || '').replace(',', '.')) || 0
-      if (q > 0 && p > 0) potInv += q * p
-    }
-    return potInv > 0 ? Math.round(potInv * 10) / 10 : undefined
+    return undefined
   }
 
   const syncPadraoEntrada = async (uf, tipoLigacao, classe, cargaKw) => {
     const ufVal = (uf || 'GO').trim().toUpperCase()
     const tipo = tipoLigacao || 'MONOFASICO'
     const cls = classe || 'RESIDENCIAL'
-    const carga = cargaKw ?? estimateCargaKw()
+    const carga = cargaKw ?? estimateCargaConsumoKw()
     try {
       const qs = new URLSearchParams({
         uf: ufVal,
@@ -355,21 +346,26 @@ function App() {
       if (padrao?.tensao_v) {
         setClientData((prev) => ({
           ...prev,
-          tensao_atendimento: normalizeTensaoFaseNeutro(padrao.tensao_v, ufVal),
+          tensao_atendimento: suggestTensaoAtendimento(ufVal, tipo),
         }))
       }
       const disjA = padrao?.disjuntor_a ?? 40
       if (!disjuntorEntradaManual.current) {
-        setTechnicalData((prev) => ({
-          ...prev,
-          disjuntor_entrada: String(disjA),
-          ...(padrao?.bitola_cabo_padrao_mm2 && !prev.bitola_cabo_padrao
-            ? { bitola_cabo_padrao: padrao.bitola_cabo_padrao_mm2 }
-            : {}),
-          ...(padrao?.curva_disjuntor && !prev.curva_disjuntor
-            ? { curva_disjuntor: padrao.curva_disjuntor }
-            : {}),
-        }))
+        setTechnicalData((prev) => {
+          if (prev.disjuntor_entrada && String(prev.disjuntor_entrada).trim()) {
+            return prev
+          }
+          return {
+            ...prev,
+            disjuntor_entrada: String(disjA),
+            ...(padrao?.bitola_cabo_padrao_mm2 && !prev.bitola_cabo_padrao
+              ? { bitola_cabo_padrao: padrao.bitola_cabo_padrao_mm2 }
+              : {}),
+            ...(padrao?.curva_disjuntor && !prev.curva_disjuntor
+              ? { curva_disjuntor: padrao.curva_disjuntor }
+              : {}),
+          }
+        })
       }
     } catch {
       if (!disjuntorEntradaManual.current) {
@@ -438,7 +434,40 @@ function App() {
     return () => clearTimeout(timer)
   }, [deParaOpen, clientData, contractData, technicalData, modules, inverters])
 
-  const applyLocalParse = (parsed, aiPatch = null) => {
+  const enrichEquipmentFromCatalog = async (mods, invs) => {
+    const needsSpecs = (mods || []).some(
+      (m) => String(m?.model || '').trim() && (!m.voc || !m.isc || !m.vmpp || !m.impp),
+    ) || (invs || []).some(
+      (i) => String(i?.model || '').trim() && (!i.mppt_min || !i.mppt_max),
+    )
+    if (!needsSpecs) {
+      return { modules: mods, inverters: invs, enriched: false }
+    }
+    try {
+      const response = await apiFetch('/enrich-equipment', {
+        method: 'POST',
+        body: JSON.stringify({
+          modules: mods,
+          inverters: invs,
+          catalog_only: true,
+          save_to_catalog: false,
+        }),
+      })
+      const data = await response.json()
+      if (response.ok && data.success) {
+        return {
+          modules: data.modules?.length ? data.modules : mods,
+          inverters: data.inverters?.length ? data.inverters : invs,
+          enriched: Boolean(data.enriched),
+        }
+      }
+    } catch (error) {
+      console.warn('Enriquecimento pelo catálogo falhou:', error)
+    }
+    return { modules: mods, inverters: invs, enriched: false }
+  }
+
+  const applyLocalParse = async (parsed, aiPatch = null) => {
     const aiClient = aiPatch?.client || {}
     const aiTechnical = aiPatch?.technical || {}
 
@@ -464,14 +493,31 @@ function App() {
       return local.map((item, i) => fillGaps(item, aiList[i] || {}))
     }
 
-    setModules(mergeEquip(parsed.modules, aiPatch?.modules, {
+    const mergedModules = mergeEquip(parsed.modules, aiPatch?.modules, {
       quantity: '', fabricante: '', model: '', power: '',
       voc: '', isc: '', vmpp: '', impp: '', eficiencia: '',
-    }))
-    setInverters(mergeEquip(parsed.inverters, aiPatch?.inverters, {
+    })
+    const mergedInverters = mergeEquip(parsed.inverters, aiPatch?.inverters, {
       quantity: '', fabricante: '', model: '', power: '',
       tensao_nominal: '', corrente_nominal: '', mppt_min: '', mppt_max: '', eficiencia: '',
-    }))
+    })
+
+    const { modules: catalogModules, inverters: catalogInverters, enriched } =
+      await enrichEquipmentFromCatalog(mergedModules, mergedInverters)
+
+    setModules(catalogModules)
+    setInverters(catalogInverters)
+    return enriched
+  }
+
+  const handleImportTxtFile = (content) => {
+    setTxtInput(content)
+    setInputMode('txt')
+  }
+
+  const handleImportYamlFile = (content) => {
+    setYamlInput(content)
+    setInputMode('yaml')
   }
 
   const handleParseTxt = async () => {
@@ -484,10 +530,13 @@ function App() {
     const parsed = parseTxtData(txtInput)
 
     if (aiStatus.primary === 'none') {
-      applyLocalParse(parsed)
+      const catalogEnriched = await applyLocalParse(parsed)
       setActiveTab('cliente')
       setLoading(false)
-      alert('Dados importados pelo parser local.\n\nRevise e complete os campos vazios (bairro não vinha neste TXT).')
+      const catalogMsg = catalogEnriched
+        ? '\n\nVoc/Isc/Vmpp/Impp preenchidos pelo catálogo SQLite.'
+        : '\n\nSe Voc/Isc não preencheram, confira se o módulo está no catálogo.'
+      alert(`Dados importados pelo parser local.${catalogMsg}\n\nRevise e complete os campos vazios (bairro não vinha neste TXT).`)
       return
     }
 
@@ -503,7 +552,7 @@ function App() {
         const uc = ai.unidade_consumidora || {}
         const tech = ai.dados_tecnicos || {}
 
-        applyLocalParse(parsed, {
+        const catalogEnriched = await applyLocalParse(parsed, {
           client: {
             client_name: ai.cliente?.nome,
             cpf: ai.cliente?.cpf,
@@ -569,17 +618,26 @@ function App() {
         })
 
         setActiveTab('cliente')
-        alert('Dados importados pelo parser De/Para. A IA só preencheu campos que ainda estavam vazios.\n\nRevise bairro (se não veio no TXT) e o restante.')
+        const catalogMsg = catalogEnriched
+          ? '\n\nVoc/Isc/Vmpp/Impp preenchidos pelo catálogo SQLite.'
+          : ''
+        alert(`Dados importados pelo parser De/Para. A IA só preencheu campos que ainda estavam vazios.${catalogMsg}\n\nRevise bairro (se não veio no TXT) e o restante.`)
       } else {
-        applyLocalParse(parsed)
+        const catalogEnriched = await applyLocalParse(parsed)
         setActiveTab('cliente')
-        alert('Dados importados pelo parser local.\n\nRevise e complete os campos vazios.')
+        const catalogMsg = catalogEnriched
+          ? '\n\nVoc/Isc/Vmpp/Impp preenchidos pelo catálogo SQLite.'
+          : ''
+        alert(`Dados importados pelo parser local.${catalogMsg}\n\nRevise e complete os campos vazios.`)
       }
     } catch (error) {
       console.error('Erro ao analisar texto:', error)
-      applyLocalParse(parsed)
+      const catalogEnriched = await applyLocalParse(parsed)
       setActiveTab('cliente')
-      alert('Dados importados pelo parser local.\n\nRevise e complete os campos vazios.')
+      const catalogMsg = catalogEnriched
+        ? '\n\nVoc/Isc/Vmpp/Impp preenchidos pelo catálogo SQLite.'
+        : ''
+      alert(`Dados importados pelo parser local.${catalogMsg}\n\nRevise e complete os campos vazios.`)
     } finally {
       setLoading(false)
     }
@@ -617,11 +675,13 @@ function App() {
       const data = await response.json()
 
       if (response.ok && data.success && data.parsed) {
-        applyLocalParse(data.parsed)
+        const catalogEnriched = await applyLocalParse(data.parsed)
         setActiveTab('cliente')
         const catalogMsg = data.catalog_notes?.length
           ? `\n\nEnriquecido pelo catálogo:\n• ${data.catalog_notes.join('\n• ')}`
-          : ''
+          : catalogEnriched
+            ? '\n\nVoc/Isc/Vmpp/Impp preenchidos pelo catálogo SQLite.'
+            : ''
         alert(`YAML importado com sucesso.${catalogMsg}\n\nRevise o painel DE/PARA e complete campos restantes.`)
       } else {
         alert(data.error || 'Erro ao importar YAML.')
@@ -833,14 +893,20 @@ function App() {
             ...(dc.suggested_strings_por_mppt
               ? { strings_por_mppt: String(dc.suggested_strings_por_mppt) }
               : {}),
-            ...(dc.num_mppt_per_inverter
-              ? { num_mppt: String(dc.num_mppt_per_inverter) }
-              : {}),
             ...(dc.topology === 'micro'
-              ? { tipo_inversor: 'MICRO' }
+              ? {
+                  tipo_inversor: 'MICRO',
+                  ...(!prev.num_mppt
+                    ? { num_mppt: String(dc.num_mppt_per_inverter || 4) }
+                    : {}),
+                }
               : dc.topology === 'string'
                 ? { tipo_inversor: 'STRING' }
                 : {}),
+            ...(dc.num_mppt_per_inverter && !prev.num_mppt && dc.topology !== 'micro'
+              ? { num_mppt: String(dc.num_mppt_per_inverter) }
+              : {}),
+            ...mergeSuggestedQdcaFields(prev, dc?.suggested_qdca),
           }))
         }
       } else {
@@ -895,9 +961,12 @@ function App() {
           ...(dc?.suggested_strings_por_mppt && !prev.strings_por_mppt
             ? { strings_por_mppt: String(dc.suggested_strings_por_mppt) }
             : {}),
-          ...(dc?.num_mppt_per_inverter && !prev.num_mppt
-            ? { num_mppt: String(dc.num_mppt_per_inverter) }
-            : {}),
+          ...(dc?.topology === 'micro' && !prev.num_mppt
+            ? { num_mppt: String(dc?.num_mppt_per_inverter || 4), tipo_inversor: 'MICRO' }
+            : dc?.num_mppt_per_inverter && !prev.num_mppt
+              ? { num_mppt: String(dc.num_mppt_per_inverter) }
+              : {}),
+          ...mergeSuggestedQdcaFields(prev, dc?.suggested_qdca),
         }))
         const cableWarnings = calc.cable_warnings || []
         if (cableWarnings.length) {
@@ -962,7 +1031,7 @@ function App() {
         ...prev,
         demanda_modelo_id: modelId,
         demanda_alvo_kw: patch.demanda_alvo_kw || String(table?.target_kw ?? prev.demanda_alvo_kw),
-        disjuntor_entrada: patch.disjuntor_entrada || prev.disjuntor_entrada,
+        disjuntor_entrada: prev.disjuntor_entrada || patch.disjuntor_entrada,
         tabela_demanda_text: table?.memorial_text || prev.tabela_demanda_text,
         tabela_demanda_json: table ? JSON.stringify(table) : prev.tabela_demanda_json,
       }))
@@ -1200,9 +1269,14 @@ function App() {
                 <CardDescription>
                   TXT: formato De/Para com rótulos livres. YAML: estrutura fixa para preenchimento
                   manual ou com IA externa (veja dados/YAML_INSTRUCOES.md).
+                  Arraste, solte ou cole (Ctrl+V) um arquivo <strong>.txt</strong> ou <strong>.yaml</strong> no painel.
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                <ImportFileDropZone
+                  onTxt={handleImportTxtFile}
+                  onYaml={handleImportYamlFile}
+                >
                 <Tabs value={inputMode} onValueChange={setInputMode} className="w-full">
                   <TabsList className="mb-4">
                     <TabsTrigger value="txt">TXT (De/Para)</TabsTrigger>
@@ -1213,6 +1287,9 @@ function App() {
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="txt-input">Conteúdo do Arquivo TXT</Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Arraste um .txt para cá, cole o arquivo (Ctrl+V) ou digite/cole o texto abaixo.
+                    </p>
                     <Textarea
                       id="txt-input"
                       placeholder={`Exemplo:
@@ -1290,6 +1367,9 @@ Data do Documento: 15/08/2026
                     <div className="space-y-4">
                       <div>
                         <Label htmlFor="yaml-input">Conteúdo YAML do Projeto</Label>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Arraste um .yaml/.yml para cá, cole o arquivo (Ctrl+V) ou edite o texto abaixo.
+                        </p>
                         <Textarea
                           id="yaml-input"
                           placeholder="# Cole aqui o YAML preenchido (dados/projeto_padrao.yaml como base)"
@@ -1326,6 +1406,7 @@ Data do Documento: 15/08/2026
                     </div>
                   </TabsContent>
                 </Tabs>
+                </ImportFileDropZone>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1518,7 +1599,11 @@ Data do Documento: 15/08/2026
 
                 {/* Unidade Consumidora */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Unidade Consumidora</h3>
+                  <h3 className="text-lg font-semibold mb-2">Unidade Consumidora — padrão de entrada</h3>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Rede física no local (Fig. 01): tipo de ligação, tensão, disjuntor geral e cabo do ramal.
+                    Não depende da usina solar a instalar.
+                  </p>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
                       <Label htmlFor="consumer_unit">Número da UC *</Label>
@@ -1537,9 +1622,9 @@ Data do Documento: 15/08/2026
                     </div>
 
                     <div>
-                      <Label htmlFor="tensao_atendimento">Tensão fase-neutro (V)</Label>
+                      <Label htmlFor="tensao_atendimento">Tensão de atendimento (V)</Label>
                       <Select
-                        value={normalizeTensaoFaseNeutro(clientData.tensao_atendimento, clientData.uf)}
+                        value={normalizeTensaoAtendimento(clientData.tensao_atendimento, clientData.uf)}
                         onValueChange={(value) => setClientData({...clientData, tensao_atendimento: value})}
                       >
                         <SelectTrigger>
@@ -1548,13 +1633,16 @@ Data do Documento: 15/08/2026
                         <SelectContent>
                           <SelectItem value="127V">127 V</SelectItem>
                           <SelectItem value="220V">220 V</SelectItem>
-                          <SelectItem value="13.8kV">13,8 kV (média tensão)</SelectItem>
+                          <SelectItem value="380V">380 V</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div>
-                      <Label htmlFor="tipo_ligacao">Tipo de ligação</Label>
+                      <Label htmlFor="tipo_ligacao">Tipo de ligação da UC</Label>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Rede concessionária no padrão de entrada (não é a fase do inversor).
+                      </p>
                       <Select
                         value={clientData.tipo_ligacao}
                         onValueChange={(value) => {
@@ -1599,6 +1687,9 @@ Data do Documento: 15/08/2026
 
                     <div>
                       <Label htmlFor="disjuntor_entrada">Disjuntor do padrão de entrada (A)</Label>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Disjuntor geral da UC (rede). Não é alterado pela potência FV — só pela demanda/carga existente.
+                      </p>
                       <Input
                         id="disjuntor_entrada"
                         type="number"
@@ -1612,6 +1703,9 @@ Data do Documento: 15/08/2026
                         }}
                         placeholder="40"
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Lista suspensa oficial no formulário NT (Equatorial) após gerar o Excel.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -2103,6 +2197,9 @@ Data do Documento: 15/08/2026
                         value={technicalData.data_operacao}
                         onChange={(e) => setTechnicalData({...technicalData, data_operacao: e.target.value})}
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Token NT: <code className="text-xs">{'{{DATA_OPER}}'}</code> — padrão 20 dias após a geração.
+                      </p>
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
@@ -2188,6 +2285,7 @@ Data do Documento: 15/08/2026
                   <h3 className="text-lg font-semibold mb-4">Cabeamento</h3>
                   <p className="text-xs text-muted-foreground mb-3">
                     Recomendações aparecem na aba Cálculos; o sistema não altera estes campos automaticamente.
+                    No memorial e no formulário NT, a bitola sai sempre com unidade (ex.: 10 mm²) — pode digitar só o número ou com mm².
                   </p>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
@@ -2316,7 +2414,7 @@ Data do Documento: 15/08/2026
                       <Input
                         value={technicalData.num_poste}
                         onChange={(e) => setTechnicalData({...technicalData, num_poste: e.target.value})}
-                        placeholder="Ex: 12345"
+                        placeholder="ilegível"
                       />
                     </div>
 
@@ -2365,82 +2463,14 @@ Data do Documento: 15/08/2026
                   </div>
                 </div>
 
-                <div className="border-t pt-6 space-y-4">
-                  <h3 className="text-lg font-semibold">Strings CC / MPPT</h3>
-                  <p className="text-sm text-gray-600">
-                    Série: soma Voc, Isc permanece. String/MPPT: informe módulos por string e strings em paralelo por MPPT.
-                    Micro: 1 módulo/equipamento; até 3 micros em série por disjuntor CA.
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div>
-                      <Label>Tipo de inversor</Label>
-                      <Select
-                        value={technicalData.tipo_inversor || 'STRING'}
-                        onValueChange={(v) => setTechnicalData({
-                          ...technicalData,
-                          tipo_inversor: v,
-                          modulos_por_string: v === 'MICRO' ? '1' : technicalData.modulos_por_string,
-                          strings_por_mppt: v === 'MICRO' ? '1' : technicalData.strings_por_mppt,
-                        })}
-                      >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="STRING">String / central</SelectItem>
-                          <SelectItem value="MICRO">Microinversor</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>MPPT por inversor</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={technicalData.num_mppt}
-                        onChange={(e) => setTechnicalData({...technicalData, num_mppt: e.target.value})}
-                        placeholder="2"
-                      />
-                    </div>
-                    {technicalData.tipo_inversor === 'MICRO' ? (
-                      <div>
-                        <Label>Micros em série por disjuntor CA</Label>
-                        <Select
-                          value={String(technicalData.micros_por_grupo_ca || '3')}
-                          onValueChange={(v) => setTechnicalData({...technicalData, micros_por_grupo_ca: v})}
-                        >
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">1 (1 disjuntor/micro)</SelectItem>
-                            <SelectItem value="2">2 em série</SelectItem>
-                            <SelectItem value="3">3 em série (máx.)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ) : (
-                      <>
-                        <div>
-                          <Label>Módulos por string</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={technicalData.modulos_por_string}
-                            onChange={(e) => setTechnicalData({...technicalData, modulos_por_string: e.target.value})}
-                            placeholder="Auto"
-                          />
-                        </div>
-                        <div>
-                          <Label>Strings em paralelo / MPPT</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={technicalData.strings_por_mppt}
-                            onChange={(e) => setTechnicalData({...technicalData, strings_por_mppt: e.target.value})}
-                            placeholder="Auto"
-                          />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
+                <StringsQdcaSection
+                  technicalData={technicalData}
+                  setTechnicalData={setTechnicalData}
+                  clientData={clientData}
+                  modules={modules}
+                  inverters={inverters}
+                  calculations={calculations}
+                />
 
                 <div className="border-t pt-6 space-y-4">
                   <h3 className="text-lg font-semibold">Tabela de demanda — Tabela 1 · Levantamento de Carga</h3>

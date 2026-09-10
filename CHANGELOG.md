@@ -4,6 +4,22 @@ Registro de alterações do projeto. Versões seguem ordem cronológica de marco
 
 ---
 
+## [0.5.7] — 2026-09-02 — *QDCA / proteção CA (correções)*
+
+Correções após teste com 8 microinversores trifásicos. Detalhes e rollback em `docs/CHANGELOG_QDCA_2026-09-02.md`.
+
+### Corrigido
+- **I projeto** — coluna e memorial usam corrente **nominal** (P/V); fator 1,25 só para dimensionar disjuntor (ex.: 3×2,25 kW → **30,68 A**, não 38,35 A).
+- **Sobrescrita de formulário** — "Sugerir QDCA" e edição de qtd micros não alteram disjuntores já preenchidos (`mergeSuggestedQdcaFields`).
+- **MPPT micro** — default **4 MPPT/inversor** ao selecionar topologia micro ou calcular strings micro.
+
+### Corrigido (2026-09-02 — segunda rodada)
+- **Calcular sistema ignorava QDCA** — `enrich_micro_layout_protection` sobrescrevia disjuntores do formulário (32 A) com valores calculados (40 A) em `breaker_rows` / aba Cálculos.
+- **Aba Cálculos micro** — disjuntor/bitola CA agora vêm do QDCA informado; removidos 80 A / 16 mm² / 70 mm² genéricos da potência total.
+- **Linhas por fase** — rótulo `Fase A — 3 micro(s)` em vez de `Grupo ? — ? micro(s)`.
+
+---
+
 ## [0.5.6] — 2026-08-30 — *topologia MPPT / strings*
 
 Integração inteligente de strings CC com dados SAJ/DEYE do catálogo.

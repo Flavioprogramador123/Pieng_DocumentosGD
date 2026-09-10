@@ -84,6 +84,9 @@ def _potencia_kw_from_modelo(modelo: str, potencia_w: float | None) -> float | N
 
 
 def _infer_fase_ca(entry: dict[str, Any], potencia_kw: float | None) -> str:
+    tipo = (entry.get('tipo') or entry.get('tipo_inversor') or '').upper()
+    if 'MICRO' in tipo:
+        return 'MONOFASICO'
     explicit = (entry.get('fase_ca') or entry.get('fase') or '').upper()
     if explicit in ('MONOFASICO', 'MONO', 'MONOFÁSICO'):
         return 'MONOFASICO'

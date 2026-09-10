@@ -5,7 +5,8 @@ import json
 import re
 import shutil
 import unicodedata
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from copy import deepcopy
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -190,6 +191,23 @@ LABEL_ALIASES = {
     'tipo equipamento inversor': 'TIPO_EQUIPAMENTO_INVERSOR',
     'equipamento inversor (tipo)': 'TIPO_EQUIPAMENTO_INVERSOR',
     'microinversores por grupo ca': 'MICROS_POR_GRUPO_CA',
+    'qdca micros fase a': 'QDCA_MICROS_FASE_A',
+    'qdca micros fase b': 'QDCA_MICROS_FASE_B',
+    'qdca micros fase c': 'QDCA_MICROS_FASE_C',
+    'qdca disjuntor fase a (a)': 'QDCA_DISJ_FASE_A',
+    'qdca disjuntor fase b (a)': 'QDCA_DISJ_FASE_B',
+    'qdca disjuntor fase c (a)': 'QDCA_DISJ_FASE_C',
+    'qdca disjuntor ca inversor (a)': 'DISJUNTOR_CA_INVERSOR_A',
+    'quantidade dps qdca': 'QTD_DPS_QDCA',
+    'observações qdca': 'QDCA_OBSERVACOES',
+    'observacoes qdca': 'QDCA_OBSERVACOES',
+    'qdca disjuntor geral (a)': 'DISJUNTOR_GERAL_QDCA_A',
+    'qdca bitola tronco': 'BITOLA_TRONCO_QDCA',
+    'qdca corrente proj fase a (a)': 'QDCA_CORRENTE_PROJ_FASE_A',
+    'qdca corrente proj fase b (a)': 'QDCA_CORRENTE_PROJ_FASE_B',
+    'qdca corrente proj fase c (a)': 'QDCA_CORRENTE_PROJ_FASE_C',
+    'qdca corrente projeto (a)': 'QDCA_CORRENTE_PROJ',
+    'qdca tem disj acoplamento': 'QDCA_TEM_DISJ_ACOPLAMENTO',
     'potência nominal ca (kw)': 'POTENCIA_NOMINAL_CA_INVERSOR',
     'máxima potência na saída ca (kw)': 'POTENCIA_MAX_SAIDA_CA_INVERSOR',
     'máxima corrente na saída ca (a)': 'CORRENTE_MAX_SAIDA_CA_INVERSOR',
@@ -202,6 +220,11 @@ LABEL_ALIASES = {
     'tipo de conexão do inversor': 'TIPO_CONEXAO_INVERSOR',
     'eficiência máxima do inversor (%)': 'EFICIENCIA_MAX_INVERSOR',
     'data prevista de operação': 'DATA_OPERACAO',
+    'data prevista de operacao': 'DATA_OPERACAO',
+    'data inicio em operação': 'DATA_OPERACAO',
+    'data inicio em operacao': 'DATA_OPERACAO',
+    'data início em operação': 'DATA_OPERACAO',
+    'data oper': 'DATA_OPERACAO',
     'armazenamento (se houver)': 'ARMAZENAMENTO',
     'potência máxima injetável (kw)': 'POTENCIA_MAX_INJETAVEL',
     'potência disponibilizada (kw)': 'POTENCIA_DISPONIBILIZADA',
@@ -296,6 +319,8 @@ OPTIONAL_KEYS = {
     'FIGURA_LOCALIZACAO', 'FIGURA_CAIXA', 'TEXTO_CAIXA',
     'CALCULO_CORRENTE_SISTEMA', 'CALCULO_CORRENTE_INVERSOR',
     'CALCULO_CORRENTE_INVERSORES_TOTAL', 'CALCULO_IMAX_CA', 'CALCULO_CORRENTE_CA',
+    'HIERARQUIA_PROTECAO_CA', 'DISJUNTOR_GERAL_QDCA_A', 'TEXTO_DISJUNTOR_GERAL_QDCA',
+    'BITOLA_TRONCO_QDCA', 'TABELA_PROTECAO_CA',
     'DISJUNTOR_RECOMENDADO_QDCA', 'COMPARATIVO_CORRENTE_DISJUNTOR',
     'MARGEM_SEGURANCA_DISJUNTOR', 'DESCRICAO_TIPO_INVERSOR', 'TIPO_EQUIPAMENTO_INVERSOR',
     'DESCRICAO_CIRCUITO_PADRAO',
@@ -303,6 +328,7 @@ OPTIONAL_KEYS = {
     'CONFIGURACAO_STRINGS_CC', 'PROTECAO_CC_DESCRICAO', 'PROTECAO_CA_DESCRICAO',
     'POTENCIA_DISP_KW_W', 'CORRENTE_PROTECAO_CA', 'TENSAO_DPS',
     'POTENCIA_MAX_INJETAVEL', 'DT_EXP',
+    'BIFACIALIDADE_MODULO',
     'FORMULA_PD', 'TEXTO_PD_PARAMETROS', 'CALCULO_PD',
 }
 
@@ -431,8 +457,16 @@ def parse_txt_content(content: str) -> dict[str, str]:
     return values
 
 
+def _resolve_token_value(values: dict[str, str], token: str) -> str | None:
+    """Valor do token — chaves em CAIXA ALTA ({{DATA_OPER}}, {{TEXTO_CAIXA}}, etc.)."""
+    key = normalize_token(token)
+    if key in values:
+        return values[key]
+    return values.get(token)
+
+
 def _token_is_filled(values: dict[str, str], token: str) -> bool:
-    value = values.get(token)
+    value = _resolve_token_value(values, token)
     return value is not None and str(value).strip() != ''
 
 
@@ -632,6 +666,21 @@ def date_extended(value: str | None) -> str:
     return f'{parsed.day} de {MONTHS_PT[parsed.month]} de {parsed.year}'
 
 
+def format_date_br(value: str | date | None) -> str:
+    if isinstance(value, date):
+        return value.strftime('%d/%m/%Y')
+    parsed = parse_date(str(value) if value is not None else None)
+    if parsed:
+        return parsed.strftime('%d/%m/%Y')
+    return str(value or '').strip()
+
+
+def default_data_operacao_br(doc_date: str | None = None, days: int = 20) -> str:
+    """Data prevista de operação: padrão +N dias a partir da data do documento."""
+    base = parse_date(doc_date) or date.today()
+    return (base + timedelta(days=days)).strftime('%d/%m/%Y')
+
+
 def numeric_value(value: object) -> str | None:
     if value is None:
         return None
@@ -693,10 +742,20 @@ def _apply_dc_string_analysis(values: dict) -> None:
     }]
     technical = {
         'tipo_inversor': values.get('TIPO_INVERSOR'),
+        'tipo_ligacao': values.get('TIPO_LIGACAO'),
         'num_mppt': values.get('NUM_MPPT') or values.get('QTD_ENTRADAS_MPPT_INVERSOR'),
         'modulos_por_string': values.get('MODULOS_POR_STRING'),
         'strings_por_mppt': values.get('STRINGS_POR_MPPT'),
         'micros_por_grupo_ca': values.get('MICROS_POR_GRUPO_CA'),
+        'qdca_micros_fase_a': values.get('QDCA_MICROS_FASE_A'),
+        'qdca_micros_fase_b': values.get('QDCA_MICROS_FASE_B'),
+        'qdca_micros_fase_c': values.get('QDCA_MICROS_FASE_C'),
+        'qdca_disj_fase_a': values.get('QDCA_DISJ_FASE_A'),
+        'qdca_disj_fase_b': values.get('QDCA_DISJ_FASE_B'),
+        'qdca_disj_fase_c': values.get('QDCA_DISJ_FASE_C'),
+        'qdca_disjuntor_ca': values.get('DISJUNTOR_CA_INVERSOR_A'),
+        'qdca_num_dps': values.get('QTD_DPS_QDCA'),
+        'qdca_observacoes': values.get('QDCA_OBSERVACOES'),
     }
 
     from string_calculations import analyze_dc_strings
@@ -806,13 +865,15 @@ def _parse_tensao_atendimento_from_text(text: str, tipo_ligacao: str | None = No
     raw = str(text or '')
     v = raw.upper().replace(' ', '')
     if '220/380' in v or ('220' in v and '380' in v):
-        return '220/380V'
+        return '380V'
     tipo = (tipo_ligacao or _parse_tipo_ligacao_from_text(raw) or '').upper()
     if '380' in v and tipo == 'TRIFASICO':
-        return '220/380V'
+        return '380V'
     if '127' in v:
         return '127V'
-    if '220' in v or '380' in v:
+    if '380' in v:
+        return '380V'
+    if '220' in v:
         return '220V'
     return None
 
@@ -854,6 +915,36 @@ def normalize_disjuntor_entrada(values: dict[str, str]) -> None:
 _AMPACITY_MM2_A: dict[str, int] = {
     '4': 35, '6': 45, '10': 55, '16': 70, '25': 95, '35': 120,
 }
+
+
+def format_bitola_mm2_label(value) -> str:
+    """Normaliza bitola para memorial — ex.: 10 → 10 mm²."""
+    if value in (None, ''):
+        return ''
+    text = str(value).strip()
+    if not text:
+        return ''
+    if 'mm' in text.lower():
+        nums = re.findall(r'\d+(?:[.,]\d+)?', text)
+        if nums:
+            n = nums[0].replace(',', '.')
+            if n.endswith('.0'):
+                n = n[:-2]
+            return f'{n} mm²'
+        return text
+    nums = re.findall(r'\d+(?:[.,]\d+)?', text)
+    if nums:
+        n = nums[0].replace(',', '.')
+        if n.endswith('.0'):
+            n = n[:-2]
+        return f'{n} mm²'
+    return text
+
+
+def _normalize_bitola_tokens(values: dict[str, str]) -> None:
+    for key in ('BITOLA_CABO_CC', 'BITOLA_CABO_CA', 'BITOLA_CABO_PADRAO'):
+        if values.get(key):
+            values[key] = format_bitola_mm2_label(values[key])
 
 
 def capacidade_conducao_a(bitola: str) -> str:
@@ -1085,8 +1176,11 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
     if values.get('DATA_DOCUMENTO'):
         values.setdefault('DATA_DOCUMENTO_EXTENSO', date_extended(values.get('DATA_DOCUMENTO')))
         values.setdefault('DATA', values['DATA_DOCUMENTO'])
-    if values.get('DATA_DOCUMENTO') and not values.get('DATA_OPERACAO'):
-        values['DATA_OPERACAO'] = values['DATA_DOCUMENTO']
+    if not values.get('DATA_OPERACAO'):
+        values['DATA_OPERACAO'] = default_data_operacao_br(values.get('DATA_DOCUMENTO'))
+    else:
+        values['DATA_OPERACAO'] = format_date_br(values['DATA_OPERACAO'])
+    values['DATA_OPER'] = values['DATA_OPERACAO']
 
     # Campos derivados para Memorial Descritivo
     values.setdefault('ESTADO_CONCESSAO', values.get('UF', 'GO'))
@@ -1139,7 +1233,7 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
         ef = numeric_value(values['EFICIENCIA_MODULO']) or str(values['EFICIENCIA_MODULO']).replace('%', '').strip()
         values['EFICIENCIA_MODULO'] = ef
 
-    values.setdefault('NUM_POSTE', 'ilégível')
+    values.setdefault('NUM_POSTE', 'ilegível')
 
     thd_src = values.get('THD_CORRENTE_INVERSOR') or values.get('DHT')
     thd_fmt = format_thd_dht(thd_src or '3')
@@ -1190,7 +1284,12 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
             values.setdefault('ANO_DOCUMENTO', str(parsed_document_date.year))
 
     # Tipo de Ligação → NF (PD), condutores e disjuntor de entrada
-    from grid_voltage import resolve_ac_voltage, resolve_ligacao_config, map_inverter_fase
+    from grid_voltage import (
+        resolve_ac_voltage,
+        resolve_ligacao_config,
+        resolve_equipment_fase_ca,
+        describe_equipment_ca_connection,
+    )
 
     ligacao = resolve_ligacao_config(values.get('TIPO_LIGACAO'))
     values.setdefault('NUM_FASES', str(ligacao['num_fases']))
@@ -1224,6 +1323,21 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
     values['TENSAO_ATENDIMENTO_FORMATADA'] = ta_fmt
     values.setdefault('TENSAO_NOMINAL_DISJUNTOR', ta_fmt)
     values['TENSAO_NOMINAL'] = str(v_ln)
+
+    tipo_inv_raw = values.get('TIPO_INVERSOR') or ''
+    fase_ca_catalog = values.get('FASE_CA')
+    inv_fase_eq = resolve_equipment_fase_ca(tipo_inv_raw, fase_ca_catalog)
+    values['FASE_CA'] = inv_fase_eq.upper()
+    values.setdefault(
+        'DESCRICAO_CONEXAO_EQUIPAMENTO_CA',
+        describe_equipment_ca_connection(
+            tipo_inversor=tipo_inv_raw,
+            fase_ca_catalog=fase_ca_catalog,
+            voltage_ln_v=v_ln,
+            voltage_ll_v=v_ll,
+            tipo_ligacao_uc=values.get('TIPO_LIGACAO'),
+        ),
+    )
     if volt['system_type'] == 'trifasico':
         base = re.sub(r'\s*V\s*$', '', ta_fmt, flags=re.I).strip()
         if '/' not in base:
@@ -1241,6 +1355,7 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
     values.setdefault('BITOLA_CABO_CC', cabos.get('bitola_cc', '4 mm²'))
     values.setdefault('BITOLA_CABO_CA', cabos.get('bitola_ca_inversor', '6 mm²'))
     values.setdefault('BITOLA_CABO_PADRAO', cabos.get('bitola_ca_padrao', '10 mm²'))
+    _normalize_bitola_tokens(values)
     values.setdefault('CAPACIDADE_CABO_CC', capacidade_conducao_a(values['BITOLA_CABO_CC']))
     values.setdefault('CAPACIDADE_CABO_CA', capacidade_conducao_a(values['BITOLA_CABO_CA']))
     values.setdefault('CAPACIDADE_CABO_PADRAO', capacidade_conducao_a(values['BITOLA_CABO_PADRAO']))
@@ -1360,28 +1475,61 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
         qtd_inv = max(1, int(float(numeric_value(values.get('QTD_INVERSORES') or '1') or 1)))
         tipo_inv = (values.get('TIPO_INVERSOR') or '').upper()
         is_micro = 'MICRO' in tipo_inv
-        inv_fase = map_inverter_fase(values.get('FASE_CA'))
+        inv_fase = resolve_equipment_fase_ca(values.get('TIPO_INVERSOR'), fase_ca_catalog)
         inv_trifasico = inv_fase == 'trifasico' and not is_micro
         curva = values.get('CURVA_ATUACAO_DISJUNTOR') or values.get('disjuntor_curva') or 'C'
         pot_w = pot_kw * 1000
         pot_inv_w = pot_w / qtd_inv
 
+        qdca_micro = None
         if pot_kw > 0 and v_ln_calc > 0:
-            if system_type == 'trifasico' and is_micro:
-                i_sys = pot_w / v_ln_calc
-                i_inv = pot_inv_w / v_ln_calc
-                formula = (
-                    f'I = {_memorial_num(pot_w, 0)} W ÷ {_memorial_num(v_ln_calc, 0)} V = '
-                    f'{_memorial_num(i_sys, 2)} A'
+            if is_micro:
+                from qdca_layout import build_micro_qdca_from_form, layout_to_tokens
+                from memorial_current_text import format_micro_qdca_memorial_currents
+
+                technical_qdca = {
+                    'tipo_inversor': values.get('TIPO_INVERSOR'),
+                    'tipo_ligacao': values.get('TIPO_LIGACAO'),
+                    'micros_por_grupo_ca': values.get('MICROS_POR_GRUPO_CA'),
+                    'qdca_micros_fase_a': values.get('QDCA_MICROS_FASE_A'),
+                    'qdca_micros_fase_b': values.get('QDCA_MICROS_FASE_B'),
+                    'qdca_micros_fase_c': values.get('QDCA_MICROS_FASE_C'),
+                    'qdca_disj_fase_a': values.get('QDCA_DISJ_FASE_A'),
+                    'qdca_disj_fase_b': values.get('QDCA_DISJ_FASE_B'),
+                    'qdca_disj_fase_c': values.get('QDCA_DISJ_FASE_C'),
+                    'qdca_bitola_fase_a': values.get('QDCA_BITOLA_FASE_A'),
+                    'qdca_bitola_fase_b': values.get('QDCA_BITOLA_FASE_B'),
+                    'qdca_bitola_fase_c': values.get('QDCA_BITOLA_FASE_C'),
+                    'bitola_cabo_ca': values.get('BITOLA_CABO_CA'),
+                    'qdca_num_dps': values.get('QTD_DPS_QDCA'),
+                    'qdca_observacoes': values.get('QDCA_OBSERVACOES'),
+                    'qdca_disjuntor_geral': values.get('DISJUNTOR_GERAL_QDCA_A'),
+                    'qdca_bitola_tronco': values.get('BITOLA_TRONCO_QDCA'),
+                    'qdca_tem_disj_acoplamento': values.get('QDCA_TEM_DISJ_ACOPLAMENTO'),
+                    'qdca_corrente_proj_fase_a': values.get('QDCA_CORRENTE_PROJ_FASE_A'),
+                    'qdca_corrente_proj_fase_b': values.get('QDCA_CORRENTE_PROJ_FASE_B'),
+                    'qdca_corrente_proj_fase_c': values.get('QDCA_CORRENTE_PROJ_FASE_C'),
+                    'disjuntor_entrada': values.get('DISJUNTOR_ENTRADA'),
+                    'bitola_cabo_padrao': values.get('BITOLA_CABO_PADRAO'),
+                    'tipo_ligacao': values.get('TIPO_LIGACAO'),
+                }
+                qdca_micro = build_micro_qdca_from_form(
+                    technical_qdca,
+                    num_micros=qtd_inv,
+                    power_per_micro_kw=pot_inv_w / 1000,
+                    voltage_ln_v=v_ln_calc,
+                    tipo_ligacao=values.get('TIPO_LIGACAO'),
                 )
-                inv_note = (
-                    f'I_inversor = {_memorial_num(i_inv, 2)} A por inversor '
-                    f'(microinversor monofásico — corrente por equipamento)'
+                for token, val in layout_to_tokens(qdca_micro).items():
+                    values.setdefault(token, val)
+                formula, inv_note, tensao_saida_txt = format_micro_qdca_memorial_currents(
+                    qdca_micro,
+                    pot_inv_w=pot_inv_w,
+                    voltage_ln_v=v_ln_calc,
+                    network_trifasico=(system_type == 'trifasico'),
                 )
-                tensao_saida_txt = (
-                    f'{v_ln_calc:g} V (microinversores monofásicos, '
-                    f'{ligacao["descricao_conexao_inversores"]})'
-                )
+                i_inv = qdca_micro['current_per_micro_a']
+                i_sys = qdca_micro['current_worst_phase_a']
             elif system_type == 'trifasico' and inv_trifasico:
                 fp_inv = float(numeric_value(values.get('FATOR_POTENCIA_INVERSOR') or '0.99') or 0.99)
                 i_sys = pot_w / (v_ll_calc * math.sqrt(3) * fp_inv)
@@ -1433,30 +1581,43 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
                     f'{_memorial_num(i_sys / qtd_inv, 2)} A (inversores em paralelo na mesma fase)'
                 )
                 tensao_saida_txt = f'{v_ln_calc:g} V'
-            i_inv = i_sys / qtd_inv if not (system_type == 'trifasico' and is_micro) else pot_inv_w / v_ln_calc
+            i_inv = (
+                qdca_micro['current_per_micro_a']
+                if qdca_micro
+                else (pot_inv_w / v_ln_calc if (system_type == 'trifasico' and is_micro) else i_sys / qtd_inv)
+            )
             i_max_ca = float(numeric_value(values.get('CORRENTE_MAX_SAIDA_CA_INVERSOR') or '0') or 0)
             i_max_total = i_max_ca * qtd_inv if i_max_ca else i_sys
 
             values.setdefault('TENSAO_SAIDA_INVERSOR', tensao_saida_txt)
             values.setdefault('CALCULO_CORRENTE_SISTEMA', formula)
             values.setdefault('CALCULO_CORRENTE_INVERSOR', inv_note)
-            values.setdefault(
-                'CALCULO_CORRENTE_INVERSORES_TOTAL',
-                f'Corrente total dos {qtd_inv} inversores: {i_max_total:.2f} A',
-            )
-            if i_max_ca:
-                bitola_ca = values.get('BITOLA_CABO_CA', '—')
+            # Micros distribuídos por fase: não somar Imáx × N (só faria sentido em uma fase).
+            if qdca_micro:
+                values.setdefault('CALCULO_CORRENTE_INVERSORES_TOTAL', '')
+                values.setdefault('CALCULO_IMAX_CA', '')
+                values.setdefault('CALCULO_CORRENTE_CA', '')
+            else:
                 values.setdefault(
-                    'CALCULO_IMAX_CA',
-                    f'Imáx-ca (inversor) = {i_max_ca:g} A × {qtd_inv} = {i_max_total:.1f} A → Cabo {bitola_ca}',
+                    'CALCULO_CORRENTE_INVERSORES_TOTAL',
+                    f'Corrente total dos {qtd_inv} inversores: {i_max_total:.2f} A',
                 )
-            values.setdefault(
-                'CALCULO_CORRENTE_CA',
-                f'{i_max_ca:g} A × {qtd_inv} = {i_max_total:.1f} A' if i_max_ca else f'{i_sys:.2f} A',
-            )
+                if i_max_ca:
+                    bitola_ca = values.get('BITOLA_CABO_CA', '—')
+                    values.setdefault(
+                        'CALCULO_IMAX_CA',
+                        f'Imáx-ca (inversor) = {i_max_ca:g} A × {qtd_inv} = {i_max_total:.1f} A → Cabo {bitola_ca}',
+                    )
+                values.setdefault(
+                    'CALCULO_CORRENTE_CA',
+                    f'{i_max_ca:g} A × {qtd_inv} = {i_max_total:.1f} A' if i_max_ca else f'{i_sys:.2f} A',
+                )
 
             bitola_ca = values.get('BITOLA_CABO_CA', '6 mm²')
-            disj_rec = _recommend_qdca_breaker(i_sys, bitola_ca)
+            if qdca_micro:
+                disj_rec = qdca_micro['breaker_worst_a']
+            else:
+                disj_rec = _recommend_qdca_breaker(i_sys, bitola_ca)
             values.setdefault('DISJUNTOR_CA_INVERSOR_A', str(disj_rec))
             values.setdefault('TEXTO_DISJUNTOR_CA_INVERSOR', f'Disjuntor {disj_rec}A')
             values.setdefault(
@@ -1545,6 +1706,7 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
         idg = numeric_value(values.get('DISJUNTOR_ENTRADA') or values.get('CORRENTE_ENTRADA') or '40')
         values['CORRENTE_PROTECAO_CA'] = str(int(min(float(idg or 40), 32)))
 
+    _format_document_select_fields(values)
     return values
 
 
@@ -1618,6 +1780,33 @@ def replace_tokens_in_text_nodes(nodes, values: dict[str, str]) -> None:
         set_text_node(node, text)
 
 
+def _expand_newlines_in_paragraph(paragraph) -> None:
+    """Converte \\n em quebras de linha Word (w:br) dentro do parágrafo."""
+    for t_node in list(paragraph.xpath('.//w:t', namespaces=NS_W)):
+        text = t_node.text or ''
+        if '\n' not in text:
+            continue
+        parts = text.split('\n')
+        t_node.text = parts[0]
+        run = t_node.getparent()
+        while run is not None and run.tag != f'{{{W_NS}}}r':
+            run = run.getparent()
+        if run is None:
+            continue
+        rpr = run.find(f'{{{W_NS}}}rPr')
+        insert_after = run
+        for part in parts[1:]:
+            br = etree.Element(f'{{{W_NS}}}br')
+            insert_after.addnext(br)
+            new_run = etree.Element(f'{{{W_NS}}}r')
+            if rpr is not None:
+                new_run.append(deepcopy(rpr))
+            new_t = etree.SubElement(new_run, f'{{{W_NS}}}t')
+            new_t.text = part
+            br.addnext(new_run)
+            insert_after = new_run
+
+
 def _paragraph_text(paragraph) -> str:
     return ''.join(paragraph.xpath('.//w:t/text()', namespaces=NS_W))
 
@@ -1660,12 +1849,13 @@ def fill_docx(source: Path, destination: Path, values: dict[str, str]) -> set[st
                         _insert_demand_table_at_token(root, doc_values)
                     for paragraph in root.xpath('.//w:p', namespaces=NS_W):
                         replace_tokens_in_text_nodes(paragraph.xpath('.//w:t', namespaces=NS_W), doc_values)
+                        _expand_newlines_in_paragraph(paragraph)
                     data = etree.tostring(root, xml_declaration=True, encoding='UTF-8', standalone=True)
                 except etree.XMLSyntaxError:
                     pass
             target_zip.writestr(item, data)
     for token in discover_tokens_docx(destination):
-        if token not in values:
+        if not _token_is_filled(values, token):
             unresolved.add(token)
     return unresolved
 
@@ -1989,6 +2179,118 @@ def fill_workbook(source: Path, destination: Path, values: dict[str, str]) -> se
     return unresolved
 
 
+def _clear_worksheet_cell(cell) -> None:
+    """Remove valor, fórmula e tipo da célula (string ou número)."""
+    for tag in ('f', 'v', 'is'):
+        for node in list(cell.findall(f'{{{S_NS}}}{tag}')):
+            cell.remove(node)
+    cell.attrib.pop('t', None)
+
+
+def _set_worksheet_inline_string(cell, text: str) -> None:
+    _clear_worksheet_cell(cell)
+    is_elem = etree.SubElement(cell, f'{{{S_NS}}}is')
+    t_elem = etree.SubElement(is_elem, f'{{{S_NS}}}t')
+    t_elem.text = text
+    cell.set('t', 'inlineStr')
+
+
+def _set_worksheet_cell_by_ref(root, ref: str, text: str) -> None:
+    cell = _find_worksheet_cell(root, ref)
+    if cell is not None and text is not None:
+        _set_worksheet_inline_string(cell, str(text))
+
+
+def _format_tipo_ligacao_documento(tipo: str | None) -> str:
+    t = (tipo or '').upper()
+    if 'TRIF' in t:
+        return 'TRIFÁSICO'
+    if 'BIF' in t:
+        return 'BIFÁSICO'
+    return 'MONOFÁSICO'
+
+
+def _format_classe_documento(classe: str | None) -> str:
+    c = (classe or '').upper()
+    mapping = {
+        'RESIDENCIAL': 'Residencial',
+        'COMERCIAL': 'Comércio, serviços e outras atividades',
+        'INDUSTRIAL': 'Industrial',
+        'RURAL': 'Rural',
+        'PODER': 'Poder Público',
+        'ILUMINACAO': 'Iluminação Pública',
+        'SERVICO': 'Serviço Público',
+    }
+    for key, label in mapping.items():
+        if key in c:
+            return label
+    raw = str(classe or '').strip()
+    return raw or 'Residencial'
+
+
+def _nt_tensao_ln_v(values: dict[str, str]) -> str:
+    from grid_voltage import resolve_ac_voltage
+
+    volt = resolve_ac_voltage(
+        values.get('UF'),
+        values.get('TIPO_LIGACAO'),
+        values.get('TENSAO_ATENDIMENTO'),
+    )
+    return str(int(volt['voltage_ln_v']))
+
+
+def _nt_disjuntor_entrada_a(values: dict[str, str]) -> str:
+    raw = values.get('DISJUNTOR_ENTRADA') or values.get('CORRENTE_ENTRADA') or ''
+    cleaned = _extract_disjuntor_a(str(raw))
+    if cleaned:
+        try:
+            return str(int(float(cleaned.replace(',', '.'))))
+        except (TypeError, ValueError):
+            return cleaned
+    return ''
+
+
+def _nt_num_poste(values: dict[str, str]) -> str:
+    raw = str(values.get('NUM_POSTE') or 'ilegível').strip()
+    if not raw:
+        return 'ilegível'
+    if raw.lower() in {'ilegível', 'ilegivel', 'ilégível', 'ilegivel'}:
+        return 'ilegível'
+    return raw
+
+
+def _apply_nt_uc_dropdown_cells(root, values: dict[str, str]) -> None:
+    """Preenche listas suspensas da GUIA UC (sheet2) com valores do TXT/formulário."""
+    tipo = _format_tipo_ligacao_documento(values.get('TIPO_LIGACAO'))
+    classe = _format_classe_documento(values.get('CLASSE'))
+    tensao = _nt_tensao_ln_v(values)
+    disj = _nt_disjuntor_entrada_a(values)
+    poste = _nt_num_poste(values)
+    if tipo:
+        _set_worksheet_cell_by_ref(root, 'T27', tipo)
+    if classe:
+        _set_worksheet_cell_by_ref(root, 'F27', classe)
+    if tensao:
+        _set_worksheet_cell_by_ref(root, 'AC27', tensao)
+    if disj:
+        _set_worksheet_cell_by_ref(root, 'P29', disj)
+    if poste:
+        _set_worksheet_cell_by_ref(root, 'T31', poste.upper() if poste == 'ilegível' else poste)
+
+
+def _format_document_select_fields(values: dict[str, str]) -> None:
+    """Normaliza rótulos para memorial e NT (listas suspensas)."""
+    if values.get('TIPO_LIGACAO'):
+        values['TIPO_LIGACAO'] = _format_tipo_ligacao_documento(values['TIPO_LIGACAO'])
+    if values.get('CLASSE'):
+        values['CLASSE'] = _format_classe_documento(values['CLASSE'])
+    disj = _nt_disjuntor_entrada_a(values)
+    if disj:
+        values['DISJUNTOR_ENTRADA'] = disj
+        values.setdefault('CORRENTE_ENTRADA', disj)
+    values['NUM_POSTE'] = _nt_num_poste(values)
+
+
 def _trim_guia0_inverter_rows(root, values: dict[str, str]) -> None:
     """Mantém só QTD_INVERSORES linhas preenchidas na GUIA 0 (evita SUM inflado)."""
     try:
@@ -2005,10 +2307,7 @@ def _trim_guia0_inverter_rows(root, values: dict[str, str]) -> None:
             continue
         col, row = match.group(1), int(match.group(2))
         if col in inv_cols and first_row + qtd <= row <= last_row:
-            formula = cell.find(f'{{{S_NS}}}f')
-            if formula is not None:
-                cell.remove(formula)
-            set_numeric_cell(cell, '')
+            _clear_worksheet_cell(cell)
 
 
 def transform_worksheet(
@@ -2080,11 +2379,13 @@ def transform_worksheet(
                 for text_node in cell.xpath('.//s:t', namespaces=NS_S):
                     if text_node.text:
                         text_node.text = token_replacer(text_node.text, values)
-    if sheet_path.endswith('sheet2.xml'):
+    if sheet_path.endswith('sheet1.xml'):
         _trim_guia0_inverter_rows(root, values)
         derived = _recalc_guia0_formulas(root)
         if guia0_derived is not None:
             guia0_derived.update(derived)
+    elif sheet_path.endswith('sheet2.xml'):
+        _apply_nt_uc_dropdown_cells(root, values)
     elif sheet_path.endswith('sheet3.xml'):
         if guia0_derived is not None:
             _recalc_guia1_formulas(root, guia0_derived)
@@ -2149,10 +2450,9 @@ def main() -> None:
                 ok_caixa, msg_caixa = try_embed_caixa_medicao(destination, values)
                 report_lines.append(msg_caixa)
                 if ok_caixa:
-                    unresolved.discard('FIGURA_CAIXA')
-                    unresolved.discard('figura_caixa')
-                    unresolved.discard('TEXTO_CAIXA')
-                    unresolved.discard('Texto_caixa')
+                    for _tk in discover_tokens_docx(destination):
+                        if normalize_token(_tk) in ('FIGURA_CAIXA', 'TEXTO_CAIXA'):
+                            unresolved.discard(_tk)
         else:
             unresolved = fill_workbook(template, destination, values)
         if unresolved:

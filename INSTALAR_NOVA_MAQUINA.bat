@@ -56,19 +56,24 @@ if %errorlevel%==0 (
 
 REM Verifica/Instala pnpm
 echo [*] pnpm...
-pnpm --version >nul 2>&1
-if %errorlevel%==0 (
-    for /f "tokens=*" %%i in ('pnpm --version') do echo     [OK] pnpm v%%i
-) else (
-    echo     [!] pnpm nao encontrado. Instalando...
-    npm install -g pnpm
-    if %errorlevel% neq 0 (
-        echo     [X] Falha ao instalar pnpm
-        pause
-        exit /b 1
-    )
-    echo     [OK] pnpm instalado
+call pnpm --version >nul 2>&1
+if not errorlevel 1 (
+    for /f "tokens=*" %%i in ('call pnpm --version 2^>nul') do echo     [OK] pnpm v%%i
+    goto pnpm_ok
 )
+echo     [!] pnpm nao encontrado. Instalando...
+call npm install -g pnpm
+REM Garante PATH do npm global (comum apos instalar como Admin)
+set "PATH=%APPDATA%\npm;%ProgramFiles%\nodejs;%PATH%"
+call pnpm --version >nul 2>&1
+if errorlevel 1 (
+    echo     [X] pnpm instalado mas nao encontrado no PATH desta sessao
+    echo     Feche este terminal, abra um novo e execute novamente o instalador.
+    pause
+    exit /b 1
+)
+for /f "tokens=*" %%i in ('call pnpm --version 2^>nul') do echo     [OK] pnpm v%%i instalado
+:pnpm_ok
 
 echo.
 echo [2/8] Criando ambiente virtual Python...
@@ -89,7 +94,7 @@ echo.
 echo [3/8] Instalando dependencias Python...
 call .venv\Scripts\activate.bat
 pip install --upgrade pip >nul 2>&1
-pip install -r requirements.txt
+pip install -r requirements_api.txt
 if %errorlevel% neq 0 (
     echo     [X] Falha ao instalar dependencias Python
     pause
