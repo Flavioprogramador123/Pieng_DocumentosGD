@@ -1,0 +1,23 @@
+# Template completo p/ IA externa → dados/modulos_solares.yaml
+# Preencha todos os campos a partir do datasheet.
+
+modulos_solares:
+  - marca: FABRICANTE
+    modelo_comercial: MODELO-555W
+    fabricante_real: FABRICANTE
+    potencia_w: 555
+    bifacial: false
+    eficiencia_pct: 21.5
+    tecnologia: TOPCon
+    voc_v: 49.5
+    isc_a: 14.0
+    vmp_v: 41.0
+    imp_a: 13.5
+    coef_temp_voc_pct_c: -0.27
+    coef_temp_isc_pct_c: 0.05
+    coef_temp_pmax_pct_c: -0.35
+    dimensoes_mm: 2278x1134x30
+    peso_kg: 27.5
+    fusivel_serie_a: 25
+    notas: "Datasheet"
+    fonte_datasheet: ""

@@ -117,6 +117,7 @@ function App() {
   ])
 
   const [calculations, setCalculations] = useState(null)
+  const [tokenOverrides, setTokenOverrides] = useState({})
   const [loading, setLoading] = useState(false)
   const [generatedFiles, setGeneratedFiles] = useState(null)
   const [outputDirectory, setOutputDirectory] = useState('')
@@ -269,7 +270,59 @@ function App() {
       modules,
       inverters,
       calculations,
+      token_overrides: tokenOverrides,
       enrich_specs: options.enrich_specs ?? false,
+    }
+  }
+
+  const TOKEN_TO_TECHNICAL = {
+    DISJUNTOR_CA_INVERSOR_A: 'qdca_disjuntor_ca',
+    BITOLA_CABO_CC: 'bitola_cabo_cc',
+    BITOLA_CABO_CA: 'qdca_bitola_ca',
+    QDCA_DISJ_FASE_A: 'qdca_disj_fase_a',
+    QDCA_DISJ_FASE_B: 'qdca_disj_fase_b',
+    QDCA_DISJ_FASE_C: 'qdca_disj_fase_c',
+    QDCA_MICROS_FASE_A: 'qdca_micros_fase_a',
+    QDCA_MICROS_FASE_B: 'qdca_micros_fase_b',
+    QDCA_MICROS_FASE_C: 'qdca_micros_fase_c',
+    DISJUNTOR_GERAL_QDCA_A: 'qdca_disjuntor_geral',
+    QTD_DPS_QDCA: 'qdca_num_dps',
+    MODULOS_POR_STRING: 'modulos_por_string',
+    STRINGS_POR_MPPT: 'strings_por_mppt',
+    QTD_ENTRADAS_MPPT_INVERSOR: 'num_mppt',
+    QDCA_CORRENTE_PROJ: 'qdca_corrente_proj',
+  }
+
+  const handleCalcTokenOverride = (token, value) => {
+    const next = String(value ?? '')
+    setTokenOverrides((prev) => {
+      const copy = { ...prev }
+      const original = (calculations?.all_items || []).find((it) => it.token === token)?.valor
+      if (original != null && String(original) === next) {
+        delete copy[token]
+      } else {
+        copy[token] = next
+      }
+      return copy
+    })
+    const techKey = TOKEN_TO_TECHNICAL[token]
+    if (techKey) {
+      const numericish = /_A$|MPPT|DPS|STRING|MICROS|disjuntor|corrente/i.test(token)
+      const cleaned = numericish
+        ? next.replace(/[^\d.,]/g, '').replace(',', '.')
+        : next
+      setTechnicalData((prev) => ({ ...prev, [techKey]: cleaned || next }))
+      if (token === 'BITOLA_CABO_CA') {
+        setTechnicalData((prev) => ({ ...prev, bitola_cabo_ca: cleaned || next, qdca_bitola_ca: cleaned || next }))
+      }
+    }
+    if (token === 'DISJUNTOR_ENTRADA') {
+      const cleaned = next.replace(/[^\d.,]/g, '')
+      setClientData((prev) => ({ ...prev, disjuntor_entrada: cleaned || next }))
+      disjuntorEntradaManual.current = true
+    }
+    if (token === 'TENSAO_ATENDIMENTO') {
+      setClientData((prev) => ({ ...prev, tensao_atendimento: next }))
     }
   }
 
@@ -398,7 +451,7 @@ function App() {
   }
 
   const fetchDeParaPreview = async () => {
-    const local = buildLocalDeParaPreview(clientData, contractData, technicalData, modules, inverters)
+    const local = buildLocalDeParaPreview(clientData, contractData, technicalData, modules, inverters, tokenOverrides)
     setDeParaPreview(local)
     setDeParaLoading(true)
     setDeParaError('')
@@ -427,12 +480,12 @@ function App() {
 
   useEffect(() => {
     if (!deParaOpen) return undefined
-    setDeParaPreview(buildLocalDeParaPreview(clientData, contractData, technicalData, modules, inverters))
+    setDeParaPreview(buildLocalDeParaPreview(clientData, contractData, technicalData, modules, inverters, tokenOverrides))
     const timer = setTimeout(() => {
       fetchDeParaPreview()
     }, 400)
     return () => clearTimeout(timer)
-  }, [deParaOpen, clientData, contractData, technicalData, modules, inverters])
+  }, [deParaOpen, clientData, contractData, technicalData, modules, inverters, tokenOverrides])
 
   const enrichEquipmentFromCatalog = async (mods, invs) => {
     const needsSpecs = (mods || []).some(
@@ -941,6 +994,7 @@ function App() {
 
       if (response.ok && data.success) {
         setCalculations(data.calculations)
+        setTokenOverrides({})
         if (data.modules?.length) {
           setModules((prev) => prev.map((m, i) => mergeFilled(m, data.modules[i] || {})))
         }
@@ -967,6 +1021,12 @@ function App() {
               ? { num_mppt: String(dc.num_mppt_per_inverter) }
               : {}),
           ...mergeSuggestedQdcaFields(prev, dc?.suggested_qdca),
+          ...(!prev.qdca_disjuntor_ca && calc?.disjuntor_inversor_ca_a
+            ? { qdca_disjuntor_ca: String(calc.disjuntor_inversor_ca_a) }
+            : {}),
+          ...(!prev.qdca_corrente_proj && calc?.corrente_inversor_a
+            ? { qdca_corrente_proj: String(calc.corrente_inversor_a) }
+            : {}),
         }))
         const cableWarnings = calc.cable_warnings || []
         if (cableWarnings.length) {
@@ -1747,7 +1807,8 @@ Data do Documento: 15/08/2026
                 <CardHeader>
                   <CardTitle>Módulos Fotovoltaicos</CardTitle>
                   <CardDescription>
-                    Configure os módulos solares do sistema
+                    Configure os módulos solares do sistema. Catálogo é opcional — preencha quantidade,
+                    fabricante, modelo e potência manualmente, ou escolha na lista após importar YAML.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1881,7 +1942,7 @@ Data do Documento: 15/08/2026
                 <CardHeader>
                   <CardTitle>Inversores</CardTitle>
                   <CardDescription>
-                    Configure os inversores do sistema
+                    Configure os inversores do sistema. Catálogo opcional — preencha à mão ou importe YAML na aba Catálogo.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -2561,6 +2622,8 @@ Data do Documento: 15/08/2026
                     <CalculationsResults
                       calculations={calculations}
                       onApplyToForm={applyDemandTableToForm}
+                      tokenOverrides={tokenOverrides}
+                      onTokenOverrideChange={handleCalcTokenOverride}
                     />
 
                     <Button onClick={generateDocuments} disabled={loading} className="w-full">

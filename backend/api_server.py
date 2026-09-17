@@ -481,6 +481,19 @@ def create_txt_data(data):
         lines.append(f"THD de Corrente (%): {thd_fmt}")
         lines.append(f"DHT de Corrente (%): {thd_fmt}")
 
+    # Overrides editados na aba Cálculos (token → valor final no memorial)
+    overrides = data.get('token_overrides') or data.get('calculation_token_overrides') or {}
+    if isinstance(overrides, dict) and overrides:
+        lines.append('\n# OVERRIDES CÁLCULOS (editados pelo usuário)')
+        for token, value in overrides.items():
+            tok = str(token or '').strip()
+            if not tok or value is None:
+                continue
+            val = str(value).strip()
+            if not val:
+                continue
+            lines.append(f'{tok}: {val}')
+
     return '\n'.join(lines)
 
 
@@ -868,9 +881,11 @@ def catalog_list(table_name):
 @app.route('/api/catalog/<table_name>', methods=['POST'])
 def catalog_upsert(table_name):
     try:
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         row = upsert_row(table_name, data)
         return jsonify({'success': True, 'row': row})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
         return jsonify({'success': False, 'error': _safe_error_message(e)}), 400
 
@@ -888,16 +903,29 @@ def catalog_delete(table_name, row_id):
 
 @app.route('/api/catalog/import-modulos-yaml', methods=['POST'])
 def catalog_import_modulos_yaml():
-    """Importa dados/modulos_solares.yaml (ou obsoleto/Yamlmodulos.yaml) para o SQLite."""
+    """Importa dados/modulos_solares.yaml ou YAML colado ({ yaml: "..." })."""
     try:
-        from import_modulos_yaml import import_modulos_yaml, resolve_yaml_path
-        payload = request.json or {}
-        path = payload.get('path')
-        yaml_path = Path(path) if path else None
-        result = import_modulos_yaml(yaml_path)
+        from import_modulos_yaml import (
+            import_modulos_yaml,
+            import_modulos_yaml_text,
+            resolve_yaml_path,
+        )
+        payload = request.get_json(silent=True) or {}
+        yaml_text = (payload.get('yaml') or payload.get('content') or '').strip()
+        if yaml_text:
+            result = import_modulos_yaml_text(
+                yaml_text,
+                save_file=bool(payload.get('save_file', True)),
+            )
+        else:
+            path = payload.get('path')
+            yaml_path = Path(path) if path else None
+            result = import_modulos_yaml(yaml_path)
         return jsonify({
             **result,
-            'yaml_path': result.get('source') or (str(resolve_yaml_path()) if resolve_yaml_path() else None),
+            'yaml_path': result.get('saved_path')
+            or result.get('source')
+            or (str(resolve_yaml_path()) if resolve_yaml_path() else None),
         })
     except Exception as e:
         return jsonify({'success': False, 'error': _safe_error_message(e)}), 400
@@ -923,16 +951,29 @@ def catalog_modulos_yaml_info():
 
 @app.route('/api/catalog/import-inversores-yaml', methods=['POST'])
 def catalog_import_inversores_yaml():
-    """Importa dados/inversores.yaml (ou obsoleto/Yamlinversores.yaml) para o SQLite."""
+    """Importa dados/inversores.yaml ou YAML colado ({ yaml: "..." })."""
     try:
-        from import_inversores_yaml import import_inversores_yaml, resolve_yaml_path
-        payload = request.json or {}
-        path = payload.get('path')
-        yaml_path = Path(path) if path else None
-        result = import_inversores_yaml(yaml_path)
+        from import_inversores_yaml import (
+            import_inversores_yaml,
+            import_inversores_yaml_text,
+            resolve_yaml_path,
+        )
+        payload = request.get_json(silent=True) or {}
+        yaml_text = (payload.get('yaml') or payload.get('content') or '').strip()
+        if yaml_text:
+            result = import_inversores_yaml_text(
+                yaml_text,
+                save_file=bool(payload.get('save_file', True)),
+            )
+        else:
+            path = payload.get('path')
+            yaml_path = Path(path) if path else None
+            result = import_inversores_yaml(yaml_path)
         return jsonify({
             **result,
-            'yaml_path': result.get('source') or (str(resolve_yaml_path()) if resolve_yaml_path() else None),
+            'yaml_path': result.get('saved_path')
+            or result.get('source')
+            or (str(resolve_yaml_path()) if resolve_yaml_path() else None),
         })
     except Exception as e:
         return jsonify({'success': False, 'error': _safe_error_message(e)}), 400

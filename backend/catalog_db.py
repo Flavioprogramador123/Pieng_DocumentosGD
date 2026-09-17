@@ -464,6 +464,31 @@ def list_table(table: str, limit: int = 0) -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def _coerce_catalog_value(field: str, value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        text = value.strip()
+        if text == '':
+            return None
+        # Campos numéricos comuns do catálogo
+        if field.endswith(('_wp', '_kw', '_m', '_kg', '_hz')) or field in {
+            'potencia_wp', 'potencia_kw', 'voc', 'isc', 'vmpp', 'impp', 'eficiencia',
+            'comprimento_m', 'largura_m', 'peso_kg', 'num_mppt', 'mppt_min', 'mppt_max',
+            'tensao_nominal', 'corrente_nominal', 'corrente_max_cc', 'tensao_max_cc',
+            'potencia_max_cc_kw', 'potencia_max_saida_ca_kw', 'corrente_max_saida_ca',
+            'tensao_min_ca', 'tensao_max_ca', 'thd_pct', 'fator_potencia', 'frequencia_hz',
+            'tensao_partida_cc', 'qtd_strings_max', 'disjuntor_a', 'dr_ma',
+            'micros_max_disjuntor_ca',
+        }:
+            try:
+                return float(text.replace(',', '.'))
+            except ValueError:
+                return text
+        return text
+    return value
+
+
 def upsert_row(table: str, data: dict) -> dict:
     init_db()
     mapping = {
@@ -471,10 +496,13 @@ def upsert_row(table: str, data: dict) -> dict:
         'inverters': ('catalog_inverters', INVERTER_FIELDS, ('fabricante', 'modelo')),
         'padrao': ('catalog_padrao', PADRAO_FIELDS, ('uf', 'tipo_ligacao')),
     }
+    if table not in mapping:
+        raise ValueError('Tabela inválida')
     sql_table, fields, conflict = mapping[table]
-    payload = {f: data.get(f) for f in fields}
-    if not all(payload.get(k) for k in conflict):
-        raise ValueError(f'Campos obrigatórios: {conflict}')
+    payload = {f: _coerce_catalog_value(f, data.get(f)) for f in fields}
+    missing = [k for k in conflict if not payload.get(k)]
+    if missing:
+        raise ValueError(f'Campos obrigatórios: {", ".join(missing)}')
     cols = list(fields) + ['updated_at']
     vals = [payload[f] for f in fields] + [_now()]
     placeholders = ', '.join('?' * len(cols))
@@ -488,6 +516,7 @@ def upsert_row(table: str, data: dict) -> dict:
             """,
             vals,
         )
+        conn.commit()
         row = conn.execute(
             f"SELECT * FROM {sql_table} WHERE {' AND '.join(f'{k}=?' for k in conflict)}",
             [payload[k] for k in conflict],

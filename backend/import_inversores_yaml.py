@@ -180,6 +180,36 @@ def yaml_entry_to_catalog(entry: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def parse_inversores_yaml_data(data: Any) -> list[dict[str, Any]]:
+    """Aceita dict com lista, lista pura ou um único inversor."""
+    if isinstance(data, list):
+        entries = data
+    elif isinstance(data, dict):
+        entries = data.get('inversores')
+        if entries is None and (data.get('fabricante') or data.get('modelo')):
+            entries = [data]
+        entries = entries or []
+    else:
+        raise ValueError('YAML inválido — cole um inversor, uma lista ou { inversores: [...] }')
+
+    if not isinstance(entries, list):
+        raise ValueError('Lista inversores ausente ou inválida')
+
+    result = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        row = yaml_entry_to_catalog(entry)
+        if row['fabricante'] and row['modelo']:
+            result.append(row)
+    return result
+
+
+def load_yaml_inversores_from_text(text: str) -> list[dict[str, Any]]:
+    data = yaml.safe_load(text or '')
+    return parse_inversores_yaml_data(data)
+
+
 def load_yaml_inversores(path: Path | None = None) -> list[dict[str, Any]]:
     yaml_path = path
     if yaml_path is None:
@@ -194,35 +224,12 @@ def load_yaml_inversores(path: Path | None = None) -> list[dict[str, Any]]:
         )
 
     data = yaml.safe_load(yaml_path.read_text(encoding='utf-8'))
-    if not isinstance(data, dict):
-        raise ValueError('YAML inválido — esperado objeto com inversores')
-
-    entries = data.get('inversores') or []
-    if not isinstance(entries, list):
-        raise ValueError('Lista inversores ausente ou inválida')
-
-    result = []
-    for entry in entries:
-        if not isinstance(entry, dict):
-            continue
-        row = yaml_entry_to_catalog(entry)
-        if row['fabricante'] and row['modelo']:
-            result.append(row)
-    return result
+    return parse_inversores_yaml_data(data)
 
 
-def import_inversores_yaml(path: Path | None = None) -> dict[str, Any]:
-    """Upsert de todos os inversores do YAML no SQLite."""
+def _upsert_inversores_rows(rows: list[dict[str, Any]], *, source: str | None = None) -> dict[str, Any]:
     from catalog_db import INVERTER_FIELDS, _connect, _migrate_schema, _now
 
-    yaml_path = path
-    if yaml_path is None:
-        for candidate in YAML_PATHS:
-            if candidate.is_file():
-                yaml_path = candidate
-                break
-
-    rows = load_yaml_inversores(yaml_path)
     imported = 0
     errors: list[str] = []
     fields = list(INVERTER_FIELDS)
@@ -253,12 +260,71 @@ def import_inversores_yaml(path: Path | None = None) -> dict[str, Any]:
 
     return {
         'success': len(errors) == 0,
-        'source': str(yaml_path) if yaml_path else None,
+        'source': source,
         'imported': imported,
         'total_in_yaml': len(rows),
         'errors': errors,
         'inverters': rows,
     }
+
+
+def append_inversores_yaml_file(raw_entries: list[dict[str, Any]], path: Path | None = None) -> str:
+    yaml_path = path or resolve_yaml_path() or YAML_PATHS[0]
+    yaml_path.parent.mkdir(parents=True, exist_ok=True)
+    if yaml_path.is_file():
+        data = yaml.safe_load(yaml_path.read_text(encoding='utf-8')) or {}
+        if not isinstance(data, dict):
+            data = {'inversores': []}
+    else:
+        data = {'inversores': []}
+    lista = data.get('inversores')
+    if not isinstance(lista, list):
+        lista = []
+        data['inversores'] = lista
+    lista.extend(raw_entries)
+    yaml_path.write_text(
+        yaml.safe_dump(data, allow_unicode=True, sort_keys=False, default_flow_style=False),
+        encoding='utf-8',
+    )
+    return str(yaml_path)
+
+
+def import_inversores_yaml_text(text: str, *, save_file: bool = True) -> dict[str, Any]:
+    data = yaml.safe_load(text or '')
+    rows = parse_inversores_yaml_data(data)
+    if not rows:
+        raise ValueError('Nenhum inversor válido encontrado no YAML colado.')
+
+    if isinstance(data, list):
+        raw_entries = [e for e in data if isinstance(e, dict)]
+    elif isinstance(data, dict):
+        raw_entries = data.get('inversores')
+        if raw_entries is None and (data.get('fabricante') or data.get('modelo')):
+            raw_entries = [data]
+        raw_entries = [e for e in (raw_entries or []) if isinstance(e, dict)]
+    else:
+        raw_entries = []
+
+    saved_path = None
+    if save_file and raw_entries:
+        saved_path = append_inversores_yaml_file(raw_entries)
+
+    result = _upsert_inversores_rows(rows, source=saved_path or 'paste')
+    result['saved_path'] = saved_path
+    return result
+
+
+def import_inversores_yaml(path: Path | None = None) -> dict[str, Any]:
+    """Upsert de todos os inversores do YAML no SQLite."""
+    yaml_path = path
+    if yaml_path is None:
+        for candidate in YAML_PATHS:
+            if candidate.is_file():
+                yaml_path = candidate
+                break
+
+    rows = load_yaml_inversores(yaml_path)
+    return _upsert_inversores_rows(rows, source=str(yaml_path) if yaml_path else None)
 
 
 def resolve_yaml_path() -> Path | None:

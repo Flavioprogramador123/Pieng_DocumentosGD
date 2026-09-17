@@ -52,15 +52,19 @@ function row(label, token, value, source = 'form') {
 
 
 
-export function buildLocalDeParaPreview(clientData, contractData, technicalData, modules, inverters) {
+export function buildLocalDeParaPreview(clientData, contractData, technicalData, modules, inverters, tokenOverrides = {}) {
 
   const mappings = []
 
   const seen = new Set()
 
-  const push = (...args) => {
+  const push = (label, token, value, source = 'form') => {
 
-    const r = row(...args)
+    const override = tokenOverrides && token && Object.prototype.hasOwnProperty.call(tokenOverrides, token)
+      ? tokenOverrides[token]
+      : value
+
+    const r = row(label, token, override, source)
 
     if (seen.has(r.token)) return
 
@@ -212,7 +216,14 @@ export function buildLocalDeParaPreview(clientData, contractData, technicalData,
   push('QDCA I Proj. Fase A', 'QDCA_CORRENTE_PROJ_FASE_A', technicalData.qdca_corrente_proj_fase_a)
   push('QDCA I Proj. Fase B', 'QDCA_CORRENTE_PROJ_FASE_B', technicalData.qdca_corrente_proj_fase_b)
   push('QDCA I Proj. Fase C', 'QDCA_CORRENTE_PROJ_FASE_C', technicalData.qdca_corrente_proj_fase_c)
-  push('QDCA Disjuntor CA', 'DISJUNTOR_CA_INVERSOR_A', technicalData.qdca_disjuntor_ca)
+  push(
+    'QDCA Disjuntor CA',
+    'DISJUNTOR_CA_INVERSOR_A',
+    technicalData.qdca_disjuntor_ca
+      || technicalData.qdca_disj_fase_a
+      || technicalData.qdca_disj_fase_b
+      || technicalData.qdca_disj_fase_c,
+  )
   push('QDCA I Projeto', 'QDCA_CORRENTE_PROJ', technicalData.qdca_corrente_proj)
   push('QDCA Tem Disj. Acoplamento', 'QDCA_TEM_DISJ_ACOPLAMENTO', technicalData.qdca_tem_disj_acoplamento)
   push('QDCA Disj. Geral', 'DISJUNTOR_GERAL_QDCA_A', technicalData.qdca_disjuntor_geral)

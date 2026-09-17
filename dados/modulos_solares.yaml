@@ -1,7 +1,3 @@
-# Modulos solares — catalogo PIENG
-# Usado para popular catalog.db (SQLite) — specs para memorial e calculos de string
-# Atualizado a partir de catalogo_modulos_para_ia_COMPLETO.json
-
 modulos_solares:
 - marca: RENE PV
   modelo_comercial: RSM120-8-600BMDG
@@ -20,7 +16,7 @@ modulos_solares:
   dimensoes_mm: 2172x1303x35
   peso_kg: 37.0
   fusivel_serie_a: 35
-  notas: "RSM120-8-600BMDG — Bifacial — Fusivel 35 A — Isc alto; conferir Icc inversor"
+  notas: RSM120-8-600BMDG — Bifacial — Fusivel 35 A — Isc alto; conferir Icc inversor
   fonte_datasheet: https://en.risen.com/uploads/20240520/2024%20Risen%20Product%20Brochure.pdf
 - marca: RENE PV
   modelo_comercial: RSM156-9-620BNDG
@@ -39,7 +35,8 @@ modulos_solares:
   dimensoes_mm: 2465x1134x30
   peso_kg: 33.5
   fusivel_serie_a: 35
-  notas: "RSM156-9-620BNDG — Bifacial — Fusivel 35 A — Specs corrigidas pelo datasheet Risen 620 Wp"
+  notas: RSM156-9-620BNDG — Bifacial — Fusivel 35 A — Specs corrigidas pelo datasheet
+    Risen 620 Wp
   fonte_datasheet: https://en.risenenergy.com/uploads/20240905/Risen_TDS%20for%20n-type%20Dual%20Glass%20Modules-20240905.pdf
 - marca: RENE PV
   modelo_comercial: RSM156-9-625BNDG
@@ -58,7 +55,8 @@ modulos_solares:
   dimensoes_mm: 2465x1134x30
   peso_kg: 33.5
   fusivel_serie_a: 35
-  notas: "RSM156-9-625BNDG — Bifacial — Fusivel 35 A — Specs corrigidas pelo datasheet Risen 625 Wp"
+  notas: RSM156-9-625BNDG — Bifacial — Fusivel 35 A — Specs corrigidas pelo datasheet
+    Risen 625 Wp
   fonte_datasheet: https://en.risen.com/uploads/20240416/Risen_TDS%20for%20N-type%20Dual%20Glass%20Modules-20240416.pdf
 - marca: TSUN POWER
   modelo_comercial: TS630S9T-132GAHT
@@ -174,3 +172,34 @@ modulos_solares:
   fusivel_serie_a: 30
   notas: TS700S9T-132GAHT — TSUN — Bifacial — Fusivel serie 30 A
   fonte_datasheet: https://registro.inmetro.gov.br/consulta/detalhe.aspx?NumeroRegistro=000111%2F2025&pag=1
+- marca: Jinko
+  modelo_comercial: JKM630N-78HL4-BDV
+  fabricante_real: Jinko Solar
+  potencia_w: 630
+  voc_v: 56.51
+  isc_a: 14.22
+  vmp_v: 47.02
+  imp_a: 13.4
+  eficiencia_pct: 22.54
+  dimensoes_mm: 2465x1134x30
+  peso_kg: 34.6
+  notas: Bifacial N-Type, Cabo Curto
+- marca: Jinko Solar
+  modelo_comercial: JKM630N-78HL4-BDV
+  fabricante_real: Jinko Solar
+  potencia_w: 630
+  bifacial: true
+  eficiencia_pct: 22.54
+  tecnologia: N-Type TOPCon
+  voc_v: 55.85
+  isc_a: 14.39
+  vmp_v: 46.02
+  imp_a: 13.69
+  coef_temp_voc_pct_c: -0.25
+  coef_temp_isc_pct_c: 0.045
+  coef_temp_pmax_pct_c: -0.29
+  dimensoes_mm: 2465x1134x30
+  peso_kg: 34.6
+  fusivel_serie_a: 30
+  notas: Bifacial N-Type, Cabo Curto
+  fonte_datasheet: Datasheet Jinko Tiger Neo JKM630N-78HL4-BDV

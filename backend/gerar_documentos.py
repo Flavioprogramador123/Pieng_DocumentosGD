@@ -368,7 +368,15 @@ def normalize_label(value: str) -> str:
 
 
 def lookup_label_alias(label: str) -> str | None:
-    return _LABEL_ALIAS_INDEX.get(normalize_label(label))
+    key = normalize_label(label)
+    hit = _LABEL_ALIAS_INDEX.get(key)
+    if hit:
+        return hit
+    # Aceita token cru (ex.: DISJUNTOR_CA_INVERSOR_A: 32) — overrides da aba Cálculos
+    raw = (label or '').strip()
+    if re.fullmatch(r'[A-Z][A-Z0-9_]*', raw):
+        return raw
+    return None
 
 
 def _build_label_alias_index() -> dict[str, str]:

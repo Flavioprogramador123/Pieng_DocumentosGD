@@ -479,6 +479,7 @@ def enrich_micro_layout_protection(
             for d in layout['phase_details']
         )
         layout['breaker_worst_a'] = max(int(d.get('breaker_a') or 0) for d in layout['phase_details'])
+        layout['disjuntor_ca_a'] = layout['breaker_worst_a']
     return layout
 
 

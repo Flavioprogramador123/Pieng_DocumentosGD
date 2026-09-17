@@ -2,6 +2,7 @@ import { Copy, Check } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Button } from '@/components/ui/button.jsx'
+import { Input } from '@/components/ui/input.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
 
 function _fmt(n) {
@@ -75,7 +76,20 @@ function MetricCard({ label, value, color = 'blue' }) {
   )
 }
 
-export function CalculationsResults({ calculations, onApplyToForm }) {
+function displayValor(item, overrides) {
+  const token = item?.token
+  if (token && overrides && Object.prototype.hasOwnProperty.call(overrides, token)) {
+    return overrides[token]
+  }
+  return item?.valor ?? ''
+}
+
+export function CalculationsResults({
+  calculations,
+  onApplyToForm,
+  tokenOverrides = {},
+  onTokenOverrideChange,
+}) {
   if (!calculations) return null
 
   const ps = calculations.power_summary || {}
@@ -83,6 +97,7 @@ export function CalculationsResults({ calculations, onApplyToForm }) {
   const compat = calculations.compatibility || {}
   const demand = calculations.demand_table
   const allItems = calculations.all_items || []
+  const editable = typeof onTokenOverrideChange === 'function'
 
   const groups = allItems.reduce((acc, item) => {
     const g = item.grupo || 'Outros'
@@ -91,9 +106,10 @@ export function CalculationsResults({ calculations, onApplyToForm }) {
     return acc
   }, {})
 
+  const overrideCount = Object.keys(tokenOverrides || {}).length
+
   return (
     <div className="space-y-8">
-      {/* Resumo potência / geração */}
       <section>
         <h3 className="text-lg font-semibold mb-3">Potências e geração</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -106,7 +122,6 @@ export function CalculationsResults({ calculations, onApplyToForm }) {
         </div>
       </section>
 
-      {/* Compatibilidade */}
       {compat && (
         <section>
           <h3 className="text-lg font-semibold mb-3">Compatibilidade</h3>
@@ -123,7 +138,6 @@ export function CalculationsResults({ calculations, onApplyToForm }) {
         </section>
       )}
 
-      {/* Avisos de cabos (escolha manual do usuário) */}
       {(calculations.cable_warnings || []).length > 0 && (
         <section>
           <h3 className="text-lg font-semibold mb-3">Cabos — conferência</h3>
@@ -146,24 +160,46 @@ export function CalculationsResults({ calculations, onApplyToForm }) {
         </section>
       )}
 
-      {/* Todos os cálculos */}
       <section>
-        <h3 className="text-lg font-semibold mb-3">Todos os cálculos do sistema</h3>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h3 className="text-lg font-semibold">Todos os cálculos do sistema</h3>
+          {editable && (
+            <p className="text-xs text-muted-foreground">
+              Valores com token são editáveis — o que você ajustar vai para o documento final.
+              {overrideCount > 0 ? ` (${overrideCount} alterado${overrideCount > 1 ? 's' : ''})` : ''}
+            </p>
+          )}
+        </div>
         <div className="space-y-4">
           {Object.entries(groups).map(([grupo, items]) => (
             <div key={grupo} className="border rounded-lg overflow-hidden">
               <div className="bg-gray-100 px-3 py-2 text-sm font-semibold">{grupo}</div>
               <table className="w-full text-sm">
                 <tbody>
-                  {items.map((item, idx) => (
-                    <tr key={idx} className="border-t">
-                      <td className="p-2 text-gray-700 w-1/2">{item.rotulo}</td>
-                      <td className="p-2 font-medium">{item.valor}</td>
-                      <td className="p-2 text-xs font-mono text-blue-600 w-24">
-                        {item.token ? `{{${item.token}}}` : '—'}
-                      </td>
-                    </tr>
-                  ))}
+                  {items.map((item, idx) => {
+                    const token = item.token
+                    const valor = displayValor(item, tokenOverrides)
+                    const edited = token && Object.prototype.hasOwnProperty.call(tokenOverrides || {}, token)
+                    return (
+                      <tr key={`${token || item.rotulo}-${idx}`} className="border-t">
+                        <td className="p-2 text-gray-700 w-1/2">{item.rotulo}</td>
+                        <td className="p-2 font-medium">
+                          {editable && token ? (
+                            <Input
+                              className={`h-8 text-sm ${edited ? 'border-amber-400 bg-amber-50/50' : ''}`}
+                              value={valor}
+                              onChange={(e) => onTokenOverrideChange(token, e.target.value, item)}
+                            />
+                          ) : (
+                            valor
+                          )}
+                        </td>
+                        <td className="p-2 text-xs font-mono text-blue-600 w-28 whitespace-nowrap">
+                          {token ? `{{${token}}}` : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -171,7 +207,6 @@ export function CalculationsResults({ calculations, onApplyToForm }) {
         </div>
       </section>
 
-      {/* Strings CC */}
       {calculations.dc_strings && (
         <section>
           <h3 className="text-lg font-semibold mb-3">Strings CC (física correta)</h3>
@@ -197,7 +232,6 @@ export function CalculationsResults({ calculations, onApplyToForm }) {
         </section>
       )}
 
-      {/* Tabela de demanda */}
       {demand && (
         <section>
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">

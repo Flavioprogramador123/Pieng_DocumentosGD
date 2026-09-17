@@ -123,11 +123,16 @@ export function suggestQdcaFields({ technical, client, modules, inverters }) {
         correntes[`qdca_corrente_proj_fase_${lb}`] = estimatePhaseProjectCurrentA(micros, pInv)
       }
     })
+    const disjWorst = Math.max(
+      0,
+      ...Object.values(breakers).map((v) => parseInt(String(v), 10) || 0),
+    )
     return {
       ...phases,
       ...breakers,
       ...bitolas,
       ...correntes,
+      ...(disjWorst > 0 ? { qdca_disjuntor_ca: String(disjWorst) } : {}),
       qdca_num_dps: String(labels.length),
       modulos_por_string: '1',
       strings_por_mppt: '1',

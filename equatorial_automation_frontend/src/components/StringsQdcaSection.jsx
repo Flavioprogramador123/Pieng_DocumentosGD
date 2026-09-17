@@ -612,9 +612,23 @@ export default function StringsQdcaSection({
 
                   onChange={(e) => setTechnicalData({ ...technicalData, qdca_disjuntor_ca: e.target.value })}
 
-                  placeholder={calculations?.disjuntor_inversor_ca_a || '32'}
+                  placeholder={
+                    calculations?.disjuntor_inversor_ca_a
+                      ? String(calculations.disjuntor_inversor_ca_a)
+                      : '32'
+                  }
 
                 />
+
+                {!technicalData.qdca_disjuntor_ca && calculations?.disjuntor_inversor_ca_a ? (
+
+                  <p className="text-[10px] text-muted-foreground mt-1">
+
+                    Calculado: {calculations.disjuntor_inversor_ca_a} A — use «Sugerir QDCA» ou recalcule
+
+                  </p>
+
+                ) : null}
 
               </div>
 

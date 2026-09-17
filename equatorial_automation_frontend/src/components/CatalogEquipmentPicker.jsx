@@ -106,7 +106,9 @@ export function CatalogEquipmentPicker({ kind, current, onApply, label }) {
       }
       setRows(data.rows || [])
       if (!(data.rows || []).length) {
-        setError('Catálogo SQLite vazio — importe módulos/inversores na aba Catálogo.')
+        setError(
+          'Catálogo vazio — importe YAML na aba Catálogo, cadastre na linha verde, ou preencha os campos abaixo manualmente (catálogo é opcional).',
+        )
       }
     } catch (err) {
       setError(err.message || 'Backend offline — reinicie o servidor.')

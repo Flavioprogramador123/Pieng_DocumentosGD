@@ -7,13 +7,20 @@ export { API_BASE }
  */
 export async function apiFetch(path, options = {}) {
   const url = path.startsWith('/api') ? path : `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
+  const method = String(options.method || 'GET').toUpperCase()
+  const isMutating = ['POST', 'PUT', 'PATCH'].includes(method)
+  const hasBody = options.body != null && options.body !== ''
+  const body = hasBody
+    ? options.body
+    : (isMutating ? '{}' : undefined)
+  const sendJson = body != null && !(body instanceof FormData)
+
   const response = await fetch(url, {
     credentials: 'include',
     ...options,
+    ...(body !== undefined ? { body } : {}),
     headers: {
-      ...(options.body && !(options.body instanceof FormData)
-        ? { 'Content-Type': 'application/json' }
-        : {}),
+      ...(sendJson ? { 'Content-Type': 'application/json' } : {}),
       ...options.headers,
     },
   })

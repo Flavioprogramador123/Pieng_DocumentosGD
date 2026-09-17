@@ -1,0 +1,41 @@
+# Template completo p/ IA externa → dados/inversores.yaml
+# Preencha todos os campos a partir do datasheet.
+# Exemplo: microinversor com 6 MPPT (ajuste tipo/numero_mppts).
+#
+# Mapeia para a planilha: fabricante, modelo, potencia_kw, tipo_inversor, fase_ca,
+# num_mppt, mppt_min/max, tensao_nominal, corrente_nominal, eficiencia,
+# corrente_max_cc, tensao_max_cc, potencia_max_cc_kw, potencia_max_saida_ca_kw,
+# corrente_max_saida_ca, tensao_min/max_ca, thd_pct, fator_potencia,
+# frequencia_hz, tensao_partida_cc, qtd_strings_max, notas.
+
+inversores:
+  - fabricante: FABRICANTE
+    modelo: MICRO 2kW-6MPPT
+    modelo_comercial_datasheet: MICRO-2K-6T
+    tipo: Microinversor
+    fase_ca: MONOFASICO
+    entrada_cc:
+      potencia_max_arranjo_wp: 2400
+      tensao_rastreamento_mppt_v: 16 - 60
+      faixa_tensao_operacao_v: 16 - 60
+      tensao_entrada_max_v: 60
+      corrente_entrada_cc_max_a: 78
+      corrente_entrada_cc_max_a_por_mppt: [13, 13, 13, 13, 13, 13]
+      numero_mppts: 6
+      strings_por_mppt: [1, 1, 1, 1, 1, 1]
+      topologia_tipica: "6 MPPT; 1 string por MPPT"
+      micros_max_por_disjuntor_ca: 3
+    saida_ca:
+      potencia_max_saida_w: 2000
+      corrente_saida_max_a: 9.1
+      tensao_ca_nominal_faixa_v: 220 / 187 - 253
+      frequencia_nominal_faixa_hz: 60/55-65
+      fator_potencia: 0.99
+      thd_corrente_pct: 3
+    performance:
+      eficiencia_pico_pct: 96.5
+      eficiencia_ponderada_cec_pct: 96.0
+      grau_protecao: IP67
+      faixa_temperatura_c: -40 a +65
+      garantia_anos: 12
+    fonte_datasheet: ""
