@@ -60,7 +60,17 @@ LABEL_ALIASES = {
     'titular': 'NOME_CLIENTE',
     'razao social': 'NOME_CLIENTE',
     'cpf': 'CPF',
+    'cnpj': 'CPF',
+    'cpf/cnpj': 'CPF',
+    'cpf cnpj': 'CPF',
     'rg': 'RG_RAW',
+    'nome do representante': 'NOME_REPRESENTANTE',
+    'nome do representante legal': 'NOME_REPRESENTANTE',
+    'representante legal': 'NOME_REPRESENTANTE',
+    'cpf do representante': 'CPF_REPRESENTANTE',
+    'cpf representante': 'CPF_REPRESENTANTE',
+    'rg do representante': 'RG_REPRESENTANTE',
+    'rg representante': 'RG_REPRESENTANTE',
     'data de nascimento': 'DATA_NASCIMENTO',
     'validade cnh': 'VALIDADE_CNH',
     'data expedição': 'DT_EXP',
@@ -311,6 +321,7 @@ OPTIONAL_KEYS = {
     'COMPLEMENTO', 'TELEFONE_FIXO', 'ARMAZENAMENTO',
     'NOME_TESTEMUNHA_1', 'CPF_TESTEMUNHA_1',
     'NOME_TESTEMUNHA_2', 'CPF_TESTEMUNHA_2',
+    'NOME_REPRESENTANTE', 'CPF_REPRESENTANTE', 'RG_REPRESENTANTE',
     'VALOR_INVESTIMENTO', 'FORMA_PAGAMENTO', 'TEXTO_VALOR_PAGAMENTO_CONTRATO', 'NUMERO_CONTRATO',
     'BANCO', 'AGENCIA', 'CONTA',
     'CNPJ_INTEGRADOR', 'PIX_INTEGRADOR',
@@ -608,11 +619,61 @@ def format_conta_contrato(value: str) -> str:
 
 
 def format_cpf(value: str) -> str:
+    """Formata CPF (11 digitos) ou CNPJ (14 digitos); mantem o valor original nos demais casos."""
+    full_digits = only_digits(value)
+    if len(full_digits) == 11:
+        return f'{full_digits[:3]}.{full_digits[3:6]}.{full_digits[6:9]}-{full_digits[9:]}'
+    if len(full_digits) == 14:
+        d = full_digits
+        return f'{d[:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:]}'
+    # Linhas com CPF repetido/duplicado (ex.: "426.985.961-04 / 42698596104"): usa o primeiro trecho.
     raw = value.split('/')[0].strip()
     digits = only_digits(raw)
     if len(digits) == 11:
         return f'{digits[:3]}.{digits[3:6]}.{digits[6:9]}-{digits[9:]}'
     return raw
+
+
+def is_pessoa_juridica(cpf_ou_cnpj: str) -> bool:
+    """CNPJ tem 14 dígitos; CPF tem 11. Usado para decidir a qualificação PF/PJ."""
+    return len(only_digits(cpf_ou_cnpj)) == 14
+
+
+def build_texto_qualificacao(values: dict[str, str]) -> None:
+    """Qualificação do cliente (Outorgante/Contratante) — PF ou PJ.
+
+    PJ é detectada pelo CNPJ (14 dígitos) no campo CPF. Para PJ, exige nome/CPF/RG
+    do representante legal (NOME_REPRESENTANTE, CPF_REPRESENTANTE, RG_REPRESENTANTE).
+    """
+    nome = str(values.get('NOME_CLIENTE') or '').strip()
+    doc_fmt = str(values.get('CPF') or '').strip()
+
+    if is_pessoa_juridica(values.get('CPF') or ''):
+        rep_nome = str(values.get('NOME_REPRESENTANTE') or '').strip()
+        rep_cpf = format_cpf(values.get('CPF_REPRESENTANTE') or '')
+        rep_rg = str(values.get('RG_REPRESENTANTE') or '').strip()
+        texto = (
+            f'{nome}, inscrita no CNPJ nº {doc_fmt}, representado por {rep_nome}, '
+            f'portador do CPF nº {rep_cpf}, RG nº {rep_rg}'
+        )
+        values.setdefault('TEXTO_QUALIFICACAO_OUTORGANTE', texto)
+        values.setdefault('TEXTO_QUALIFICACAO_CONTRATANTE', texto)
+        values.setdefault('TEXTO_VINCULO_ENDERECO_OUTORGANTE', 'estabelecido à')
+        values.setdefault('TEXTO_VINCULO_ENDERECO_CONTRATANTE', 'estabelecido em')
+        return
+
+    rg = str(values.get('RG') or '').strip()
+    rg_completo = str(values.get('RG_COMPLETO') or rg).strip()
+    values.setdefault(
+        'TEXTO_QUALIFICACAO_OUTORGANTE',
+        f'{nome}, portador do CPF nº {doc_fmt}, RG nº {rg}',
+    )
+    values.setdefault(
+        'TEXTO_QUALIFICACAO_CONTRATANTE',
+        f'{nome}, portador do CPF nº {doc_fmt}, RG nº {rg_completo}',
+    )
+    values.setdefault('TEXTO_VINCULO_ENDERECO_OUTORGANTE', 'residente e domiciliado à')
+    values.setdefault('TEXTO_VINCULO_ENDERECO_CONTRATANTE', 'residente e domiciliado em')
 
 
 def format_cep(value: str) -> str:
@@ -1229,6 +1290,9 @@ def build_values(raw: dict[str, str], defaults: dict) -> dict[str, str]:
     rg_full = ' '.join(p for p in rg_parts if p)
     if rg_full:
         values.setdefault('RG_COMPLETO', rg_full)
+
+    build_texto_qualificacao(values)
+
     values.setdefault('POTENCIA_INVERSOR_UNITARIO', values.get('POTENCIA_INVERSOR', ''))
 
     # Eficiência módulo — garantir token mesmo com rótulo alternativo ou valor só no form

@@ -48,6 +48,11 @@ test('formatCpf pega o primeiro CPF da linha dupla', () => {
   assert.equal(formatCpf('426.985.961-04 / 42698596104'), '426.985.961-04')
 })
 
+test('formatCpf formata CNPJ (14 digitos) sem cortar no /', () => {
+  assert.equal(formatCpf('12.345.678/0001-90'), '12.345.678/0001-90')
+  assert.equal(formatCpf('12345678000190'), '12.345.678/0001-90')
+})
+
 test('parseAddress separa rua e complemento (quadra/lote/anexo)', () => {
   const addr = parseAddress('Rua Pernambuco, Q. F, L. 5/6, Anexo Itamaraty')
   assert.equal(addr.logradouro, 'Rua Pernambuco')

@@ -1,0 +1,624 @@
+{
+  "_instrucoes": "Complete campos null. corrente_entrada_cc_max_a_por_mppt = Icc (A) por MPPT. modelo_comercial_datasheet = codigo fabricante (ex: R6-8K-S3, SUN-6K-G04P3-EU-AM2). Retorne JSON completo.",
+  "_schema": {
+    "modelo_comercial_datasheet": "Codigo comercial do inversor no datasheet",
+    "entrada_cc.corrente_entrada_cc_max_a_por_mppt": "Icc max por MPPT (A) — lista",
+    "entrada_cc.faixa_tensao_operacao_v": "Faixa operacao CC",
+    "saida_ca.corrente_saida_max_a": "Corrente max saida CA (A)",
+    "performance.eficiencia_ponderada_cec_pct": "Eficiencia CEC %",
+    "performance.faixa_temperatura_c": "Ex: -25 a +60",
+    "fonte_datasheet": "URL ou PDF consultado"
+  },
+  "inversores": [
+    {
+      "_id": "inv_01",
+      "_status": "completar",
+      "_campos_faltantes": [
+        "modelo_comercial_datasheet",
+        "fonte_datasheet"
+      ],
+      "fabricante": "DEYE",
+      "modelo": "MICRO INVERSOR DEYE-S2.25K-G4 220V",
+      "modelo_comercial_datasheet": null,
+      "tipo": "Microinversor",
+      "fase_ca": "MONOFASICO",
+      "entrada_cc": {
+        "potencia_max_arranjo_wp": "210 a 790",
+        "tensao_rastreamento_mppt_v": "25 - 55",
+        "faixa_tensao_operacao_v": "25 - 55",
+        "tensao_entrada_max_v": 60,
+        "corrente_entrada_cc_max_a": 18,
+        "corrente_entrada_cc_max_a_por_mppt": null,
+        "numero_mppts": 4,
+        "strings_por_mppt": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "modulos_por_mppt": 1,
+        "micros_max_por_disjuntor_ca": 3,
+        "topologia_tipica": null
+      },
+      "saida_ca": {
+        "potencia_max_saida_w": 2250,
+        "corrente_saida_max_a": 10.3,
+        "tensao_ca_nominal_faixa_v": "220 / 187 - 253",
+        "frequencia_nominal_faixa_hz": "60 / 59.9 - 60.1",
+        "fator_potencia": "> 0.99",
+        "thd_corrente_pct": "< 3"
+      },
+      "performance": {
+        "eficiencia_pico_pct": 96.5,
+        "eficiencia_ponderada_cec_pct": 96.5,
+        "grau_protecao": "IP67",
+        "faixa_temperatura_c": "-40 a +65",
+        "garantia_anos": 12
+      },
+      "fonte_datasheet": null
+    },
+    {
+      "_id": "inv_02",
+      "_status": "completar",
+      "_campos_faltantes": [
+        "modelo_comercial_datasheet",
+        "fonte_datasheet"
+      ],
+      "fabricante": "SAJ",
+      "modelo": "MICRO INVERSOR M2-2.25K-S4 220V",
+      "modelo_comercial_datasheet": null,
+      "tipo": "Microinversor",
+      "fase_ca": "MONOFASICO",
+      "entrada_cc": {
+        "potencia_max_arranjo_wp": "400 a 700",
+        "tensao_rastreamento_mppt_v": "35 - 50",
+        "faixa_tensao_operacao_v": "16 - 55",
+        "tensao_entrada_max_v": 60,
+        "corrente_entrada_cc_max_a": 20,
+        "corrente_entrada_cc_max_a_por_mppt": null,
+        "numero_mppts": 4,
+        "strings_por_mppt": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "modulos_por_mppt": 1,
+        "micros_max_por_disjuntor_ca": 3,
+        "topologia_tipica": null
+      },
+      "saida_ca": {
+        "potencia_max_saida_w": 2250,
+        "corrente_saida_max_a": 9.78,
+        "tensao_ca_nominal_faixa_v": "220 / 180 - 280",
+        "frequencia_nominal_faixa_hz": "60 / 59.9 - 60.1",
+        "fator_potencia": "> 0.99",
+        "thd_corrente_pct": "< 3"
+      },
+      "performance": {
+        "eficiencia_pico_pct": 97.0,
+        "eficiencia_ponderada_cec_pct": 96.0,
+        "grau_protecao": "IP67",
+        "faixa_temperatura_c": "-40 a +60",
+        "garantia_anos": 12
+      },
+      "fonte_datasheet": null
+    },
+    {
+      "_id": "inv_03",
+      "_status": "completar",
+      "_campos_faltantes": [
+        "modelo_comercial_datasheet",
+        "fonte_datasheet"
+      ],
+      "fabricante": "SAJ",
+      "modelo": "INVERSOR SAJ 3KW MONO 220V",
+      "modelo_comercial_datasheet": null,
+      "tipo": "Inversor String On-Grid",
+      "fase_ca": "MONOFASICO",
+      "entrada_cc": {
+        "potencia_max_arranjo_wp": "4500",
+        "tensao_rastreamento_mppt_v": "90 - 550",
+        "faixa_tensao_operacao_v": "80 - 550",
+        "tensao_entrada_max_v": 600,
+        "corrente_entrada_cc_max_a": null,
+        "corrente_entrada_cc_max_a_por_mppt": [
+          16,
+          16,
+          16
+        ],
+        "numero_mppts": 3,
+        "strings_por_mppt": [
+          1,
+          1,
+          1
+        ],
+        "modulos_por_mppt": null,
+        "micros_max_por_disjuntor_ca": null,
+        "topologia_tipica": "1 string em 1 MPPT (demais vazios)"
+      },
+      "saida_ca": {
+        "potencia_max_saida_w": 3000,
+        "corrente_saida_max_a": 13.1,
+        "tensao_ca_nominal_faixa_v": "220 / 180 - 280",
+        "frequencia_nominal_faixa_hz": "60 / 59.9 - 60.1",
+        "fator_potencia": "> 0.99",
+        "thd_corrente_pct": "< 3"
+      },
+      "performance": {
+        "eficiencia_pico_pct": 98.2,
+        "eficiencia_ponderada_cec_pct": 97.8,
+        "grau_protecao": "IP65",
+        "faixa_temperatura_c": "-40 a +60",
+        "garantia_anos": 10
+      },
+      "fonte_datasheet": null
+    },
+    {
+      "_id": "inv_04",
+      "_status": "completar",
+      "_campos_faltantes": [
+        "modelo_comercial_datasheet",
+        "fonte_datasheet"
+      ],
+      "fabricante": "DEYE",
+      "modelo": "INVERSOR DEYE 6KW MONO 220V",
+      "modelo_comercial_datasheet": null,
+      "tipo": "Inversor String On-Grid",
+      "fase_ca": "MONOFASICO",
+      "entrada_cc": {
+        "potencia_max_arranjo_wp": "9000",
+        "tensao_rastreamento_mppt_v": "100 - 500",
+        "faixa_tensao_operacao_v": "70 - 500",
+        "tensao_entrada_max_v": 600,
+        "corrente_entrada_cc_max_a": null,
+        "corrente_entrada_cc_max_a_por_mppt": [
+          13,
+          13
+        ],
+        "numero_mppts": 2,
+        "strings_por_mppt": [
+          1,
+          1
+        ],
+        "modulos_por_mppt": null,
+        "micros_max_por_disjuntor_ca": null,
+        "topologia_tipica": "2 strings independentes (1 por MPPT)"
+      },
+      "saida_ca": {
+        "potencia_max_saida_w": 6000,
+        "corrente_saida_max_a": 27.3,
+        "tensao_ca_nominal_faixa_v": "220 / 180 - 280",
+        "frequencia_nominal_faixa_hz": "60 / 59.9 - 60.1",
+        "fator_potencia": "> 0.99",
+        "thd_corrente_pct": "< 3"
+      },
+      "performance": {
+        "eficiencia_pico_pct": 97.5,
+        "eficiencia_ponderada_cec_pct": 97.0,
+        "grau_protecao": "IP65",
+        "faixa_temperatura_c": "-25 a +60",
+        "garantia_anos": 10
+      },
+      "fonte_datasheet": null
+    },
+    {
+      "_id": "inv_05",
+      "_status": "completar",
+      "_campos_faltantes": [
+        "modelo_comercial_datasheet",
+        "fonte_datasheet"
+      ],
+      "fabricante": "SAJ",
+      "modelo": "INVERSOR SAJ 6KW MONO 220V",
+      "modelo_comercial_datasheet": null,
+      "tipo": "Inversor String On-Grid",
+      "fase_ca": "MONOFASICO",
+      "entrada_cc": {
+        "potencia_max_arranjo_wp": "9000",
+        "tensao_rastreamento_mppt_v": "90 - 550",
+        "faixa_tensao_operacao_v": "80 - 550",
+        "tensao_entrada_max_v": 600,
+        "corrente_entrada_cc_max_a": null,
+        "corrente_entrada_cc_max_a_por_mppt": [
+          16,
+          16
+        ],
+        "numero_mppts": 2,
+        "strings_por_mppt": [
+          1,
+          1
+        ],
+        "modulos_por_mppt": null,
+        "micros_max_por_disjuntor_ca": null,
+        "topologia_tipica": "2 strings independentes (1 por MPPT)"
+      },
+      "saida_ca": {
+        "potencia_max_saida_w": 6000,
+        "corrente_saida_max_a": 26.1,
+        "tensao_ca_nominal_faixa_v": "220 / 180 - 280",
+        "frequencia_nominal_faixa_hz": "60 / 59.9 - 60.1",
+        "fator_potencia": "> 0.99",
+        "thd_corrente_pct": "< 3"
+      },
+      "performance": {
+        "eficiencia_pico_pct": 98.2,
+        "eficiencia_ponderada_cec_pct": 97.8,
+        "grau_protecao": "IP65",
+        "faixa_temperatura_c": "-40 a +60",
+        "garantia_anos": 10
+      },
+      "fonte_datasheet": null
+    },
+    {
+      "_id": "inv_06",
+      "_status": "completar",
+      "_campos_faltantes": [
+        "saida_ca.frequencia_nominal_faixa_hz",
+        "saida_ca.fator_potencia",
+        "saida_ca.thd_corrente_pct",
+        "performance.eficiencia_ponderada_cec_pct",
+        "performance.faixa_temperatura_c",
+        "modelo_comercial_datasheet",
+        "fonte_datasheet"
+      ],
+      "fabricante": "SAJ",
+      "modelo": "INVERSOR SAJ 8KW MONO 220V",
+      "modelo_comercial_datasheet": null,
+      "tipo": "Inversor String On-Grid",
+      "fase_ca": "MONOFASICO",
+      "entrada_cc": {
+        "potencia_max_arranjo_wp": "12000",
+        "tensao_rastreamento_mppt_v": "90 - 550",
+        "faixa_tensao_operacao_v": "80 - 550",
+        "tensao_entrada_max_v": 600,
+        "corrente_entrada_cc_max_a": null,
+        "corrente_entrada_cc_max_a_por_mppt": [
+          16,
+          16,
+          16
+        ],
+        "numero_mppts": 3,
+        "strings_por_mppt": [
+          1,
+          1,
+          1
+        ],
+        "modulos_por_mppt": null,
+        "micros_max_por_disjuntor_ca": null,
+        "topologia_tipica": null
+      },
+      "saida_ca": {
+        "potencia_max_saida_w": 8000,
+        "corrente_saida_max_a": 34.8,
+        "tensao_ca_nominal_faixa_v": "220 / 180 - 280",
+        "frequencia_nominal_faixa_hz": null,
+        "fator_potencia": null,
+        "thd_corrente_pct": null
+      },
+      "performance": {
+        "eficiencia_pico_pct": 98.2,
+        "eficiencia_ponderada_cec_pct": null,
+        "grau_protecao": "IP65",
+        "faixa_temperatura_c": null,
+        "garantia_anos": 10
+      },
+      "fonte_datasheet": null
+    },
+    {
+      "_id": "inv_07",
+      "_status": "completar",
+      "_campos_faltantes": [
+        "entrada_cc.faixa_tensao_operacao_v",
+        "saida_ca.frequencia_nominal_faixa_hz",
+        "saida_ca.fator_potencia",
+        "saida_ca.thd_corrente_pct",
+        "performance.eficiencia_ponderada_cec_pct",
+        "performance.faixa_temperatura_c",
+        "modelo_comercial_datasheet",
+        "fonte_datasheet"
+      ],
+      "fabricante": "SAJ",
+      "modelo": "INVERSOR SAJ 10KW MONO 220V",
+      "modelo_comercial_datasheet": null,
+      "tipo": "Inversor String On-Grid",
+      "fase_ca": "MONOFASICO",
+      "entrada_cc": {
+        "potencia_max_arranjo_wp": "15000",
+        "tensao_rastreamento_mppt_v": "90 - 550",
+        "faixa_tensao_operacao_v": null,
+        "tensao_entrada_max_v": 600,
+        "corrente_entrada_cc_max_a": null,
+        "corrente_entrada_cc_max_a_por_mppt": [
+          16,
+          16,
+          16
+        ],
+        "numero_mppts": 3,
+        "strings_por_mppt": [
+          1,
+          1,
+          1
+        ],
+        "modulos_por_mppt": null,
+        "micros_max_por_disjuntor_ca": null,
+        "topologia_tipica": null
+      },
+      "saida_ca": {
+        "potencia_max_saida_w": 10000,
+        "corrente_saida_max_a": 43.5,
+        "tensao_ca_nominal_faixa_v": "220 / 180 - 280",
+        "frequencia_nominal_faixa_hz": null,
+        "fator_potencia": null,
+        "thd_corrente_pct": null
+      },
+      "performance": {
+        "eficiencia_pico_pct": 98.2,
+        "eficiencia_ponderada_cec_pct": null,
+        "grau_protecao": "IP65",
+        "faixa_temperatura_c": null,
+        "garantia_anos": 10
+      },
+      "fonte_datasheet": null
+    },
+    {
+      "_id": "inv_08",
+      "_status": "completar",
+      "_campos_faltantes": [
+        "entrada_cc.faixa_tensao_operacao_v",
+        "saida_ca.corrente_saida_max_a",
+        "saida_ca.frequencia_nominal_faixa_hz",
+        "saida_ca.fator_potencia",
+        "saida_ca.thd_corrente_pct",
+        "performance.eficiencia_ponderada_cec_pct",
+        "performance.faixa_temperatura_c",
+        "modelo_comercial_datasheet",
+        "fonte_datasheet"
+      ],
+      "fabricante": "DEYE",
+      "modelo": "INVERSOR DEYE 12KW TRIFÁSICO 220V",
+      "modelo_comercial_datasheet": null,
+      "tipo": "Inversor String On-Grid",
+      "fase_ca": "TRIFASICO",
+      "entrada_cc": {
+        "potencia_max_arranjo_wp": "18000",
+        "tensao_rastreamento_mppt_v": "120 - 1000",
+        "faixa_tensao_operacao_v": null,
+        "tensao_entrada_max_v": 1100,
+        "corrente_entrada_cc_max_a": null,
+        "corrente_entrada_cc_max_a_por_mppt": [
+          20,
+          20
+        ],
+        "numero_mppts": 2,
+        "strings_por_mppt": [
+          1,
+          1
+        ],
+        "modulos_por_mppt": null,
+        "micros_max_por_disjuntor_ca": null,
+        "topologia_tipica": null
+      },
+      "saida_ca": {
+        "potencia_max_saida_w": 12000,
+        "corrente_saida_max_a": null,
+        "tensao_ca_nominal_faixa_v": "380 / 220 - 280",
+        "frequencia_nominal_faixa_hz": null,
+        "fator_potencia": null,
+        "thd_corrente_pct": null
+      },
+      "performance": {
+        "eficiencia_pico_pct": 98.3,
+        "eficiencia_ponderada_cec_pct": null,
+        "grau_protecao": "IP65",
+        "faixa_temperatura_c": null,
+        "garantia_anos": 10
+      },
+      "fonte_datasheet": null
+    },
+    {
+      "_id": "inv_09",
+      "_status": "completar",
+      "_campos_faltantes": [
+        "modelo_comercial_datasheet",
+        "fonte_datasheet"
+      ],
+      "fabricante": "DEYE",
+      "modelo": "INVERSOR DEYE 15KW TRIFÁSICO 220V",
+      "modelo_comercial_datasheet": null,
+      "tipo": "Inversor String On-Grid",
+      "fase_ca": "TRIFASICO",
+      "entrada_cc": {
+        "potencia_max_arranjo_wp": "22500",
+        "tensao_rastreamento_mppt_v": "200 - 1000",
+        "faixa_tensao_operacao_v": "150 - 1000",
+        "tensao_entrada_max_v": 1100,
+        "corrente_entrada_cc_max_a": null,
+        "corrente_entrada_cc_max_a_por_mppt": [
+          20,
+          26
+        ],
+        "numero_mppts": 2,
+        "strings_por_mppt": [
+          1,
+          2
+        ],
+        "modulos_por_mppt": null,
+        "micros_max_por_disjuntor_ca": null,
+        "topologia_tipica": "MPPT misto 1+2 strings"
+      },
+      "saida_ca": {
+        "potencia_max_saida_w": 15000,
+        "corrente_saida_max_a": 39.5,
+        "tensao_ca_nominal_faixa_v": "380 / 220 - 280",
+        "frequencia_nominal_faixa_hz": "60 / 59.9 - 60.1",
+        "fator_potencia": "> 0.99",
+        "thd_corrente_pct": "< 3"
+      },
+      "performance": {
+        "eficiencia_pico_pct": 98.5,
+        "eficiencia_ponderada_cec_pct": 98.0,
+        "grau_protecao": "IP65",
+        "faixa_temperatura_c": "-25 a +60",
+        "garantia_anos": 10
+      },
+      "fonte_datasheet": null
+    },
+    {
+      "_id": "inv_10",
+      "_status": "completar",
+      "_campos_faltantes": [
+        "modelo_comercial_datasheet",
+        "fonte_datasheet"
+      ],
+      "fabricante": "SAJ",
+      "modelo": "INVERSOR SAJ 15KW TRIFÁSICO 220V",
+      "modelo_comercial_datasheet": null,
+      "tipo": "Inversor String On-Grid",
+      "fase_ca": "TRIFASICO",
+      "entrada_cc": {
+        "potencia_max_arranjo_wp": "22500",
+        "tensao_rastreamento_mppt_v": "180 - 1000",
+        "faixa_tensao_operacao_v": "150 - 1000",
+        "tensao_entrada_max_v": 1100,
+        "corrente_entrada_cc_max_a": null,
+        "corrente_entrada_cc_max_a_por_mppt": [
+          32,
+          32
+        ],
+        "numero_mppts": 2,
+        "strings_por_mppt": [
+          2,
+          2
+        ],
+        "modulos_por_mppt": null,
+        "micros_max_por_disjuntor_ca": null,
+        "topologia_tipica": null
+      },
+      "saida_ca": {
+        "potencia_max_saida_w": 15000,
+        "corrente_saida_max_a": 39.5,
+        "tensao_ca_nominal_faixa_v": "380 / 220 - 280",
+        "frequencia_nominal_faixa_hz": "60 / 59.9 - 60.1",
+        "fator_potencia": "> 0.99",
+        "thd_corrente_pct": "< 3"
+      },
+      "performance": {
+        "eficiencia_pico_pct": 98.8,
+        "eficiencia_ponderada_cec_pct": 98.5,
+        "grau_protecao": "IP65",
+        "faixa_temperatura_c": "-25 a +60",
+        "garantia_anos": 10
+      },
+      "fonte_datasheet": null
+    },
+    {
+      "_id": "inv_11",
+      "_status": "completar",
+      "_campos_faltantes": [
+        "saida_ca.frequencia_nominal_faixa_hz",
+        "saida_ca.fator_potencia",
+        "saida_ca.thd_corrente_pct",
+        "performance.eficiencia_ponderada_cec_pct",
+        "performance.faixa_temperatura_c",
+        "modelo_comercial_datasheet",
+        "fonte_datasheet"
+      ],
+      "fabricante": "SAJ",
+      "modelo": "INVERSOR SAJ 25KW TRIFÁSICO 220V",
+      "modelo_comercial_datasheet": null,
+      "tipo": "Inversor String On-Grid",
+      "fase_ca": "TRIFASICO",
+      "entrada_cc": {
+        "potencia_max_arranjo_wp": "37500",
+        "tensao_rastreamento_mppt_v": "180 - 1000",
+        "faixa_tensao_operacao_v": "200 - 1000",
+        "tensao_entrada_max_v": 1100,
+        "corrente_entrada_cc_max_a": null,
+        "corrente_entrada_cc_max_a_por_mppt": [
+          32,
+          32
+        ],
+        "numero_mppts": 2,
+        "strings_por_mppt": [
+          2,
+          2
+        ],
+        "modulos_por_mppt": null,
+        "micros_max_por_disjuntor_ca": null,
+        "topologia_tipica": "Até 4 strings — validar Isc paralelo ≤ 32 A/MPPT"
+      },
+      "saida_ca": {
+        "potencia_max_saida_w": 25000,
+        "corrente_saida_max_a": 36.2,
+        "tensao_ca_nominal_faixa_v": "380 / 220 - 280",
+        "frequencia_nominal_faixa_hz": null,
+        "fator_potencia": null,
+        "thd_corrente_pct": null
+      },
+      "performance": {
+        "eficiencia_pico_pct": 98.8,
+        "eficiencia_ponderada_cec_pct": null,
+        "grau_protecao": "IP65",
+        "faixa_temperatura_c": null,
+        "garantia_anos": 10
+      },
+      "fonte_datasheet": null
+    },
+    {
+      "_id": "inv_12",
+      "_status": "completar",
+      "_campos_faltantes": [
+        "entrada_cc.faixa_tensao_operacao_v",
+        "saida_ca.corrente_saida_max_a",
+        "saida_ca.frequencia_nominal_faixa_hz",
+        "saida_ca.fator_potencia",
+        "saida_ca.thd_corrente_pct",
+        "performance.eficiencia_ponderada_cec_pct",
+        "performance.faixa_temperatura_c",
+        "modelo_comercial_datasheet",
+        "fonte_datasheet"
+      ],
+      "fabricante": "DEYE",
+      "modelo": "INVERSOR DEYE 25KW TRIFÁSICO 220V",
+      "modelo_comercial_datasheet": null,
+      "tipo": "Inversor String On-Grid",
+      "fase_ca": "TRIFASICO",
+      "entrada_cc": {
+        "potencia_max_arranjo_wp": "37500",
+        "tensao_rastreamento_mppt_v": "200 - 1000",
+        "faixa_tensao_operacao_v": null,
+        "tensao_entrada_max_v": 1100,
+        "corrente_entrada_cc_max_a": null,
+        "corrente_entrada_cc_max_a_por_mppt": [
+          54,
+          48
+        ],
+        "numero_mppts": 2,
+        "strings_por_mppt": [
+          2,
+          2
+        ],
+        "modulos_por_mppt": null,
+        "micros_max_por_disjuntor_ca": null,
+        "topologia_tipica": null
+      },
+      "saida_ca": {
+        "potencia_max_saida_w": 25000,
+        "corrente_saida_max_a": null,
+        "tensao_ca_nominal_faixa_v": "380 / 220 - 280",
+        "frequencia_nominal_faixa_hz": null,
+        "fator_potencia": null,
+        "thd_corrente_pct": null
+      },
+      "performance": {
+        "eficiencia_pico_pct": 98.2,
+        "eficiencia_ponderada_cec_pct": null,
+        "grau_protecao": "IP65",
+        "faixa_temperatura_c": null,
+        "garantia_anos": 10
+      },
+      "fonte_datasheet": null
+    }
+  ]
+}

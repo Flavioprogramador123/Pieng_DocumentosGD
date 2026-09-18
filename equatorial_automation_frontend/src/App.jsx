@@ -58,6 +58,9 @@ function App() {
     client_name: '',
     cpf: '',
     rg: '',
+    nome_representante: '',
+    cpf_representante: '',
+    rg_representante: '',
     validade_cnh: '',
     data_nascimento: '',
 
@@ -1496,12 +1499,12 @@ Data do Documento: 15/08/2026
                     </div>
 
                     <div>
-                      <Label htmlFor="cpf">CPF *</Label>
+                      <Label htmlFor="cpf">CPF/CNPJ *</Label>
                       <Input
                         id="cpf"
                         value={clientData.cpf}
                         onChange={(e) => setClientData({...clientData, cpf: e.target.value})}
-                        placeholder="000.000.000-00"
+                        placeholder="000.000.000-00 ou 00.000.000/0000-00"
                       />
                     </div>
 
@@ -1514,6 +1517,40 @@ Data do Documento: 15/08/2026
                         placeholder="00.000.000-0"
                       />
                     </div>
+
+                    {clientData.cpf.replace(/\D/g, '').length === 14 && (
+                      <>
+                        <div className="col-span-2">
+                          <Label htmlFor="nome_representante">Representante Legal (CNPJ) *</Label>
+                          <Input
+                            id="nome_representante"
+                            value={clientData.nome_representante}
+                            onChange={(e) => setClientData({...clientData, nome_representante: e.target.value})}
+                            placeholder="Nome completo do representante"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="cpf_representante">CPF do Representante *</Label>
+                          <Input
+                            id="cpf_representante"
+                            value={clientData.cpf_representante}
+                            onChange={(e) => setClientData({...clientData, cpf_representante: e.target.value})}
+                            placeholder="000.000.000-00"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="rg_representante">RG do Representante</Label>
+                          <Input
+                            id="rg_representante"
+                            value={clientData.rg_representante}
+                            onChange={(e) => setClientData({...clientData, rg_representante: e.target.value})}
+                            placeholder="00.000.000-0"
+                          />
+                        </div>
+                      </>
+                    )}
 
                     <div>
                       <Label htmlFor="validade_cnh">Validade da CNH</Label>

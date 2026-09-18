@@ -651311,7 +651311,7 @@ AcDbMText
  72
      5
   1
-\{\{QTD_MODULOS_2D\}\} x Módulos Fotovoltaicos de \{\{POTENCIA_MODULO\}\} Wp, marca \{\{FABRICANTE_MODULO\}\} POT UNIT: \{\{POTENCIA_MODULO_KWP\}\}Wp^JPOT TOTAL:  \{\{POTENCIA_PAINEL_KWP\}\} KW
+\{\{QTD_MODULOS_2D\}\} x Módulos Fotovoltaicos de \{\{POTENCIA_MODULO\}\} Wp, marca \{\{FABRICANTE_MODULO\}\} POT UNIT: \{\{POTENCIA_MODULO_KWP\}\}kWp^JPOT TOTAL:  \{\{POTENCIA_PAINEL_KWP\}\} KW
   7
 T3.5
  73
@@ -737597,7 +737597,7 @@ AcDbMText
  72
      5
   1
-\P{\H0.83333x;\C256;\{\{TENSAO_NOMINAL_DISJUNTOR\}\}} A
+\P{\H0.83333x;\C256;\{\{DISJUNTOR_CA_PADRAO_A\}\}} A
   7
 STANDARD-0.1
  73

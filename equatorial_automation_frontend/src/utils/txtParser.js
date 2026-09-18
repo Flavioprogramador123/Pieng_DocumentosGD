@@ -11,11 +11,20 @@ const FIELD_MAPPING_RAW = {
   'razao social': 'client_name',
 
   'cpf': 'cpf',
+  'cnpj': 'cpf',
   'cpf cnpj': 'cpf',
 
   'rg': 'rg',
   'identidade': 'rg',
   'rg ssp': 'rg',
+
+  'nome do representante': 'nome_representante',
+  'nome do representante legal': 'nome_representante',
+  'representante legal': 'nome_representante',
+  'cpf do representante': 'cpf_representante',
+  'cpf representante': 'cpf_representante',
+  'rg do representante': 'rg_representante',
+  'rg representante': 'rg_representante',
 
   'validade cnh': 'validade_cnh',
   'validade da cnh': 'validade_cnh',
@@ -249,15 +258,19 @@ export function toIsoDate(value) {
 
 export function formatCpf(value) {
   const digits = String(value || '').replace(/\D/g, '')
-  if (digits.length !== 11) {
-    const first = String(value || '').split('/')[0].trim()
-    const firstDigits = first.replace(/\D/g, '')
-    if (firstDigits.length === 11) {
-      return firstDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
-    }
-    return first || String(value || '').trim()
+  if (digits.length === 11) {
+    return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
   }
-  return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+  if (digits.length === 14) {
+    return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+  }
+  // Linhas com CPF repetido/duplicado (ex.: "426.985.961-04 / 42698596104"): usa o primeiro trecho.
+  const first = String(value || '').split('/')[0].trim()
+  const firstDigits = first.replace(/\D/g, '')
+  if (firstDigits.length === 11) {
+    return firstDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+  }
+  return first || String(value || '').trim()
 }
 
 export function formatCep(value) {
@@ -750,6 +763,11 @@ export function parseTxtData(txtContent) {
       continue
     }
 
+    if (mappedField === 'cpf_representante') {
+      client.cpf_representante = formatCpf(value)
+      continue
+    }
+
     if (mappedField === 'rg') {
       if (looksLikeRg(value)) client.rg = value.replace(/\s+/g, ' ').trim()
       continue
@@ -829,6 +847,7 @@ export function parseTxtData(txtContent) {
     const clientFields = [
       'client_name', 'email', 'logradouro', 'numero',
       'complemento', 'bairro', 'cidade', 'uf',
+      'nome_representante', 'rg_representante',
     ]
     if (clientFields.includes(mappedField)) {
       client[mappedField] = mappedField === 'uf' ? value.toUpperCase().slice(0, 2) : value

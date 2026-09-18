@@ -145,6 +145,12 @@ def create_txt_data(data):
         lines.append(f"CPF: {cliente['cpf']}")
     if cliente.get('rg'):
         lines.append(f"RG: {cliente['rg']}")
+    if cliente.get('nome_representante'):
+        lines.append(f"Nome do Representante: {cliente['nome_representante']}")
+    if cliente.get('cpf_representante'):
+        lines.append(f"CPF do Representante: {cliente['cpf_representante']}")
+    if cliente.get('rg_representante'):
+        lines.append(f"RG do Representante: {cliente['rg_representante']}")
     if cliente.get('data_nascimento'):
         lines.append(f"Data de Nascimento: {cliente['data_nascimento']}")
     validade_cnh = cliente.get('validade_cnh') or '05/06/2023'
