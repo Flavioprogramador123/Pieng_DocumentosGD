@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
+import { displayCalcTokenValue } from '@/utils/calcFormTokens.js'
 
 function _fmt(n) {
   if (n == null || n === '') return '—'
@@ -76,19 +77,13 @@ function MetricCard({ label, value, color = 'blue' }) {
   )
 }
 
-function displayValor(item, overrides) {
-  const token = item?.token
-  if (token && overrides && Object.prototype.hasOwnProperty.call(overrides, token)) {
-    return overrides[token]
-  }
-  return item?.valor ?? ''
-}
-
 export function CalculationsResults({
   calculations,
   onApplyToForm,
   tokenOverrides = {},
   onTokenOverrideChange,
+  technicalData = {},
+  clientData = {},
 }) {
   if (!calculations) return null
 
@@ -165,7 +160,7 @@ export function CalculationsResults({
           <h3 className="text-lg font-semibold">Todos os cálculos do sistema</h3>
           {editable && (
             <p className="text-xs text-muted-foreground">
-              Valores com token são editáveis — o que você ajustar vai para o documento final.
+              Prefere o valor dos Dados Técnicos. O âmbar marca o que difere do sugerido pelo cálculo.
               {overrideCount > 0 ? ` (${overrideCount} alterado${overrideCount > 1 ? 's' : ''})` : ''}
             </p>
           )}
@@ -178,11 +173,25 @@ export function CalculationsResults({
                 <tbody>
                   {items.map((item, idx) => {
                     const token = item.token
-                    const valor = displayValor(item, tokenOverrides)
-                    const edited = token && Object.prototype.hasOwnProperty.call(tokenOverrides || {}, token)
+                    const valor = displayCalcTokenValue(item, tokenOverrides, technicalData, clientData)
+                    const edited = Boolean(
+                      token
+                      && (
+                        (item.valor_sugerido && String(valor).trim() !== String(item.valor_sugerido).trim())
+                        || (tokenOverrides && Object.prototype.hasOwnProperty.call(tokenOverrides, token))
+                        || item.fonte === 'formulario'
+                      )
+                    )
                     return (
                       <tr key={`${token || item.rotulo}-${idx}`} className="border-t">
-                        <td className="p-2 text-gray-700 w-1/2">{item.rotulo}</td>
+                        <td className="p-2 text-gray-700 w-1/2">
+                          {item.rotulo}
+                          {item.valor_sugerido && edited ? (
+                            <span className="block text-[11px] font-normal text-amber-700">
+                              Sugerido: {item.valor_sugerido}
+                            </span>
+                          ) : null}
+                        </td>
                         <td className="p-2 font-medium">
                           {editable && token ? (
                             <Input

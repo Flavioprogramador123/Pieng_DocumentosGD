@@ -36,6 +36,7 @@ import './App.css'
 import { buildLocalDeParaPreview } from './utils/deParaMapper'
 import { getInitialTechnicalData, getInitialContractData, EXEMPLO_TEXTO_VALOR_PAGAMENTO_CONTRATO, EXEMPLOS_TEXTO_VALOR_PAGAMENTO, contractFromLegacyTechnical } from './utils/formDefaults'
 import { mergeSuggestedQdcaFields } from '@/utils/qdcaLayout.js'
+import { TOKEN_TO_TECHNICAL, seedTokenOverridesFromForm } from '@/utils/calcFormTokens.js'
 import { parseCoordinateText, syncTechnicalCoordinates } from './utils/coordinateUtils'
 import { computeAreaArranjo } from './utils/areaUtils'
 import { FiguraLocalizacaoPreview } from '@/components/FiguraLocalizacaoPreview.jsx'
@@ -278,30 +279,13 @@ function App() {
     }
   }
 
-  const TOKEN_TO_TECHNICAL = {
-    DISJUNTOR_CA_INVERSOR_A: 'qdca_disjuntor_ca',
-    BITOLA_CABO_CC: 'bitola_cabo_cc',
-    BITOLA_CABO_CA: 'qdca_bitola_ca',
-    QDCA_DISJ_FASE_A: 'qdca_disj_fase_a',
-    QDCA_DISJ_FASE_B: 'qdca_disj_fase_b',
-    QDCA_DISJ_FASE_C: 'qdca_disj_fase_c',
-    QDCA_MICROS_FASE_A: 'qdca_micros_fase_a',
-    QDCA_MICROS_FASE_B: 'qdca_micros_fase_b',
-    QDCA_MICROS_FASE_C: 'qdca_micros_fase_c',
-    DISJUNTOR_GERAL_QDCA_A: 'qdca_disjuntor_geral',
-    QTD_DPS_QDCA: 'qdca_num_dps',
-    MODULOS_POR_STRING: 'modulos_por_string',
-    STRINGS_POR_MPPT: 'strings_por_mppt',
-    QTD_ENTRADAS_MPPT_INVERSOR: 'num_mppt',
-    QDCA_CORRENTE_PROJ: 'qdca_corrente_proj',
-  }
-
   const handleCalcTokenOverride = (token, value) => {
     const next = String(value ?? '')
     setTokenOverrides((prev) => {
       const copy = { ...prev }
-      const original = (calculations?.all_items || []).find((it) => it.token === token)?.valor
-      if (original != null && String(original) === next) {
+      const original = (calculations?.all_items || []).find((it) => it.token === token)
+      const baseline = original?.valor_sugerido ?? original?.valor
+      if (baseline != null && String(baseline) === next) {
         delete copy[token]
       } else {
         copy[token] = next
@@ -314,10 +298,17 @@ function App() {
       const cleaned = numericish
         ? next.replace(/[^\d.,]/g, '').replace(',', '.')
         : next
-      setTechnicalData((prev) => ({ ...prev, [techKey]: cleaned || next }))
-      if (token === 'BITOLA_CABO_CA') {
-        setTechnicalData((prev) => ({ ...prev, bitola_cabo_ca: cleaned || next, qdca_bitola_ca: cleaned || next }))
-      }
+      setTechnicalData((prev) => {
+        const patch = { ...prev, [techKey]: cleaned || next }
+        if (token === 'BITOLA_CABO_CA') {
+          patch.bitola_cabo_ca = cleaned || next
+          patch.qdca_bitola_ca = cleaned || next
+        }
+        if (token === 'DISJUNTOR_ENTRADA') {
+          patch.disjuntor_entrada = cleaned || next
+        }
+        return patch
+      })
     }
     if (token === 'DISJUNTOR_ENTRADA') {
       const cleaned = next.replace(/[^\d.,]/g, '')
@@ -997,7 +988,10 @@ function App() {
 
       if (response.ok && data.success) {
         setCalculations(data.calculations)
-        setTokenOverrides({})
+        // Persiste valores já corrigidos nos Dados Técnicos (não volta ao sugerido).
+        setTokenOverrides(
+          seedTokenOverridesFromForm(data.calculations, technicalData, clientData),
+        )
         if (data.modules?.length) {
           setModules((prev) => prev.map((m, i) => mergeFilled(m, data.modules[i] || {})))
         }
@@ -2661,6 +2655,8 @@ Data do Documento: 15/08/2026
                       onApplyToForm={applyDemandTableToForm}
                       tokenOverrides={tokenOverrides}
                       onTokenOverrideChange={handleCalcTokenOverride}
+                      technicalData={technicalData}
+                      clientData={clientData}
                     />
 
                     <Button onClick={generateDocuments} disabled={loading} className="w-full">

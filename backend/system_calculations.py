@@ -114,6 +114,124 @@ def _format_bitola_ca(val) -> str:
     return f'{text}mm²'
 
 
+def _format_bitola_display(val: Any) -> str:
+    """Normaliza bitola do formulário para exibição (ex.: 6 → 6 mm²)."""
+    text = str(val or '').strip()
+    if not text:
+        return ''
+    mm = _parse_bitola_mm2(text)
+    if mm is None:
+        return text
+    n = int(mm) if float(mm).is_integer() else mm
+    return f'{n} mm²'
+
+
+def _first_nonempty(*candidates: Any) -> str:
+    for c in candidates:
+        if c is None:
+            continue
+        text = str(c).strip()
+        if text:
+            return text
+    return ''
+
+
+def _form_token_values(technical: dict, client: dict) -> dict[str, str]:
+    """Valores já digitados no formulário — têm prioridade sobre o sugerido na aba Cálculos."""
+    tech = technical or {}
+    cli = client or {}
+    out: dict[str, str] = {}
+
+    bitola_cc = _format_bitola_display(tech.get('bitola_cabo_cc'))
+    if bitola_cc:
+        out['BITOLA_CABO_CC'] = bitola_cc
+
+    bitola_ca = _format_bitola_display(tech.get('qdca_bitola_ca') or tech.get('bitola_cabo_ca'))
+    if bitola_ca:
+        out['BITOLA_CABO_CA'] = bitola_ca
+
+    bitola_padrao = _format_bitola_display(tech.get('bitola_cabo_padrao'))
+    if bitola_padrao:
+        out['BITOLA_CABO_PADRAO'] = bitola_padrao
+
+    disj_entrada = _first_nonempty(tech.get('disjuntor_entrada'), cli.get('disjuntor_entrada'))
+    if disj_entrada:
+        digits = re.sub(r'[^\d.,]', '', disj_entrada).replace(',', '.')
+        out['DISJUNTOR_ENTRADA'] = f'{digits} A' if digits else disj_entrada
+
+    curva = _first_nonempty(tech.get('curva_disjuntor'), tech.get('disjuntor_curva'))
+    if curva:
+        out['CURVA_ATUACAO_DISJUNTOR'] = curva
+
+    tensao = _first_nonempty(cli.get('tensao_atendimento'), tech.get('tensao_atendimento'))
+    if tensao:
+        out['TENSAO_ATENDIMENTO'] = tensao
+
+    tipo_rede = _first_nonempty(cli.get('tipo_ligacao'), tech.get('tipo_ligacao'))
+    if tipo_rede:
+        out['TIPO_REDE'] = tipo_rede
+
+    for token, key in (
+        ('DISJUNTOR_CA_INVERSOR_A', 'qdca_disjuntor_ca'),
+        ('DISJUNTOR_GERAL_QDCA_A', 'qdca_disjuntor_geral'),
+        ('QDCA_DISJ_FASE_A', 'qdca_disj_fase_a'),
+        ('QDCA_DISJ_FASE_B', 'qdca_disj_fase_b'),
+        ('QDCA_DISJ_FASE_C', 'qdca_disj_fase_c'),
+        ('QDCA_MICROS_FASE_A', 'qdca_micros_fase_a'),
+        ('QDCA_MICROS_FASE_B', 'qdca_micros_fase_b'),
+        ('QDCA_MICROS_FASE_C', 'qdca_micros_fase_c'),
+        ('QDCA_CORRENTE_PROJ', 'qdca_corrente_proj'),
+        ('QTD_DPS_QDCA', 'qdca_num_dps'),
+        ('BITOLA_TRONCO_QDCA', 'qdca_bitola_tronco'),
+        ('MODULOS_POR_STRING', 'modulos_por_string'),
+        ('STRINGS_POR_MPPT', 'strings_por_mppt'),
+        ('QTD_ENTRADAS_MPPT_INVERSOR', 'num_mppt'),
+    ):
+        raw = _first_nonempty(tech.get(key))
+        if not raw:
+            continue
+        if token.endswith('_A') or token in ('QDCA_CORRENTE_PROJ',):
+            digits = re.sub(r'[^\d.,]', '', raw).replace(',', '.')
+            out[token] = f'{digits} A' if digits and token.endswith('_A') else (digits or raw)
+        elif token == 'BITOLA_TRONCO_QDCA':
+            out[token] = _format_bitola_display(raw) or raw
+        else:
+            out[token] = raw
+
+    return out
+
+
+def _normalize_comparable(token: str, value: str) -> str:
+    text = str(value or '').strip().lower().replace(' ', '')
+    if 'BITOLA' in (token or ''):
+        mm = _parse_bitola_mm2(value)
+        return f'{mm:g}' if mm is not None else text
+    if (token and (token.endswith('_A') or token in ('DISJUNTOR_ENTRADA', 'QDCA_CORRENTE_PROJ'))):
+        digits = re.sub(r'[^\d.,]', '', str(value or '')).replace(',', '.')
+        return digits or text
+    return text
+
+
+def _apply_form_priority_to_items(items: list[dict], form_vals: dict[str, str]) -> list[dict]:
+    """Troca valor exibido pelo do formulário quando existir; guarda o sugerido."""
+    if not form_vals:
+        return items
+    for item in items:
+        token = item.get('token')
+        if not token or token not in form_vals:
+            continue
+        form_val = form_vals[token]
+        suggested = str(item.get('valor') or '')
+        if _normalize_comparable(token, form_val) == _normalize_comparable(token, suggested):
+            # Mesmo valor — só padroniza a exibição com a formatação do formulário.
+            item['valor'] = form_val
+            continue
+        item['valor_sugerido'] = suggested
+        item['valor'] = form_val
+        item['fonte'] = 'formulario'
+    return items
+
+
 def _apply_micro_qdca_display(
     *,
     qdca: dict[str, Any] | None,
@@ -513,10 +631,14 @@ def calculate_technical_parameters(modules, inverters, context: dict | None = No
             'warnings': [m for m in compatibility_messages if compatibility_status != 'OK'],
             'errors': [m for m in compatibility_messages if compatibility_status == 'ERRO'],
         },
+        'form_token_values': _form_token_values(technical, client),
         'all_items': [],
     }
 
-    result['all_items'] = _build_all_items(result)
+    result['all_items'] = _apply_form_priority_to_items(
+        _build_all_items(result),
+        result['form_token_values'],
+    )
 
     demanda_raw = (
         technical.get('demanda_alvo_kw')
@@ -607,12 +729,18 @@ def _build_all_items(calc: dict) -> list[dict]:
         },
         {'grupo': 'Inversor CA', 'rotulo': 'Conexão', 'valor': inv.get('distribution', '—'), 'token': None},
         {'grupo': 'Inversor CA', 'rotulo': 'Qtd disjuntores CA', 'valor': str(calc.get('num_breakers_ca', '—')), 'token': None},
-        {'grupo': 'Cabos', 'rotulo': 'Bitola CC recomendada', 'valor': calc['cable_section_cc'], 'token': 'BITOLA_CABO_CC'},
+        {'grupo': 'Cabos', 'rotulo': 'Bitola CC (formulário / documento)', 'valor': calc['cable_section_cc'], 'token': 'BITOLA_CABO_CC'},
         {
             'grupo': 'Cabos',
-            'rotulo': 'Bitola CA QDCA' if is_micro_qdca else 'Bitola CA inversor',
+            'rotulo': 'Bitola CA QDCA' if is_micro_qdca else 'Bitola CA (formulário / documento)',
             'valor': calc['cable_section_ca'],
             'token': 'BITOLA_CABO_CA',
+        },
+        {
+            'grupo': 'Cabos',
+            'rotulo': 'Bitola padrão de entrada',
+            'valor': (calc.get('cables') or {}).get('recommended_padrao') or '—',
+            'token': 'BITOLA_CABO_PADRAO',
         },
         {'grupo': 'Economia', 'rotulo': 'Economia mensal estimada', 'valor': f"R$ {calc['economia_mensal_estimada']}", 'token': None},
     ])

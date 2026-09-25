@@ -203,3 +203,22 @@ modulos_solares:
   fusivel_serie_a: 30
   notas: Bifacial N-Type, Cabo Curto
   fonte_datasheet: Datasheet Jinko Tiger Neo JKM630N-78HL4-BDV
+- marca: Hanersun
+  modelo_comercial: Hanersun 620W Bifacial
+  fabricante_real: Hanersun
+  potencia_w: 620
+  bifacial: true
+  eficiencia_pct: 23.0
+  tecnologia: N-TOPCon
+  voc_v: 49.12
+  isc_a: 16.06
+  vmp_v: 40.95
+  imp_a: 15.15
+  coef_temp_voc_pct_c: -0.23
+  coef_temp_isc_pct_c: 0.045
+  coef_temp_pmax_pct_c: -0.28
+  dimensoes_mm: 2382x1134x30
+  peso_kg: 27.0
+  fusivel_serie_a: 30
+  notas: TIER1 - PREVISAO 21/09
+  fonte_datasheet: https://www.hanersun.com/wp-content/uploads/download/au/HN21RN-66H.pdf
