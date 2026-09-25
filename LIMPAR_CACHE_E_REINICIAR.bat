@@ -9,7 +9,7 @@ echo.
 
 REM Parar todos os processos
 echo [1/5] Parando processos...
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5173" ^| findstr "LISTENING"') do (
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5180" ^| findstr "LISTENING"') do (
     taskkill /F /PID %%a >nul 2>&1
 )
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5000" ^| findstr "LISTENING"') do (
@@ -71,7 +71,7 @@ timeout /t 3 /nobreak >nul
 start "" cmd /c "%~dp0equatorial_automation_frontend\start_frontend.bat"
 
 timeout /t 5 /nobreak >nul
-start http://127.0.0.1:5173
+start http://127.0.0.1:5180
 
 echo.
 echo [OK] Sistema iniciado!

@@ -4,7 +4,7 @@ color 0E
 
 cd /d "%~dp0equatorial_automation_frontend"
 
-call "%~dp0kill_port_5173.bat"
+call "%~dp0kill_port_5180.bat"
 
 REM Verificar node_modules
 if not exist "node_modules" (

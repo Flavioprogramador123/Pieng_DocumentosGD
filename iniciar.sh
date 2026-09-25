@@ -25,7 +25,7 @@ echo "[1/2] Backend http://127.0.0.1:5000"
 .venv/bin/python api_server.py &
 BACKEND_PID=$!
 
-echo "[2/2] Frontend http://localhost:5173"
+echo "[2/2] Frontend http://localhost:5180"
 cd "$ROOT/equatorial_automation_frontend"
 if [ ! -d node_modules ]; then
     pnpm install

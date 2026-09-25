@@ -49,11 +49,11 @@ if %errorlevel%==0 (
 )
 
 REM Verifica frontend
-echo [*] Verificando frontend (porta 5173)...
-netstat -ano | findstr ":5173" | findstr "LISTENING" >nul 2>&1
+echo [*] Verificando frontend (porta 5180)...
+netstat -ano | findstr ":5180" | findstr "LISTENING" >nul 2>&1
 if %errorlevel%==0 (
     echo     [OK] Frontend rodando
-    powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:5173/' -UseBasicParsing -TimeoutSec 2; Write-Host '     [OK] Frontend respondendo:' $r.StatusCode } catch { Write-Host '     [!] Frontend nao responde' }"
+    powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:5180/' -UseBasicParsing -TimeoutSec 2; Write-Host '     [OK] Frontend respondendo:' $r.StatusCode } catch { Write-Host '     [!] Frontend nao responde' }"
 ) else (
     echo     [X] Frontend NAO esta rodando
 )

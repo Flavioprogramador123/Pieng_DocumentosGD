@@ -99,12 +99,12 @@ if not exist "node_modules" (
     call pnpm install >nul 2>&1
 )
 cd /d "%~dp0"
-call "%~dp0kill_port_5173.bat"
+call "%~dp0kill_port_5180.bat"
 start /min "" cmd /k "%~dp0start_frontend.bat"
 
 set "FRONTEND_OK=0"
 for /L %%i in (1,1,60) do (
-    powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:5173/' -UseBasicParsing -TimeoutSec 2; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+    powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:5180/' -UseBasicParsing -TimeoutSec 2; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
     if not errorlevel 1 (
         set "FRONTEND_OK=1"
         goto :frontend_ready
@@ -125,7 +125,7 @@ if "!FRONTEND_OK!"=="0" (
 echo.
 
 echo   [4/4] Abrindo navegador...
-start http://127.0.0.1:5173
+start http://127.0.0.1:5180
 timeout /T 1 /NOBREAK >nul
 
 cls
@@ -137,9 +137,9 @@ echo   ===================================================
 echo.
 echo   Backend:   http://127.0.0.1:5000  - online
 if "!FRONTEND_OK!"=="1" (
-    echo   Frontend:  http://127.0.0.1:5173  - online
+    echo   Frontend:  http://127.0.0.1:5180  - online
 ) else (
-    echo   Frontend:  http://127.0.0.1:5173  - iniciando, aguarde a janela Vite
+    echo   Frontend:  http://127.0.0.1:5180  - iniciando, aguarde a janela Vite
 )
 echo.
 echo   ===================================================

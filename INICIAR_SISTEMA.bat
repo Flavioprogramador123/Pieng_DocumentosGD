@@ -12,7 +12,7 @@ cd /d "%~dp0"
 REM Verifica se já está rodando (frontend + backend atualizado)
 echo [*] Verificando se sistema ja esta rodando...
 set "SYS_OK=0"
-netstat -ano | findstr ":5173" | findstr "LISTENING" >nul 2>&1
+netstat -ano | findstr ":5180" | findstr "LISTENING" >nul 2>&1
 if %errorlevel%==0 (
     netstat -ano | findstr ":5000" | findstr "LISTENING" >nul 2>&1
     if not errorlevel 1 (
@@ -23,7 +23,7 @@ if %errorlevel%==0 (
 if "%SYS_OK%"=="1" (
     echo [OK] Sistema ja esta rodando!
     echo [*] Abrindo navegador...
-    start http://127.0.0.1:5173
+    start http://127.0.0.1:5180
     timeout /t 2 /nobreak >nul
     exit
 )
@@ -33,9 +33,9 @@ if %errorlevel%==0 (
     echo [!] Backend antigo detectado — reiniciando pilha completa...
     call "%~dp0kill_port_5000.bat" >nul 2>&1
 )
-netstat -ano | findstr ":5173" | findstr "LISTENING" >nul 2>&1
+netstat -ano | findstr ":5180" | findstr "LISTENING" >nul 2>&1
 if %errorlevel%==0 (
-    call "%~dp0kill_port_5173.bat" >nul 2>&1
+    call "%~dp0kill_port_5180.bat" >nul 2>&1
 )
 
 REM Sistema não está rodando (ou foi reiniciado), iniciar tudo
@@ -48,7 +48,7 @@ echo.
 
 REM Mata processos antigos se existirem
 call "%~dp0kill_port_5000.bat" >nul 2>&1
-call "%~dp0kill_port_5173.bat" >nul 2>&1
+call "%~dp0kill_port_5180.bat" >nul 2>&1
 
 REM Configs sigilosas: puxa do Google Drive (se montado) antes do backend
 echo [0/2] Sincronizando configs do Google Drive...
@@ -86,7 +86,7 @@ REM Aguarda frontend ficar online (máximo 15 segundos)
 set "FRONTEND_OK=0"
 for /L %%i in (1,1,15) do (
     timeout /t 1 /nobreak >nul
-    powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:5173/' -UseBasicParsing -TimeoutSec 1; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+    powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:5180/' -UseBasicParsing -TimeoutSec 1; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
     if not errorlevel 1 (
         set "FRONTEND_OK=1"
         goto :frontend_ready
@@ -109,7 +109,7 @@ echo ========================================
 echo.
 
 REM Abre o navegador
-start http://127.0.0.1:5173
+start http://127.0.0.1:5180
 
 REM Aguarda 2 segundos e fecha esta janela
 timeout /t 2 /nobreak >nul

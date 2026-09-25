@@ -180,7 +180,7 @@ Download manual: https://www.opendesign.com/guestfiles/oda_file_converter
 
 1. Execute `VERIFICAR_SISTEMA.bat`
 2. Verifique se Python, Node.js e pnpm estão instalados
-3. Verifique se as portas 5000 e 5173 não estão em uso
+3. Verifique se as portas 5000 e 5180 não estão em uso
 
 ### "Python não encontrado"
 

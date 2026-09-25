@@ -7,7 +7,7 @@ Gera procuração, memorial, contrato, formulário NT.00020-05 e planta CAD a pa
 Na raiz do projeto, execute `iniciar.bat` (Windows) ou `start_all.bat`.
 
 - Backend: http://127.0.0.1:5000
-- Frontend: http://localhost:5173
+- Frontend: http://localhost:5180
 - Login master: usuário `pieng` (senha via `MASTER_PASSWORD_HASH` no `backend/.env`)
 
 ## Estrutura ativa
@@ -26,7 +26,7 @@ obsoleto/                        Código e templates legados
 ## Uso rápido
 
 1. Configure `backend/.env` (hash master, opcional: `CLIENT_OUTPUT_DIR`, SMTP).
-2. Abra http://localhost:5173 e faça login.
+2. Abra http://localhost:5180 e faça login.
 3. Preencha o formulário (número do contrato obrigatório) → **Gerar documentos**.
 4. Pasta do cliente: `{contrato} - {nome}\` no Drive ou `saida/web_generated/`.
 

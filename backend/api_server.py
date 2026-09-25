@@ -66,7 +66,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
 
 # CORS: Apenas origem do frontend local (cookies de sessão)
 CORS(app, origins=[
-    'http://localhost:5173', 'http://127.0.0.1:5173',
+    'http://localhost:5180', 'http://127.0.0.1:5180',
     'http://localhost:5174', 'http://127.0.0.1:5174',
 ], supports_credentials=True)
 
@@ -2253,7 +2253,7 @@ if __name__ == '__main__':
     print("=" * 80)
     print(f"Modo: {'DESENVOLVIMENTO' if is_dev else 'PRODUÇÃO'}")
     print(f"Servidor: http://{'0.0.0.0' if is_dev else '127.0.0.1'}:5000")
-    print(f"Frontend: http://localhost:5173")
+    print(f"Frontend: http://localhost:5180")
     print(f"Diretório base: {BASE_DIR}")
     print(f"Templates: {TEMPLATES_DIR}")
     out_base, out_warn = get_output_base_dir()

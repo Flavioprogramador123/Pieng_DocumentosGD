@@ -3,7 +3,7 @@
 1. Python 3.11+ e Node.js 18+ (pnpm).
 2. Configure `backend/.env` — mínimo: `MASTER_PASSWORD_HASH` (gerar com `python bootstrap_master_hash.py`).
 3. Duplo clique em `start_all.bat` ou `iniciar.bat`.
-4. Navegador em http://localhost:5173 → login `pieng`.
+4. Navegador em http://localhost:5180 → login `pieng`.
 5. Preencha o formulário ( **número do contrato** obrigatório ) → Gerar documentos.
 
 **Dispositivo novo:** informe o e-mail cadastrado → Enviar código → Confirmar.  

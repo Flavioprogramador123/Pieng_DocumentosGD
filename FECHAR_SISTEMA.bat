@@ -14,8 +14,8 @@ echo.
 echo [*] Encerrando backend (porta 5000)...
 call "%~dp0kill_port_5000.bat"
 
-echo [*] Encerrando frontend (porta 5173)...
-call "%~dp0kill_port_5173.bat"
+echo [*] Encerrando frontend (porta 5180)...
+call "%~dp0kill_port_5180.bat"
 
 echo.
 echo [OK] Sistema encerrado com sucesso!
